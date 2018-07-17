@@ -1,0 +1,192 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Creates a new AWS Microsoft AD Directory Service in the specified network",
+
+
+    "Parameters"               : {
+        "ForestRootName" : {
+            "Type" : "String",
+            "Description" : "The FQDN of the directory",
+            "MinLength"   : 3
+        },
+        "AdminPassword"  : {
+            "Type" : "String",
+            "Description" : "The password for the default administrative user, Admin",
+            "MinLength"   : "7",
+            "NoEcho"      : true
+        },
+		"Edition" : {
+			"Type" : "String",
+			"Description" : "The AWS Directory Service edition.",
+			"AllowedValues" : [
+				"Standard",
+				"Enterprise"
+			],
+			"Default" : "Standard"
+		},
+		"CreateAlias" : {
+			"Type" : "String",
+			"Description" : "AWS Directory Service uses the alias to construct the access URL for the directory. This cannot be changed later without creating a new directory.",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "false"
+		},
+		"EnableSso" : {
+			"Type" : "String",
+			"Description" : "Whether to enable single sign-on for a Microsoft Active Directory in AWS.",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "false"
+		},
+        "VpcId"          : {
+            "Type" : "AWS::EC2::VPC::Id",
+            "Description" : "The VPC the directory service will be deployed into."
+        },
+        "Subnet1"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The first subnet to deploy a domain controller to"
+        },
+        "Subnet2"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The second subnet to deploy a domain controller to"
+        },
+        "OrganizationTag" : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "ApplicationTag"  : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag"  : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        }
+    },
+
+
+    "Metadata"                 : {
+        "AWS::CloudFormation::Interface" : {
+            "ParameterGroups" : [
+                {
+                    "Label" : {
+                        "default" : "Network Configuration"
+                    },
+                    "Parameters" : [
+                        "VpcId",
+                        "Subnet1",
+                        "Subnet2"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Directory Service Configuration"
+                    },
+                    "Parameters" : [
+                        "ForestRootName",
+                        "AdminPassword"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Tagging"
+                    },
+                    "Parameters" : [
+                        "OrganizationTag",
+                        "ApplicationTag",
+                        "EnvironmentTag"
+                    ]
+                }
+            ]
+        }
+    },
+
+
+    "Conditions"               : {
+		"CreateDirectoryAlias" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "CreateAlias"
+				},
+				"true"
+			]
+		},
+		"NoAlias" : {
+			"Fn::Not" : [
+				{
+					"Condition" : "CreateDirectoryAlias"
+				}
+			]
+		}
+    },
+
+
+    "Resources"                : {
+        "Directory" : {
+            "Type" : "AWS::DirectoryService::MicrosoftAD",
+            "Properties" : {
+                "CreateAlias" : {
+					"Ref" : "CreateAlias"
+				},
+                "Edition"     :  {
+					"Ref" : "Edition"
+				},
+                "EnableSso"   : {
+					"Ref" : "EnableSso"
+				},
+                "Name"        : {
+                    "Ref" : "ForestRootName"
+                },
+                "Password"    : {
+                    "Ref" : "AdminPassword"
+                },
+                "VpcSettings" : {
+                    "VpcId" : {
+                        "Ref" : "VpcId"
+                    },
+                    "SubnetIds" : [
+                        {
+                            "Ref" : "Subnet1"
+                        },
+                        {
+                            "Ref" : "Subnet2"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+
+
+    "Outputs"                  : {
+		"Alias" : {
+			 "Condition" : "CreateDirectoryAlias",
+			 "Value" : {
+				"Fn::GetAtt": ["Directory", "Alias"]
+			 },
+			 "Description" : "The logical ID of this resource."
+		},
+		"Id" : {
+			"Value" : {
+				"Ref" : "Directory"
+			},
+			"Description" : "The alias for a directory."
+		},
+		"DnsIpAddresses" : {
+			"Value" : {
+				"Fn::GetAtt" : ["Directory", "DnsIpAddresses"]
+			},
+			"Description" : "The IP addresses of the DNS servers for the directory."
+		}
+    }
+}

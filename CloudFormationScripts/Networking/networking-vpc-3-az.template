@@ -1,0 +1,2718 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Creates a standard networking setup with a 3 Availability Zone VPC setup, routes, security groups, NAT gateways, and optionally IPv6.",
+    "Parameters"               : {
+        "VpcCidrBlock" : {
+            "Description" : "The CIDR block for the VPC.",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "192.168.0.0/16"
+        },
+        "EnableIPv6"   : {
+            "Type" : "String",
+            "Description" : "The VPC will be assigned an AWS IPv6 /56 CIDR block and the subnets will be assigned IPv6 /64 CIDR blocks (if this is false a /56 CIDR will still be assigned to the VPC, but not used anywhere).",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "AssignIPv6"   : {
+            "Type" : "String",
+            "Description" : "Whether to auto-assign IPv6 addresses to all subnets. This setting is ignored if IPv6 is set to false.",
+            "AllowedValues" : [
+                "false",
+                "true"
+            ],
+            "Default"       : "false"
+        },
+        "AZ1PublicSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first public subnet in AZ 1.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "Default"               : "192.168.1.0/24"
+        },
+        "AZ2PublicSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first public subnet in AZ 2.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "Default"               : "192.168.2.0/24"
+        },
+        "AZ3PublicSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first public subnet in AZ 3.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "Default"               : "192.168.3.0/24"
+        },
+        "AZ1PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 1.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.10.0/24"
+        },
+        "AZ2PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 2.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.20.0/24"
+        },
+        "AZ3PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 3.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.30.0/24"
+        },
+        "AvailabilityZone1"          : {
+            "Description" : "The first availability zone.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "AvailabilityZone2"          : {
+            "Description" : "The second availability zone.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "AvailabilityZone3"          : {
+            "Description" : "The third availability zone. To not use a third AZ, set this equal to AZ1 or AZ2.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "EnableDnsHostNames"         : {
+            "Description" : "Indicates whether the instances launched in the VPC get public DNS hostnames.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "EnableDnsSupport"           : {
+            "Description" : "Indicates whether the DNS resolution is supported for the VPC.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "ManagementSourceIP"         : {
+            "Description" : "The IP in CIDR of the source for allowed management",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "0.0.0.0/0"
+        },
+        "OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "dev"
+        }
+    },
+
+
+    "Metadata"                 : {
+        "AWS::CloudFormation::Interface" : {
+            "ParameterGroups" : [
+                {
+                    "Label" : {
+                        "default" : "Network Configuration"
+                    },
+                    "Parameters" : [
+                        "AvailabilityZone1",
+                        "AvailabilityZone2",
+                        "AvailabilityZone3",
+                        "VpcCidrBlock",
+                        "EnableIPv6",
+                        "AssignIPv6",
+                        "EnableDnsSupport",
+                        "EnableDnsHostNames",
+                        "ManagementSourceIP"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Public Subnets"
+                    },
+                    "Parameters" : [
+                        "AZ1PublicSubnet1CidrBlock",
+                        "AZ2PublicSubnet1CidrBlock",
+                        "AZ3PublicSubnet1CidrBlock"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Private Subnets"
+                    },
+                    "Parameters" : [
+                        "AZ1PrivateSubnet1CidrBlock",
+                        "AZ2PrivateSubnet1CidrBlock",
+                        "AZ3PrivateSubnet1CidrBlock"
+                    ]
+                },                                              
+                {
+                    "Label" : {
+                        "default" : "Tagging"
+                    },
+                    "Parameters" : [
+                        "OrganizationTag",
+                        "ApplicationTag",
+                        "EnvironmentTag"
+                    ]
+                }
+            ]
+        }
+    },
+
+
+    "Conditions"               : {
+        "ActuallyEnableDnsHostNames" : {
+            "Fn::And" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "EnableDnsHostNames"
+                        },
+                        "true"
+                    ]
+                },
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "EnableDnsSupport"
+                        },
+                        "true"
+                    ]
+                }
+            ]
+        },
+        "UseAZ3"                     : {
+            "Fn::Not" : [
+                {
+                    "Fn::Or" : [
+                        {
+                            "Fn::Equals" : [
+                                {
+                                    "Ref" : "AvailabilityZone3"
+                                },
+                                {
+                                    "Ref" : "AvailabilityZone1"
+                                }
+                            ]
+                        },
+                        {
+                            "Fn::Equals" : [
+                                {
+                                    "Ref" : "AvailabilityZone3"
+                                },
+                                {
+                                    "Ref" : "AvailabilityZone2"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "CreateAZ1PublicSubnet1"     : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "AZ1PublicSubnet1CidrBlock"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "CreateAZ2PublicSubnet1"     : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "AZ2PublicSubnet1CidrBlock"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "CreateAZ3PublicSubnet1"     : {
+            "Fn::And" : [
+                {
+                    "Fn::Not" : [
+                        {
+                            "Fn::Equals" : [
+                                {
+                                    "Ref" : "AZ3PublicSubnet1CidrBlock"
+                                },
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "Condition" : "UseAZ3"
+                }
+            ]
+        },
+        "CreateAZ1PrivateSubnet1"    : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "AZ1PrivateSubnet1CidrBlock"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "CreateAZ2PrivateSubnet1"    : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "AZ2PrivateSubnet1CidrBlock"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "CreateAZ3PrivateSubnet1"    : {
+            "Fn::And" : [
+                {
+                    "Fn::Not" : [
+                        {
+                            "Fn::Equals" : [
+                                {
+                                    "Ref" : "AZ3PrivateSubnet1CidrBlock"
+                                },
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "Condition" : "UseAZ3"
+                }
+            ]
+        },
+        "CreatePublicSubnets"        : {
+            "Fn::Or" : [
+                {
+                    "Condition" : "CreateAZ1PublicSubnet1"
+                },
+                {
+                    "Condition" : "CreateAZ2PublicSubnet1"
+                },
+                {
+                    "Condition" : "CreateAZ3PublicSubnet1"
+                }
+            ]
+        },
+        "CreatePrivateSubnets"       : {
+            "Fn::Or" : [
+                {
+                    "Condition" : "CreateAZ1PrivateSubnet1"
+                },
+                {
+                    "Condition" : "CreateAZ2PrivateSubnet1"
+                },
+                {
+                    "Condition" : "CreateAZ3PrivateSubnet1"
+                }
+            ]
+        },
+        "CreateSubnets"              : {
+            "Fn::Or" : [
+                {
+                    "Condition" : "CreatePublicSubnets"
+                },
+                {
+                    "Condition" : "CreatePrivateSubnets"
+                }
+            ]
+        },
+        "UseIPv6"                    : {
+            "Fn::Equals" : [
+                {
+                    "Ref" : "EnableIPv6"
+                },
+                "true"
+            ]
+        },
+        "AutoAssignIPv6"             : {
+            "Fn::And" : [
+                {
+                    "Condition" : "UseIPv6"
+                },
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "AssignIPv6"
+                        },
+                        "true"
+                    ]
+                }
+            ]
+        }
+    },
+
+
+    "Mappings"                 : {
+        "RegionMap" : {
+            "us-east-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "127311923021",
+				"HostedZoneId" : "Z1UJRXOUMOOFQ8"
+            },
+            "us-east-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "033677994240",
+				"HostedZoneId" : "ZOJJZC49E0EPZ"
+            },
+            "us-west-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "797873946194",
+				"HostedZoneId" : "Z2OJLYMUO9EFXC"
+            },
+            "us-west-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "027434742980",
+				"HostedZoneId" : "Z2MUQ32089INYE"
+            },
+            "ca-central-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "985666609251",
+				"HostedZoneId" : "Z19DQILCV0OWEC"
+            },
+            "eu-west-1"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "156460612806",
+				"HostedZoneId" : "ZLY8HYME6SFDD"
+            },
+            "eu-west-2"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "652711504416",
+				"HostedZoneId" : "ZJ5UAJN8Y3Z2Q"
+            },
+			"eu-west-3"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "009996457667",
+				"HostedZoneId" : "Z3KY65QIEKYHQQ"
+            },
+            "eu-central-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "054676820928",
+				"HostedZoneId" : "Z1U9ULNL0V5AJ3"
+            },
+            "ap-northeast-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "582318560864",
+				"HostedZoneId" : "Z1YSHQZHG15GKL"
+            },
+            "ap-northeast-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "600734575887",
+				"HostedZoneId" : "Z20JF4UZKIW1U8"
+            },
+			"ap-northeast-3" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "383597477331",
+				"HostedZoneId" : "Z2YQB5RD63NC85"
+            },
+            "ap-southeast-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "114774131450",
+				"HostedZoneId" : "ZL327KTPIQFUL"
+            },
+            "ap-southeast-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "783225319266",
+				"HostedZoneId" : "Z2RPCDW04V8134"
+            },
+            "ap-south-1"     : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "718504428378",
+				"HostedZoneId" : "Z3VO1THU9YC4UR"
+            },
+            "sa-east-1"      : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "507241528517",
+				"HostedZoneId" : "ZCMLWB8V5SYIT"
+            },
+            "us-gov-west-1"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "048591011584",
+				"HostedZoneId" : ""
+            },
+            "us-gov-west-2"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+				"HostedZoneId" : ""
+            },
+            "us-gov-east-1"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+				"HostedZoneId" : ""
+            },
+            "us-gov-east-2"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+				"HostedZoneId" : ""
+            },
+            "cn-north-1"     : {
+                "Arn" : "aws-cn",
+                "ELBPrincipalId" : "638102146993",
+				"HostedZoneId" : ""
+            },
+			"cn-northwest-1" : {
+				"Arn" : "aws-cn",
+				"ELBPrincipalId" : "037604701340",
+				"HostedZoneId" : ""
+			}
+        }
+    },
+
+
+    "Resources"                : {
+        "VPC" : {
+            "Type" : "AWS::EC2::VPC",
+            "Properties" : {
+                "CidrBlock" : {
+                    "Ref" : "VpcCidrBlock"
+                },
+                "EnableDnsSupport" : {
+                    "Ref" : "EnableDnsSupport"
+                },
+                "EnableDnsHostnames" : {
+                    "Fn::If" : [
+                        "ActuallyEnableDnsHostNames",
+                        "true",
+                        "false"
+                    ]
+                },
+                "Tags"               : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    "-VPC-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "VPCIPv6" : {
+            "Type" : "AWS::EC2::VPCCidrBlock",
+            "Properties" : {
+                "AmazonProvidedIpv6CidrBlock" : true,
+                "VpcId"                       : {
+                    "Ref" : "VPC"
+                }
+            }
+        },
+        "AZ1PublicSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Condition" : "CreateAZ1PublicSubnet1",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone1"
+                },
+                "CidrBlock"        : {
+                    "Ref" : "AZ1PublicSubnet1CidrBlock"
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        "true"
+                    ]
+                },
+                "Ipv6CidrBlock"       : {
+                    "Fn::If" : [
+                        "UseIPv6",
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Fn::Select" : [
+                                            0,
+                                            {
+                                                "Fn::Split" : [
+                                                    "00::/56",
+                                                    {
+                                                        "Fn::Select" : [
+                                                            0,
+                                                            {
+                                                                "Fn::GetAtt" : [
+                                                                    "VPC",
+                                                                    "Ipv6CidrBlocks"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "00::/64"
+                                ]
+                            ]
+                        },
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "AssignIpv6AddressOnCreation" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        "true",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone1"
+                                    },
+                                    "-PublicSubnet1-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "VPCIPv6"
+            ]
+        },
+        "AZ2PublicSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Condition" : "CreateAZ2PublicSubnet1",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone2"
+                },
+                "CidrBlock"        : {
+                    "Ref" : "AZ2PublicSubnet1CidrBlock"
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        "true"
+                    ]
+                },
+                "Ipv6CidrBlock"       : {
+                    "Fn::If" : [
+                        "UseIPv6",
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Fn::Select" : [
+                                            0,
+                                            {
+                                                "Fn::Split" : [
+                                                    "00::/56",
+                                                    {
+                                                        "Fn::Select" : [
+                                                            0,
+                                                            {
+                                                                "Fn::GetAtt" : [
+                                                                    "VPC",
+                                                                    "Ipv6CidrBlocks"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "85::/64"
+                                ]
+                            ]
+                        },
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "AssignIpv6AddressOnCreation" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        "true",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone2"
+                                    },
+                                    "-PublicSubnet1-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "VPCIPv6"
+            ]
+        },
+        "AZ3PublicSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Condition" : "CreateAZ3PublicSubnet1",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone3"
+                },
+                "CidrBlock"        : {
+                    "Ref" : "AZ3PublicSubnet1CidrBlock"
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        "true"
+                    ]
+                },
+                "Ipv6CidrBlock"       : {
+                    "Fn::If" : [
+                        "UseIPv6",
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Fn::Select" : [
+                                            0,
+                                            {
+                                                "Fn::Split" : [
+                                                    "00::/56",
+                                                    {
+                                                        "Fn::Select" : [
+                                                            0,
+                                                            {
+                                                                "Fn::GetAtt" : [
+                                                                    "VPC",
+                                                                    "Ipv6CidrBlocks"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "AA::/64"
+                                ]
+                            ]
+                        },
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "AssignIpv6AddressOnCreation" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        "true",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone3"
+                                    },
+                                    "-PublicSubnet1-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "VPCIPv6"
+            ]
+        },
+        "AZ1PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Condition" : "CreateAZ1PrivateSubnet1",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone1"
+                },
+                "CidrBlock"        : {
+                    "Ref" : "AZ1PrivateSubnet1CidrBlock"
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        "true"
+                    ]
+                },
+                "Ipv6CidrBlock"       : {
+                    "Fn::If" : [
+                        "UseIPv6",
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Fn::Select" : [
+                                            0,
+                                            {
+                                                "Fn::Split" : [
+                                                    "00::/56",
+                                                    {
+                                                        "Fn::Select" : [
+                                                            0,
+                                                            {
+                                                                "Fn::GetAtt" : [
+                                                                    "VPC",
+                                                                    "Ipv6CidrBlocks"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "01::/64"
+                                ]
+                            ]
+                        },
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "AssignIpv6AddressOnCreation" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        "true",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone1"
+                                    },
+                                    "-PrivateSubnet1-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "VPCIPv6"
+            ]
+        },
+        "AZ2PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Condition" : "CreateAZ2PrivateSubnet1",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone2"
+                },
+                "CidrBlock"        : {
+                    "Ref" : "AZ2PrivateSubnet1CidrBlock"
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        "true"
+                    ]
+                },
+                "Ipv6CidrBlock"       : {
+                    "Fn::If" : [
+                        "UseIPv6",
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Fn::Select" : [
+                                            0,
+                                            {
+                                                "Fn::Split" : [
+                                                    "00::/56",
+                                                    {
+                                                        "Fn::Select" : [
+                                                            0,
+                                                            {
+                                                                "Fn::GetAtt" : [
+                                                                    "VPC",
+                                                                    "Ipv6CidrBlocks"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "86::/64"
+                                ]
+                            ]
+                        },
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "AssignIpv6AddressOnCreation" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        "true",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone2"
+                                    },
+                                    "-PrivateSubnet1-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "VPCIPv6"
+            ]
+        },
+        "AZ3PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Condition" : "CreateAZ3PrivateSubnet1",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone3"
+                },
+                "CidrBlock"        : {
+                    "Ref" : "AZ3PrivateSubnet1CidrBlock"
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        "true"
+                    ]
+                },
+                "Ipv6CidrBlock"       : {
+                    "Fn::If" : [
+                        "UseIPv6",
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Fn::Select" : [
+                                            0,
+                                            {
+                                                "Fn::Split" : [
+                                                    "00::/56",
+                                                    {
+                                                        "Fn::Select" : [
+                                                            0,
+                                                            {
+                                                                "Fn::GetAtt" : [
+                                                                    "VPC",
+                                                                    "Ipv6CidrBlocks"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "AB::/64"
+                                ]
+                            ]
+                        },
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "AssignIpv6AddressOnCreation" : {
+                    "Fn::If" : [
+                        "AutoAssignIPv6",
+                        "true",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        }
+                    ]
+                },
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone3"
+                                    },
+                                    "-PrivateSubnet1-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "VPCIPv6"
+            ]
+        },
+        "InternetGateway"   : {
+            "Type" : "AWS::EC2::InternetGateway",
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    "-IGW-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : "VPC"
+        },
+        "AttachGateway"     : {
+            "Type" : "AWS::EC2::VPCGatewayAttachment",
+            "Properties" : {
+                "InternetGatewayId" : {
+                    "Ref" : "InternetGateway"
+                },
+                "VpcId"             : {
+                    "Ref" : "VPC"
+                }
+            },
+            "DependsOn"  : "InternetGateway"
+        },
+        "PublicRouteTable"  : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    "-PublicRouteTable-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "PublicRoute"       : {
+            "Type" : "AWS::EC2::Route",
+            "DependsOn" : [
+                "AttachGateway"
+            ],
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId"            : {
+                    "Ref" : "InternetGateway"
+                },
+                "RouteTableId"         : {
+                    "Ref" : "PublicRouteTable"
+                }
+            }
+        },
+        "PublicRouteIPv6"   : {
+            "Type" : "AWS::EC2::Route",
+            "Condition" : "UseIPv6",
+            "DependsOn" : [
+                "AttachGateway"
+            ],
+            "Properties" : {
+                "DestinationIpv6CidrBlock" : "::/0",
+                "GatewayId"                : {
+                    "Ref" : "InternetGateway"
+                },
+                "RouteTableId"             : {
+                    "Ref" : "PublicRouteTable"
+                }
+            }
+        },
+        "PrivateRouteTable1" : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone1"
+                                    },
+                                    "-PrivateRouteTable-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "PrivateRouteTable2" : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone2"
+                                    },
+                                    "-PrivateRouteTable-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "PrivateRouteTable3" : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Condition" : "UseAZ3",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AvailabilityZone3"
+                                    },
+                                    "-PrivateRouteTable-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "PrivateRoute1"      : {
+            "Type" : "AWS::EC2::Route",
+            "Condition" : "CreateAZ1PublicSubnet1",
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "NatGatewayId"         : {
+                    "Ref" : "NATGateway1"
+                },
+                "RouteTableId"         : {
+                    "Ref" : "PrivateRouteTable1"
+                }
+            }
+        },
+        "PrivateRoute2"      : {
+            "Type" : "AWS::EC2::Route",
+            "Condition" : "CreateAZ2PublicSubnet1",
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "NatGatewayId"         : {
+                    "Ref" : "NATGateway2"
+                },
+                "RouteTableId"         : {
+                    "Ref" : "PrivateRouteTable2"
+                }
+            }
+        },
+        "PrivateRoute3"      : {
+            "Type" : "AWS::EC2::Route",
+            "Condition" : "CreateAZ3PublicSubnet1",
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "NatGatewayId"         : {
+                    "Ref" : "NATGateway3"
+                },
+                "RouteTableId"         : {
+                    "Ref" : "PrivateRouteTable3"
+                }
+            }
+        },
+        "PrivateRoute1IPv6"  : {
+            "Type" : "AWS::EC2::Route",
+            "Condition" : "UseIPv6",
+            "Properties" : {
+                "DestinationIpv6CidrBlock" : "::/0",
+                "EgressOnlyInternetGatewayId" : {
+                    "Ref" : "EgressOnlyGateway"
+                },
+                "RouteTableId"                : {
+                    "Ref" : "PrivateRouteTable1"
+                }
+            }
+        },
+        "PrivateRoute2IPv6"  : {
+            "Type" : "AWS::EC2::Route",
+            "Condition" : "UseIPv6",
+            "Properties" : {
+                "DestinationIpv6CidrBlock" : "::/0",
+                "EgressOnlyInternetGatewayId" : {
+                    "Ref" : "EgressOnlyGateway"
+                },
+                "RouteTableId"                : {
+                    "Ref" : "PrivateRouteTable2"
+                }
+            }
+        },
+        "PrivateRoute3IPv6"  : {
+            "Type" : "AWS::EC2::Route",
+            "Condition" : "UseIPv6",
+            "Properties" : {
+                "DestinationIpv6CidrBlock" : "::/0",
+                "EgressOnlyInternetGatewayId" : {
+                    "Ref" : "EgressOnlyGateway"
+                },
+                "RouteTableId"                : {
+                    "Ref" : "PrivateRouteTable3"
+                }
+            }
+        },
+        "AZ1PublicSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Condition" : "CreateAZ1PublicSubnet1",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ1PublicSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PublicRouteTable"
+                }
+            },
+            "DependsOn"  : [
+                "PublicRoute"
+            ]
+        },
+        "AZ2PublicSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Condition" : "CreateAZ2PublicSubnet1",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ2PublicSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PublicRouteTable"
+                }
+            },
+            "DependsOn"  : [
+                "PublicRoute"
+            ]
+        },
+        "AZ3PublicSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Condition" : "CreateAZ3PublicSubnet1",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ3PublicSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PublicRouteTable"
+                }
+            },
+            "DependsOn"  : [
+                "PublicRoute"
+            ]
+        },
+        "AZ1PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Condition" : "CreateAZ1PrivateSubnet1",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ1PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable1"
+                }
+            }
+        },
+        "AZ2PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Condition" : "CreateAZ2PrivateSubnet1",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ2PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable2"
+                }
+            }
+        },
+        "AZ3PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Condition" : "CreateAZ3PrivateSubnet1",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ3PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable3"
+                }
+            }
+        },
+        "ElasticIp1"                             : {
+            "Type" : "AWS::EC2::EIP",
+            "Condition" : "CreateAZ1PublicSubnet1",
+            "Properties" : {
+                "Domain" : "vpc"
+            }
+        },
+        "NATGateway1"                            : {
+            "Type" : "AWS::EC2::NatGateway",
+            "Condition" : "CreateAZ1PublicSubnet1",
+            "Properties" : {
+                "AllocationId" : {
+                    "Fn::GetAtt" : [
+                        "ElasticIp1",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId"     : {
+                    "Ref" : "AZ1PublicSubnet1"
+                }
+            }
+        },
+        "ElasticIp2"                             : {
+            "Type" : "AWS::EC2::EIP",
+            "Condition" : "CreateAZ2PublicSubnet1",
+            "Properties" : {
+                "Domain" : "vpc"
+            }
+        },
+        "NATGateway2"                            : {
+            "Type" : "AWS::EC2::NatGateway",
+            "Condition" : "CreateAZ2PublicSubnet1",
+            "Properties" : {
+                "AllocationId" : {
+                    "Fn::GetAtt" : [
+                        "ElasticIp2",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId"     : {
+                    "Ref" : "AZ2PublicSubnet1"
+                }
+            }
+        },
+        "ElasticIp3"                             : {
+            "Type" : "AWS::EC2::EIP",
+            "Condition" : "CreateAZ3PublicSubnet1",
+            "Properties" : {
+                "Domain" : "vpc"
+            }
+        },
+        "NATGateway3"                            : {
+            "Type" : "AWS::EC2::NatGateway",
+            "Condition" : "CreateAZ3PublicSubnet1",
+            "Properties" : {
+                "AllocationId" : {
+                    "Fn::GetAtt" : [
+                        "ElasticIp3",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId"     : {
+                    "Ref" : "AZ3PublicSubnet1"
+                }
+            }
+        },
+        "EgressOnlyGateway"                      : {
+            "Type" : "AWS::EC2::EgressOnlyInternetGateway",
+            "Condition" : "UseIPv6",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                }
+            }
+        },
+        "BastionSecurityGroup"                   : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Security group for the Bastion Instance",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "22",
+                        "ToPort"     : "22",
+                        "CidrIp"     : {
+                            "Ref" : "ManagementSourceIP"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "3389",
+                        "ToPort"     : "3389",
+                        "CidrIp"     : {
+                            "Ref" : "ManagementSourceIP"
+                        }
+                    }
+                ],
+                "Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "SG-",
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    "-BastionHost-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "SSHSecurityGroup"                       : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Enable SSH access via port 22",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "22",
+                        "ToPort"     : "22",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    }
+                ],
+                "Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "SG-",
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    "-SSHFromBastionHost-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },                   
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "WindowsRemoteManagementSecurityGroup"   : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Allows Remote RPC, WinRM, ICMP, and RDP from the Bastion Host.",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "135",
+                        "ToPort"     : "135",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "5985",
+                        "ToPort"     : "5986",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "49152",
+                        "ToPort"     : "65535",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "445",
+                        "ToPort"     : "445",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "icmp",
+                        "FromPort"   : "-1",
+                        "ToPort"     : "-1",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "137",
+                        "ToPort"     : "138",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "139",
+                        "ToPort"     : "139",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "3389",
+                        "ToPort"     : "3389",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    }
+                ],
+                "Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "SG-",
+                                    {
+                                        "Ref" : "ApplicationTag"
+                                    },
+                                    "-",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    "-WindowsRemoteManagementFromBastionHost-",
+                                    {
+                                        "Ref" : "EnvironmentTag"
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+
+
+    "Outputs"                  : {
+        "VpcArn" : {
+            "Value" : {
+                "Fn::Join" : [
+                    "",
+                    [
+                        "arn:",
+                        {
+                            "Fn::FindInMap" : [
+                                "RegionMap",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                "Arn"
+                            ]
+                        },
+                        ":ec2:",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        ":",
+                        {
+                            "Ref" : "AWS::AccountId"
+                        },
+                        ":vpc/",
+                        {
+                            "Ref" : "VPC"
+                        }
+                    ]
+                ]
+            }
+        },
+		"VpcId" : {
+			"Value" : {
+				"Ref" : "VPC"
+			}
+		},
+        "SubnetArns" : {
+            "Value" : {
+                "Fn::If" : [
+                    "CreateSubnets",
+                    {
+                        "Fn::Join" : [
+                            ",",
+                            [
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ1PublicSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":subnet/",
+                                                    {
+                                                        "Ref" : "AZ1PublicSubnet1"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ2PublicSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":subnet/",
+                                                    {
+                                                        "Ref" : "AZ2PublicSubnet1"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ3PublicSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":subnet/",
+                                                    {
+                                                        "Ref" : "AZ3PublicSubnet1"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ1PrivateSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":subnet/",
+                                                    {
+                                                        "Ref" : "AZ1PrivateSubnet1"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ2PrivateSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":subnet/",
+                                                    {
+                                                        "Ref" : "AZ2PrivateSubnet1"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ3PrivateSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":subnet/",
+                                                    {
+                                                        "Ref" : "AZ3PrivateSubnet1"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                }
+                            ]
+                        ]
+                    },
+                    ""
+                ]
+            }
+        },
+		"AZ1PrivateSubnet1Id": {
+			"Value" : {
+				"Ref" : "AZ1PrivateSubnet1"
+			}
+		},
+		"AZ2PrivateSubnet1Id": {
+			"Value" : {
+				"Ref" : "AZ2PrivateSubnet1"
+			}
+		},
+		"AZ3PrivateSubnet1Id": {
+			"Value" : {
+				"Ref" : "AZ3PrivateSubnet1"
+			}
+		},
+        "InternetGatewayArns" : {
+            "Value" : {
+                "Fn::Join" : [
+                    ",",
+                    [
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "arn:",
+                                    {
+                                        "Fn::FindInMap" : [
+                                            "RegionMap",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "Arn"
+                                        ]
+                                    },
+                                    ":ec2:",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    ":",
+                                    {
+                                        "Ref" : "AWS::AccountId"
+                                    },
+                                    ":internet-gateway/",
+                                    {
+                                        "Ref" : "InternetGateway"
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "Fn::If" : [
+                                "UseIPv6",
+                                {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "arn:",
+                                            {
+                                                "Fn::FindInMap" : [
+                                                    "RegionMap",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    "Arn"
+                                                ]
+                                            },
+                                            ":ec2:",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ":",
+                                            {
+                                                "Ref" : "AWS::AccountId"
+                                            },
+                                            ":egress-only-internet-gateway/",
+                                            {
+                                                "Ref" : "EgressOnlyGateway"
+                                            }
+                                        ]
+                                    ]
+                                },
+                                {
+                                    "Ref" : "AWS::NoValue"
+                                }
+                            ]
+                        }
+                    ]
+                ]
+            }
+        },
+        "RouteTableArns"      : {
+            "Value" : {
+                "Fn::Join" : [
+                    ",",
+                    [
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "arn:",
+                                    {
+                                        "Fn::FindInMap" : [
+                                            "RegionMap",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "Arn"
+                                        ]
+                                    },
+                                    ":ec2:",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    ":",
+                                    {
+                                        "Ref" : "AWS::AccountId"
+                                    },
+                                    ":route-table/",
+                                    {
+                                        "Ref" : "PublicRouteTable"
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "arn:",
+                                    {
+                                        "Fn::FindInMap" : [
+                                            "RegionMap",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "Arn"
+                                        ]
+                                    },
+                                    ":ec2:",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    ":",
+                                    {
+                                        "Ref" : "AWS::AccountId"
+                                    },
+                                    ":route-table/",
+                                    {
+                                        "Ref" : "PrivateRouteTable1"
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "arn:",
+                                    {
+                                        "Fn::FindInMap" : [
+                                            "RegionMap",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "Arn"
+                                        ]
+                                    },
+                                    ":ec2:",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    ":",
+                                    {
+                                        "Ref" : "AWS::AccountId"
+                                    },
+                                    ":route-table/",
+                                    {
+                                        "Ref" : "PrivateRouteTable2"
+                                    }
+                                ]
+                            ]
+                        }
+                    ]
+                ]
+            }
+        },
+        "NatGatewayArns"      : {
+            "Value" : {
+                "Fn::If" : [
+                    "CreatePublicSubnets",
+                    {
+                        "Fn::Join" : [
+                            ",",
+                            [
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ1PublicSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":nat-gateway/",
+                                                    {
+                                                        "Ref" : "NATGateway1"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ2PublicSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":nat-gateway/",
+                                                    {
+                                                        "Ref" : "NATGateway2"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ3PublicSubnet1",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    "arn:",
+                                                    {
+                                                        "Fn::FindInMap" : [
+                                                            "RegionMap",
+                                                            {
+                                                                "Ref" : "AWS::Region"
+                                                            },
+                                                            "Arn"
+                                                        ]
+                                                    },
+                                                    ":ec2:",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    ":",
+                                                    {
+                                                        "Ref" : "AWS::AccountId"
+                                                    },
+                                                    ":nat-gateway/",
+                                                    {
+                                                        "Ref" : "NATGateway3"
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                }
+                            ]
+                        ]
+                    },
+                    ""
+                ]
+            }
+        },
+        "SecurityGroupArns"   : {
+            "Value" : {
+                "Fn::Join" : [
+                    ",",
+                    [
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "arn:",
+                                    {
+                                        "Fn::FindInMap" : [
+                                            "RegionMap",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "Arn"
+                                        ]
+                                    },
+                                    ":ec2:",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    ":",
+                                    {
+                                        "Ref" : "AWS::AccountId"
+                                    },
+                                    ":security-group/",
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "BastionSecurityGroup",
+                                            "GroupId"
+                                        ]
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "arn:",
+                                    {
+                                        "Fn::FindInMap" : [
+                                            "RegionMap",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "Arn"
+                                        ]
+                                    },
+                                    ":ec2:",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    ":",
+                                    {
+                                        "Ref" : "AWS::AccountId"
+                                    },
+                                    ":security-group/",
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "SSHSecurityGroup",
+                                            "GroupId"
+                                        ]
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    "arn:",
+                                    {
+                                        "Fn::FindInMap" : [
+                                            "RegionMap",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "Arn"
+                                        ]
+                                    },
+                                    ":ec2:",
+                                    {
+                                        "Ref" : "AWS::Region"
+                                    },
+                                    ":",
+                                    {
+                                        "Ref" : "AWS::AccountId"
+                                    },
+                                    ":security-group/",
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "WindowsRemoteManagementSecurityGroup",
+                                            "GroupId"
+                                        ]
+                                    }
+                                ]
+                            ]
+                        }
+                    ]
+                ]
+            }
+        }
+    }
+}

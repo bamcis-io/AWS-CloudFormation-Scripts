@@ -1,0 +1,254 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Creates a REST API for DDNS clients using Route53.",
+    
+	
+	"Parameters"               : {
+		"ZoneId" : {
+			"Type": "String",
+			"Description" : "The hosted zone id this ddns function will be allowed to update."
+		}
+    },
+
+
+    "Resources"                : {
+        "ApiGatewayRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "RoleName" : "ApiGatewayDDNSRole",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "apigateway.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "ApiGatewayRoute53Policy" : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "Route53Policy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "route53:ChangeResourceRecordSets"
+                            ],
+                            "Resource" : [
+								{
+									"Fn::Sub" : "arn:aws:route53:::hostedzone/${ZoneId}"
+								}
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "ApiGatewayRole"
+                    }
+                ]
+            },
+            "Description" : "Allows API Gateway to make updates to Route53."
+        },
+		
+        "RestApi" : {
+            "Type" : "AWS::ApiGateway::RestApi",
+            "Properties" : {
+                "Body" : {
+                    "info" : {
+                        "version" : "1.0",
+                        "title"   : "ddns"
+                    },
+                    "paths" : {
+                        "/{zone}/{domain}" : {
+                            "options" : {
+                                "responses" : {
+                                    "200" : {
+                                        "headers" : {
+                                            "Access-Control-Allow-Origin" : {
+                                                "type" : "string"
+                                            },
+                                            "Access-Control-Allow-Methods" : {
+                                                "type" : "string"
+                                            },
+                                            "Access-Control-Allow-Headers" : {
+                                                "type" : "string"
+                                            }
+                                        },
+                                        "description" : "200 response"
+                                    }
+                                },
+                                "x-amazon-apigateway-integration" : {
+                                    "type" : "mock",
+                                    "passthroughBehavior" : "when_no_match",
+                                    "requestTemplates"    : {
+                                        "application/json" : "{\"statusCode\": 200}"
+                                    },
+                                    "responses"           : {
+                                        "default" : {
+                                            "responseParameters" : {
+                                                "method.response.header.Access-Control-Allow-Origin" : "'*'",
+                                                "method.response.header.Access-Control-Allow-Methods" : "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'",
+                                                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-Content-Sha256,X-Amz-User-Agent,Accept'"
+                                            },
+                                            "statusCode"         : 200
+                                        }
+                                    }
+                                },
+                                "consumes"                        : [
+                                    "application/json"
+                                ],
+                                "produces"                        : [
+                                    "application/json"
+                                ]
+                            },
+                            "get"     : {
+                                "x-amazon-apigateway-integration" : {
+                                    "passthroughBehavior" : "never",
+                                    "responses"           : {
+                                        "default" : {
+                                            "statusCode" : "200"
+                                        }
+                                    },
+                                    "requestParameters"   : {
+                                        "integration.request.header.Content-Type" : "'application/xml'",
+                                        "integration.request.path.zone_id"        : "method.request.path.zone"
+                                    },
+                                    "uri"                 : "arn:aws:apigateway:us-east-1:route53:path/2013-04-01/hostedzone/{zone_id}/rrset/",
+                                    "httpMethod"          : "POST",
+                                    "requestTemplates"    : {
+                                        "application/json" : "#set($ttl = $input.params('ttl'))\r\n<ChangeResourceRecordSetsRequest xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\">\r\n   <ChangeBatch>\r\n      <Changes>\r\n         <Change>\r\n            <Action>UPSERT</Action>\r\n            <ResourceRecordSet>\r\n               <Name>$input.params('record')</Name>\r\n               <ResourceRecords>\r\n                  <ResourceRecord>\r\n                     <Value>$context.identity.sourceIp</Value>\r\n                  </ResourceRecord>\r\n               </ResourceRecords>\r\n               #if ($ttl && $ttl != \"\") \r\n               <TTL>$ttl</TTL>\r\n               #else \r\n               <TTL>300</TTL>\r\n               #end\r\n               <Type>A</Type>\r\n            </ResourceRecordSet>\r\n         </Change>\r\n      </Changes>\r\n   </ChangeBatch>\r\n</ChangeResourceRecordSetsRequest>"
+                                    },
+                                    "credentials"         : {
+                                        "Fn::GetAtt" : [
+                                            "ApiGatewayRole",
+                                            "Arn"
+                                        ]
+                                    },
+                                    "type"                : "aws"
+                                },
+                                "security"                        : [
+                                    {
+                                        "api_key" : [
+                                        ]
+                                    }
+                                ],
+                                "responses"                       : {
+                                    "200" : {
+                                        "description" : "200 response",
+                                        "schema"      : {
+                                            "$ref" : "#/definitions/Empty"
+                                        }
+                                    }
+                                },
+                                "parameters"                      : [
+                                    {
+                                        "required" : true,
+                                        "type"     : "string",
+                                        "name"     : "record",
+                                        "in"       : "path"
+                                    },
+                                    {
+                                        "required" : true,
+                                        "type"     : "string",
+                                        "name"     : "zone",
+                                        "in"       : "path"
+                                    },
+                                    {
+                                        "required" : false,
+                                        "type"     : "number",
+                                        "name"     : "ttl",
+                                        "in"       : "query"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "schemes" : [
+                        "https"
+                    ],
+                    "securityDefinitions" : {
+                        "api_key" : {
+                            "type" : "apiKey",
+                            "name" : "x-api-key",
+                            "in"   : "header"
+                        }
+                    },
+                    "host"                : "",
+                    "swagger"             : "2.0"
+                }
+            }
+        },
+		
+        "ApiGatewayDeployment" : {
+            "Type" : "AWS::ApiGateway::Deployment",
+            "Properties" : {
+                "RestApiId" : {
+                    "Ref" : "RestApi"
+                },
+                "Description" : "DDNS Endpoint Deployment"
+            }
+        },
+
+		"ApiGatewayStage" : {
+			"Type" : "AWS::ApiGateway::Stage",
+			"Properties" : {
+				"Description" : "Production Stage",
+				"DeploymentId" : {
+					"Ref" : "ApiGatewayDeployment"
+				},
+				"StageName" : "ddns",
+				"RestApiId" : {
+					"Ref" : "RestApi"
+				}
+			}
+		},
+
+		"ApiKey" : {
+			"Type" : "AWS::ApiGateway::ApiKey",
+			"Properties" : {
+				"Description" : "DDNS Clients",
+				"Enabled" : true,
+				"Name" : "ddns",
+				"StageKeys" : [
+					{
+						 "RestApiId" :{
+							"Ref" : "RestApi"
+						 },
+						 "StageName" : {
+							"Ref" : "ApiGatewayStage"
+						 }
+					}
+				]
+			}
+		}
+    },
+
+
+    "Outputs"                  : {
+        "APIGatewayUrl" : {
+            "Description" : "The URL to access the new API.",
+            "Value"       : {
+                "Fn::Sub" : "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/ddns"
+            }
+        },
+		"ApiKeyId" : {
+			"Description" : "The id of the API key clients will need to use. This is not the API key itself, it will need to be retrieved separately from AWS. Treat it like a credential.",
+			"Value" : {
+				"Ref" : "ApiKey"
+			}	
+		}
+    }
+}
