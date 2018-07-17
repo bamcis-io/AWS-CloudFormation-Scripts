@@ -1,0 +1,338 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Deploys the networking stack and directory service stack.",
+
+
+    "Parameters"               : {
+        "NetworkingStackUrl" : {
+            "Description" : "The url to the CloudFormation script to set up networking",
+            "Type"        : "String",
+            "AllowedPattern" : "https?\\:\\/\\/.*",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*"
+        },
+        "DirectoryServiceStackUrl" : {
+            "Description" : "The url to the CloudFormation script to set up AWS Directory Service",
+            "Type"        : "String",
+            "AllowedPattern" : "https?\\:\\/\\/.*",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*"
+        },
+
+        "ForestRootName"           : {
+            "Type" : "String",
+            "Description" : "The FQDN of the directory",
+            "MinLength"   : 3
+        },
+        "AdminPassword"            : {
+            "Type" : "String",
+            "Description" : "The password for the default administrative user, Admin",
+            "MinLength"   : "7",
+            "NoEcho"      : true
+        },
+   
+        "VpcCidrBlock"             : {
+            "Description" : "The CIDR block for the VPC.",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "192.168.0.0/16"
+        },
+        "EnableIPv6"               : {
+            "Type" : "String",
+            "Description" : "The VPC will be assigned an AWS IPv6 /56 CIDR block and the subnets will be assigned IPv6 /64 CIDR blocks (if this is false a /56 CIDR will still be assigned to the VPC, but not used anywhere).",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "AssignIPv6"               : {
+            "Type" : "String",
+            "Description" : "Whether to auto-assign IPv6 addresses to all subnets. This setting is ignored if IPv6 is set to false.",
+            "AllowedValues" : [
+                "false",
+                "true"
+            ],
+            "Default"       : "false"
+        },
+        "AZ1PublicSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first public subnet in AZ 1.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "Default"               : "192.168.1.0/24"
+        },
+        "AZ2PublicSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first public subnet in AZ 2.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "Default"               : "192.168.2.0/24"
+        },
+        "AZ3PublicSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first public subnet in AZ 3.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "Default"               : "192.168.3.0/24"
+        },
+        "AZ1PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 1.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.10.0/24"
+        },
+        "AZ2PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 2.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.20.0/24"
+        },
+        "AZ3PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 3.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.30.0/24"
+        },
+        "AvailabilityZone1"          : {
+            "Description" : "The first availability zone.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "AvailabilityZone2"          : {
+            "Description" : "The second availability zone.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "AvailabilityZone3"          : {
+            "Description" : "The third availability zone. To not use a third AZ, set this equal to AZ1 or AZ2.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "EnableDnsHostNames"         : {
+            "Description" : "Indicates whether the instances launched in the VPC get public DNS hostnames.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "EnableDnsSupport"           : {
+            "Description" : "Indicates whether the DNS resolution is supported for the VPC.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "ManagementSourceIP"         : {
+            "Description" : "The IP in CIDR of the source for allowed management",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "0.0.0.0/0"
+        },
+
+		"OrganizationTag"          : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "ApplicationTag"           : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag"           : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        }
+    },
+
+
+    "Metadata"                 : {
+        "AWS::CloudFormation::Interface" : {
+            "ParameterGroups" : [
+                {
+                    "Label" : {
+                        "default" : "Network Configuration"
+                    },
+                    "Parameters" : [
+                        "AvailabilityZone1",
+                        "AvailabilityZone2",
+                        "AvailabilityZone3",
+                        "VpcCidrBlock",
+                        "EnableIPv6",
+                        "AssignIPv6",
+                        "EnableDnsSupport",
+                        "EnableDnsHostNames",
+                        "ManagementSourceIP"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Public Subnets"
+                    },
+                    "Parameters" : [
+                        "AZ1PublicSubnet1CidrBlock",
+                        "AZ2PublicSubnet1CidrBlock",
+                        "AZ3PublicSubnet1CidrBlock"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Private Subnets"
+                    },
+                    "Parameters" : [
+                        "AZ1PrivateSubnet1CidrBlock",
+                        "AZ2PrivateSubnet1CidrBlock",
+                        "AZ3PrivateSubnet1CidrBlock"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Directory Service Configuration"
+                    },
+                    "Parameters" : [
+                        "ForestRootName",
+                        "AdminPassword"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Tagging"
+                    },
+                    "Parameters" : [
+                        "OrganizationTag",
+                        "ApplicationTag",
+                        "EnvironmentTag"
+                    ]
+                }
+            ]
+        }
+    },
+
+
+    "Resources"                : {
+        "NetworkingStack" : {
+            "Type" : "AWS::CloudFormation::Stack",
+            "Properties" : {
+                "TemplateURL" : {
+                    "Ref" : "NetworkingStackUrl"
+                },
+                "Parameters"  : {
+                    "AvailabilityZone1" : {
+                        "Ref" : "AvailabilityZone1"
+                    },
+                    "AvailabilityZone2" : {
+                        "Ref" : "AvailabilityZone2"
+                    },
+                    "AvailabilityZone3" : {
+                        "Ref" : "AvailabilityZone3"
+                    },
+                    "VpcCidrBlock"      : {
+                        "Ref" : "VpcCidrBlock"
+                    },
+                    "EnableIPv6"        : {
+                        "Ref" : "EnableIPv6"
+                    },
+                    "AssignIPv6"        : {
+                        "Ref" : "AssignIPv6"
+                    },
+                    "EnableDnsHostNames" : {
+                        "Ref" : "EnableDnsHostNames"
+                    },
+                    "EnableDnsSupport"   : {
+                        "Ref" : "EnableDnsSupport"
+                    },
+                    "AZ1PublicSubnet1CidrBlock" : {
+                        "Ref" : "AZ1PublicSubnet1CidrBlock"
+                    },
+                    "AZ2PublicSubnet1CidrBlock" : {
+                        "Ref" : "AZ2PublicSubnet1CidrBlock"
+                    },
+                    "AZ3PublicSubnet1CidrBlock" : {
+                        "Ref" : "AZ3PublicSubnet1CidrBlock"
+                    },
+                    "AZ1PrivateSubnet1CidrBlock" : {
+                        "Ref" : "AZ1PrivateSubnet1CidrBlock"
+                    },
+                    "AZ2PrivateSubnet1CidrBlock" : {
+                        "Ref" : "AZ2PrivateSubnet1CidrBlock"
+                    },
+                    "AZ3PrivateSubnet1CidrBlock" : {
+                        "Ref" : "AZ3PrivateSubnet1CidrBlock"
+                    },
+                    "ManagementSourceIP"         : {
+                        "Ref" : "ManagementSourceIP"
+                    },
+                    "OrganizationTag"            : {
+                        "Ref" : "OrganizationTag"
+                    },
+                    "ApplicationTag"             : {
+                        "Ref" : "ApplicationTag"
+                    },
+                    "EnvironmentTag"             : {
+                        "Ref" : "EnvironmentTag"
+                    }
+                }
+            }
+        },
+        "DirectoryServiceStack" : {
+            "Type" : "AWS::CloudFormation::Stack",
+            "Properties" : {
+                "TemplateURL" : {
+                    "Ref" : "DirectoryServiceStackUrl"
+                },
+                "Parameters"  : {
+                    "ForestRootName" : {
+                        "Ref" : "ForestRootName"
+                    },
+                    "AdminPassword"  : {
+                        "Ref" : "AdminPassword"
+                    },
+                    "VpcId"          : {
+                        "Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.VpcId"
+                        ]
+                    },
+                    "Subnet1"        : {
+                        "Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.AZ1PrivateSubnet1Id"
+                        ]
+                    },
+                    "Subnet2"        : {
+                        "Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.AZ2PrivateSubnet1Id"
+                        ]
+                    },
+                    "OrganizationTag" : {
+                        "Ref" : "OrganizationTag"
+                    },
+                    "ApplicationTag"  : {
+                        "Ref" : "ApplicationTag"
+                    },
+                    "EnvironmentTag"  : {
+                        "Ref" : "EnvironmentTag"
+                    }
+                }
+            },
+			"DependsOn" : "NetworkingStack"
+        }
+    },
+
+
+    "Outputs"                  : {
+    }
+}

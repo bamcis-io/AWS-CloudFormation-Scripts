@@ -36,6 +36,9 @@
     <Compile Include="DirectoryService\directoryservice.template">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DirectoryService\networking-and-ds-combined.template">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Networking\networking-vpc-3-az.template">
       <SubType>Code</SubType>
     </Compile>
