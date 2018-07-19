@@ -9,6 +9,8 @@ directly from CloudFormation.
   * [Directory Service](#directory-service)
   * [CloudEndure](#cloudendure)
   * [DDNS](#ddns)
+  * [Athena](#athena-demo)
+  * [Active Directory](#active-directory)
 
 ## Usage
 
@@ -23,3 +25,9 @@ Deploys the networking and IAM infrastructure to start using CloudEndure replica
 
 ### DDNS
 A complete solution for DDNS clients that use Route53 for DNS. This provides an "authenticated" (kind of) endpoint for clients.
+
+### Athena Demo
+A cross account Athena query demo.
+
+### Active Directory
+A working project on deploying a new Active Directory forest, not quite ready yet.

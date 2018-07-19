@@ -1,0 +1,485 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Builds the IAM resources for the automatic deployment of domain controllers in AWS.",
+    
+	
+	"Parameters"               : {
+        "KMSKeyArn" : {
+            "Type" : "String",
+            "Description" : "The ARN of the KMS key used to encrypt the passwords.",
+            "AllowedPattern" : "arn:aws(?:-us-gov|-cn)?:.*",
+            "MaxLength"      : "512",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: arn:aws(?:-us-gov|-cn)?:.*",
+            "Default"               : "arn:aws:kms:<region>:<account>:key/<key-id>"
+        },
+        "ConfigSourceBucket" : {
+            "Description" : "Bucket to retrieve config files from.",
+            "Type"        : "String",
+            "AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
+        },
+        "SSMOutputBucket"    : {
+            "Description" : "The bucket SSM will deliver output from document associations to.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$)",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$)"
+        }
+    },
+
+
+    "Conditions"               : {
+        "DeliverSSMOutput" : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "SSMOutputBucket"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        }
+    },
+
+
+    "Mappings"                 : {
+        "RegionMap" : {
+            "us-east-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "127311923021",
+                "HostedZoneId"   : "Z1UJRXOUMOOFQ8"
+            },
+            "us-east-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "033677994240",
+                "HostedZoneId"   : "ZOJJZC49E0EPZ"
+            },
+            "us-west-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "797873946194",
+                "HostedZoneId"   : "Z2OJLYMUO9EFXC"
+            },
+            "us-west-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "027434742980",
+                "HostedZoneId"   : "Z2MUQ32089INYE"
+            },
+            "ca-central-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "985666609251",
+                "HostedZoneId"   : "Z19DQILCV0OWEC"
+            },
+            "eu-west-1"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "156460612806",
+                "HostedZoneId"   : "ZLY8HYME6SFDD"
+            },
+            "eu-west-2"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "652711504416",
+                "HostedZoneId"   : "ZJ5UAJN8Y3Z2Q"
+            },
+            "eu-west-3"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "009996457667",
+                "HostedZoneId"   : "Z3KY65QIEKYHQQ"
+            },
+            "eu-central-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "054676820928",
+                "HostedZoneId"   : "Z1U9ULNL0V5AJ3"
+            },
+            "ap-northeast-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "582318560864",
+                "HostedZoneId"   : "Z1YSHQZHG15GKL"
+            },
+            "ap-northeast-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "600734575887",
+                "HostedZoneId"   : "Z20JF4UZKIW1U8"
+            },
+            "ap-northeast-3" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "383597477331",
+                "HostedZoneId"   : "Z2YQB5RD63NC85"
+            },
+            "ap-southeast-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "114774131450",
+                "HostedZoneId"   : "ZL327KTPIQFUL"
+            },
+            "ap-southeast-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "783225319266",
+                "HostedZoneId"   : "Z2RPCDW04V8134"
+            },
+            "ap-south-1"     : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "718504428378",
+                "HostedZoneId"   : "Z3VO1THU9YC4UR"
+            },
+            "sa-east-1"      : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "507241528517",
+                "HostedZoneId"   : "ZCMLWB8V5SYIT"
+            },
+            "us-gov-west-1"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "048591011584",
+                "HostedZoneId"   : ""
+            },
+            "us-gov-west-2"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+                "HostedZoneId"   : ""
+            },
+            "us-gov-east-1"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+                "HostedZoneId"   : ""
+            },
+            "us-gov-east-2"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+                "HostedZoneId"   : ""
+            },
+            "cn-north-1"     : {
+                "Arn" : "aws-cn",
+                "ELBPrincipalId" : "638102146993",
+                "HostedZoneId"   : ""
+            },
+            "cn-northwest-1" : {
+                "Arn" : "aws-cn",
+                "ELBPrincipalId" : "037604701340",
+                "HostedZoneId"   : ""
+            }
+        }
+    },
+
+
+    "Resources"                : {
+        "DomainControllerRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "RoleName" : "DomainControllerRole",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path"                     : "/"
+            }
+        },
+        "DomainControllerInstanceProfile" : {
+            "Type" : "AWS::IAM::InstanceProfile",
+            "Properties" : {
+                "Path" : "/",
+                "InstanceProfileName" : "DomainControllerInstanceProfile",
+                "Roles"               : [
+                    {
+                        "Ref" : "DomainControllerRole"
+                    }
+                ]
+            }
+        },
+        "S3GetConfigAccessPolicy"         : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "S3GetConfigAccessPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:GetObject"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "arn:",
+                                            {
+                                                "Fn::FindInMap" : [
+                                                    "RegionMap",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    "Arn"
+                                                ]
+                                            },
+                                            ":s3:::",
+                                            {
+                                                "Ref" : "ConfigSourceBucket"
+                                            },
+                                            "/*"
+                                        ]
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "DomainControllerRole"
+                    }
+                ]
+            }
+        },
+        "S3PutSSMOutputAccessPolicy"      : {
+            "Type" : "AWS::IAM::Policy",
+            "Condition" : "DeliverSSMOutput",
+            "Properties" : {
+                "PolicyName" : "S3PutSSMOutputAccessPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:PutObject",
+                                "s3:AbortMultipartUpload"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "arn:",
+                                            {
+                                                "Fn::FindInMap" : [
+                                                    "RegionMap",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    "Arn"
+                                                ]
+                                            },
+                                            ":s3:::",
+                                            {
+                                                "Ref" : "SSMOutputBucket"
+                                            },
+                                            "/*"
+                                        ]
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "DomainControllerRole"
+                    }
+                ]
+            }
+        },
+        "KMSAccessPolicy"                 : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "KMSAccessPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "kms:Decrypt"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Ref" : "KMSKeyArn"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "DomainControllerRole"
+                    }
+                ]
+            }
+        },
+        "CloudWatchAccessPolicy"          : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "CloudWatchAccessPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:CreateLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents",
+                                "logs:DescribeLogStreams",
+                                "logs:DescribeLogGroups"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "arn:",
+                                            {
+                                                "Fn::FindInMap" : [
+                                                    "RegionMap",
+                                                    {
+                                                        "Ref" : "AWS::Region"
+                                                    },
+                                                    "Arn"
+                                                ]
+                                            },
+                                            ":logs:*:",
+                                            {
+                                                "Ref" : "AWS::AccountId"
+                                            },
+                                            ":*"
+                                        ]
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "cloudwatch:PutMetricData"
+                            ],
+                            "Resource" : "*"
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "DomainControllerRole"
+                    }
+                ]
+            }
+        },
+        "EC2MessagesAccessPolicy"         : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "EC2MessagesAccessPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "ec2messages:AcknowledgeMessage",
+                                "ec2messages:DeleteMessage",
+                                "ec2messages:FailMessage",
+                                "ec2messages:GetEndpoint",
+                                "ec2messages:GetMessages",
+                                "ec2messages:SendReply"
+                            ],
+                            "Resource" : "*"
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "DomainControllerRole"
+                    }
+                ]
+            }
+        },
+        "SSMAccessPolicy"                 : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "SSMAccessPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "ssm:CreateAssociation",
+                                "ssm:DescribeAssociation",
+                                "ssm:GetDeployablePatchSnapshotForInstance",
+                                "ssm:GetDocument",
+                                "ssm:GetParameters",
+                                "ssm:ListAssociations",
+                                "ssm:ListInstanceAssociations",
+                                "ssm:PutInventory",
+                                "ssm:UpdateAssociation",
+                                "ssm:UpdateAssociationStatus",
+                                "ssm:UpdateInstanceAssociationStatus",
+                                "ssm:UpdateInstanceInformation"
+                            ],
+                            "Resource" : "*"
+                        },                      
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:ListBucket"
+                            ],
+                            "Resource" : {
+                                "Fn::Join" : [
+                                    "",
+                                    [
+                                        "arn:",
+                                        {
+                                            "Fn::FindInMap" : [
+                                                "RegionMap",
+                                                {
+                                                    "Ref" : "AWS::Region"
+                                                },
+                                                "Arn"
+                                            ]
+                                        },
+                                        ":s3:::amazon-ssm-packages-*"
+                                    ]
+                                ]
+                            }
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:PutObject",
+                                "s3:GetObject",
+                                "s3:AbortMultipartUpload",
+                                "s3:ListMultipartUploadParts",
+                                "s3:ListBucketMultipartUploads"
+                            ],
+                            "Resource" : "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "ec2:DescribeInstanceStatus"
+                            ],
+                            "Resource" : "*"
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "DomainControllerRole"
+                    }
+                ]
+            }
+        }
+    },
+
+
+    "Outputs"                  : {
+    }
+}

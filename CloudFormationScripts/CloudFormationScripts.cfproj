@@ -22,9 +22,33 @@
     <Folder Include="DirectoryService" />
     <Folder Include="CloudEndure" />
     <Folder Include="DDNS" />
+    <Folder Include="ActiveDirectory" />
+    <Folder Include="AthenaDemo" />
+    <Folder Include="CostAndUsageReports" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ActiveDirectory\domain-controller-iam.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ActiveDirectory\new-ad-forest-2.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ActiveDirectory\new-ad-forest.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AthenaDemo\athena-demo.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AthenaDemo\caa-bucket.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AthenaDemo\README.md">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="CloudEndure\cloudendure-infrastructure.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CostAndUsageReports\cur-bucket.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DDNS\ddns.template">
@@ -42,6 +66,17 @@
     <Compile Include="Networking\networking-vpc-3-az.template">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="AthenaDemo\AmazonEC2.csv">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="AthenaDemo\AmazonElastiCache.csv">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="AthenaDemo\AmazonRDS.csv">
+      <SubType>Content</SubType>
+    </Content>
   </ItemGroup>
   <Import Project="$(CloudFormationPath)\cloudformation.targets" />
 </Project>

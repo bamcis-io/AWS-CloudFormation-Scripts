@@ -1,0 +1,66 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Creates the bucket and bucket policy to hold CUR reports.",
+
+    "Parameters"               : {
+		"BucketName" : {
+			"Description" : "The name of the bucket to create",
+			"Type" : "String",
+			"AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
+		}
+    },
+
+    "Resources"                : {
+        "CURBucket" : {
+            "Type" : "AWS::S3::Bucket",
+            "Properties" : {
+			    "BucketName" : {
+					"Ref" : "BucketName"
+				}
+            }
+        },
+
+        "BillingFileBucketPolicy" : {
+            "Type" : "AWS::S3::BucketPolicy",
+            "Properties" : {
+                "Bucket" : {
+                    "Ref" : "CURBucket"
+                },
+                "PolicyDocument" : {
+                    "Version" : "2008-10-17",
+                    "Id"      : "1",
+                    "Statement" : [
+                        {
+                            "Sid" : "1",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : "arn:aws:iam::386209384616:root"
+                            },
+                            "Action"    : [
+                                "s3:GetBucketAcl",
+                                "s3:GetBucketPolicy"
+                            ],
+                            "Resource"  : {
+								"Fn::Sub" : "arn:aws:s3:::${CURBucket}"								
+							}
+                        },
+                        {
+                            "Sid" : "2",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : "arn:aws:iam::386209384616:root"
+                            },
+                            "Action"    : [
+                                "s3:PutObject"
+                            ],
+                            "Resource"  : {
+								"Fn::Sub" : "arn:aws:s3:::${CURBucket}/*"
+							}
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

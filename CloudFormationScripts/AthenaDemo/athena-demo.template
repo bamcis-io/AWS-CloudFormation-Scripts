@@ -1,0 +1,229 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Deploys IAM and Athena resources for cross account S3 queries",
+
+	"Parameters" : {
+		"DatabaseName" : {
+			"Description" : "The name of the Glue database to create",
+			"Type" : "String",
+			"AllowedPattern" : "[_a-z0-9]{1,32}",
+			"Default" : "demo_db"
+		},
+		"TableName" : {
+			"Description" : "The name of the demo Athena table to create",
+			"Type" : "String",
+			"AllowedPattern" : "[_a-z0-9]{1,32}",
+			"Default" : "demo_table"
+		},
+		"RemoteS3Bucket" : {
+			"Description" : "The remote S3 bucket that stores the data lake",
+			"Type" : "String",
+			"AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
+		}
+	},
+
+	"Resources" : {
+		"AthenaUsersGroup" : {
+			"Type" : "AWS::IAM::Group",
+			"Properties" : {
+				"GroupName" : "AthenaUsersGroup",
+				"Path" : "/"				  
+			}
+		},
+		"AthenaUsersGroupAssumeRolePolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				"PolicyName" : "AthenaUsersAssumeRolePolicy",
+				"Groups" : [
+					{
+						"Ref" : "AthenaUsersGroup"
+					}
+				],
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": {
+						"Effect": "Allow",
+						"Action": "sts:AssumeRole",
+						"Resource": [
+							{
+								"Fn::GetAtt" : ["AthenaUserRole", "Arn"]
+							}
+						]
+					}
+				}
+			}
+		},
+
+		"AthenaUserRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "RoleName" : "AthenaUserRole",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+										"Fn::Sub" :	"arn:aws:iam::${AWS::AccountId}:root"
+									}
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path"                     : "/"
+            }
+        },
+		"AthenaUserRolePolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				"PolicyName" : "AthenaUsersRolePolicy",
+				"Roles" : [
+					{
+						"Ref" : "AthenaUserRole"
+					}
+				],
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": {
+						"Effect": "Allow",
+						"Action": [ 
+							"s3:*",
+							"athena:*",
+							"glue:*"
+						],
+						"Resource": "*"
+					}
+				}
+			}
+		},
+
+		"GlueDatabase"           : {
+            "Type" : "AWS::Glue::Database",
+            "Properties" : {
+                "CatalogId" : {
+                    "Ref" : "AWS::AccountId"
+                },
+                "DatabaseInput" : {
+                    "Description" : "Demo Database",
+                    "Name"        : {
+						"Ref" : "DatabaseName"
+					}
+                }
+            }
+        },
+
+		"CreateDbQuery" : {
+			"Type" : "AWS::Athena::NamedQuery",
+			"Properties" : {
+				"Database" : {
+					"Ref" : "GlueDatabase"
+				},
+				"Description" : "Creates the demo db",
+				"Name" : "Demo Db Create",
+				"QueryString" : {
+					"Fn::Sub" : "CREATE DATABASE IF NOT EXISTS `${DatabaseName}`"
+				}
+			}
+		},
+
+		"CreateTableQuery" : {
+			"Type" : "AWS::Athena::NamedQuery",
+			"Properties" : {
+				"Database" : {
+					"Ref" : "GlueDatabase"
+				},
+				"Description" : "Creates the demo table",
+				"Name" : "Demo Table Create",
+				"QueryString" : {
+					"Fn::Join" : [
+						"\n",
+						[
+							{
+								"Fn::Sub" : "CREATE EXTERNAL TABLE `${TableName}`("
+							},
+							"`sku` string,",
+							"`offertermcode` string,",
+							"`platform` string,",
+							"`tenancy` string,",
+							"`operation` string,",
+							"`usagetype` string,",
+							"`region` string,",
+							"`service` string,",
+							"`instancetype` string,",
+							"`operatingsystem` string,",
+							"`adjustedpriceperunit` double,",
+							"`ondemandhourlycost` double,",
+							"`breakevenpercentage` double,",
+							"`upfrontfee` bigint,",
+							"`leaseterm` bigint,",
+							"`purchaseoption` string,",
+							"`offeringclass` string,",
+							"`termtype` string,",
+							"`key` string,",
+							"`reservedinstancecost` double,",
+							"`ondemandcostforterm` double,",
+							"`costsavings` double,",
+							"`percentsavings` double,",
+							"`vcpu` bigint,",
+							"`memory` double)",
+							"ROW FORMAT DELIMITED",
+								"FIELDS TERMINATED BY '|'",
+							"STORED AS INPUTFORMAT",
+							"'org.apache.hadoop.mapred.TextInputFormat'",
+							"OUTPUTFORMAT",
+							"'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'",
+							"LOCATION",
+							{
+								"Fn::Sub" : "'s3://${RemoteS3Bucket}/'"
+							},
+							"TBLPROPERTIES (",
+							"'classification'='csv',", 
+							"'columnsOrdered'='true',",
+							"'compressionType'='none',",
+							"'delimiter'='|',",
+							"'skip.header.line.count'='1',",
+							"'typeOfData'='file')"
+						]
+					]
+
+				}
+			}
+		},
+
+		"PreviewTableQuery" : {
+			"Type" : "AWS::Athena::NamedQuery",
+			"Properties" : {
+				"Database" : {
+					"Ref" : "GlueDatabase"
+				},
+				"Description" : "Previews the demo table",
+				"Name" : "Demo Table Preview",
+				"QueryString" : {
+					"Fn::Sub" : "SELECT * FROM \"${DatabaseName}\".\"${TableName}\" LIMIT 10"
+				}
+			}
+		}
+	},
+
+	
+	"Outputs" : {
+		"SwitchRoleUrl" : {
+			 "Value" : {
+				"Fn::Sub" : "https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${AthenaUserRole}"
+			 }
+		},
+		"RoleArn" : {
+			"Value" : {
+				"Fn::GetAtt" : [ "AthenaUserRole", "Arn" ]
+			}
+		}
+	}
+}

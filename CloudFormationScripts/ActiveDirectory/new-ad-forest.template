@@ -1,0 +1,2290 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "New VPC Environment with a Domain Controller and Exchange Server",
+    "Parameters"               : {
+        "VpcId" : {
+            "Description" : "The supernet for the VPC, select the first two octets, will be a /16 address space.",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}",
+            "Default"        : "10.0",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}"
+        },
+        "AvailabilityZone1" : {
+            "Description" : "The first availability zone.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "AvailabilityZone2" : {
+            "Description" : "The second availability zone.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "ManagementSourceIP" : {
+            "Description" : "The IP in CIDR of the source for allowed management",
+            "Type"        : "String",
+            "MinLength"   : "9",
+            "MaxLength"   : "18",
+            "Default"     : "174.77.2.96/27",
+            "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription" : "Must be a valid IP CIDR range of the form x.x.x.x/x"
+        },
+        "OSType"             : {
+            "Description" : "The OS to launch.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "WindowsServer2012R2",
+                "WindowsServer2016"
+            ],
+            "Default"       : "WindowsServer2012R2"
+        },
+        "DomainControllerInstanceType" : {
+            "Description" : "The EC2 instance type.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "t2.nano",
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "c3.large",
+                "c3.xlarge",
+                "c3.2xlarge",
+                "c3.4xlarge",
+                "c3.8xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "r3.large",
+                "r3.xlarge",
+                "r3.2xlarge",
+                "r3.4xlarge",
+                "r3.8xlarge"
+            ],
+            "Default"       : "t2.micro",
+            "ConstraintDescription" : "Must be a valid EC2 instance type"
+        },
+        "ExchangeServerInstanceType"   : {
+            "Description" : "The EC2 instance type.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "t2.nano",
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10clarge",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "c3.large",
+                "c3.xlarge",
+                "c3.2xlarge",
+                "c3.4xlarge",
+                "c3.8xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "r3.large",
+                "r3.xlarge",
+                "r3.2xlarge",
+                "r3.4xlarge",
+                "r3.8xlarge",
+                "i2.xlarge",
+                "i2.2xlarge",
+                "i2.4xlarge",
+                "i2.8xlarge",
+                "d2.xlarge",
+                "d2.2xlarge",
+                "d2.4xlarge",
+                "d2.8xlarge",
+                "hi1.4xlarge",
+                "hs1.8xlarge",
+                "cr1.8xlarge",
+                "cc2.8xlarge"
+            ],
+            "Default"       : "t2.large",
+            "ConstraintDescription" : "Must be a valid EC2 instance type"
+        },
+        "KeyName"                      : {
+            "Description" : "An existing KeyPair",
+            "Type"        : "AWS::EC2::KeyPair::KeyName"
+        },
+        "CfnInitSource"                : {
+            "Description" : "The url for the CloudFormation helper scripts",
+            "Type"        : "String",
+            "Default"     : "https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.msi"
+        },
+        "LoggingBucket"                : {
+            "Description" : "Bucket to send ELB Logs.",
+            "Type"        : "String",
+            "Default"     : "ir-dev-logs-raw"
+        },
+        "ConfigSourceBucket"           : {
+            "Description" : "Bucket to retrieve config files from.",
+            "Type"        : "String",
+            "Default"     : "ir-dev-ec2configs"
+        },
+        "ConfigFile"                   : {
+            "Description" : "The key value of the S3 object to run the config script.",
+            "Type"        : "String",
+            "Default"     : "New-AWSServer.ps1"
+        },
+        "DomainControllerCloudWatchConfigFile" : {
+            "Description" : "The key value of the S3 object that is the cloudwatch config.",
+            "Type"        : "String",
+            "Default"     : "ActiveDirectory/AWS.EC2.Windows.CloudWatch.json"
+        },
+        "NotificationEmail"                    : {
+            "Description" : "Email address to notify when alarms occur.",
+            "Type"        : "String",
+            "Default"     : "michael.haken@inforeliance.com"
+        },
+        "NotificationPhone"                    : {
+            "Description" : "Phone number to send messages to when alarms occur. Use the country long distance prefix (like 1 for US).",
+            "Type"        : "String",
+            "Default"     : "19728979279"
+        },
+        "DomainName"                           : {
+            "Description" : "The domain name of the new Active Directory Forest",
+            "Type"        : "String",
+            "MinLength"   : 5,
+            "Default"     : "admin.local"
+        },
+        "SafeModePassword"                     : {
+            "Description" : "The DSRM safe mode password",
+            "NoEcho"      : true,
+            "Type"        : "String",
+            "MinLength"   : 8
+        },
+        "DomainJoinUsername"                   : {
+            "Description" : "The username used to join the new domain. This defaults to administrator in the new environment.",
+            "Type"        : "String",
+            "Default"     : "administrator"
+        },
+        "NewAdministratorPassword"             : {
+            "Description" : "Specify the new default administrator password in the domain",
+            "Type"        : "String",
+            "NoEcho"      : true
+        },
+        "OUPath"                               : {
+            "Description" : "The OU to join the member servers to. Type just \"Computers\" to use the default computers container. Leave blank to use the script default.",
+            "Type"        : "String",
+            "Default"     : "OU=Windows Servers,OU=Server Resources,OU=Privileged Resources,DC=admin,DC=local"
+        },
+        "UsersConfiguration"                   : {
+            "Description" : "The json file key in the config bucket containing the users to create. Will use the new administrator password for these accounts. Leave blank to not create users.",
+            "Type"        : "String",
+            "Default"     : "Users.json"
+        }
+    },
+    "Conditions"               : {
+        "SpecifyOU" : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "OUPath"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "CreateUsers" : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "UsersConfiguration"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        }
+      
+    },
+    "Metadata"                 : {
+        "AWS::CloudFormation::Interface" : {
+            "ParameterGroups" : [
+                {
+                    "Label" : {
+                        "default" : "Network Configuration"
+                    },
+                    "Parameters" : [
+                        "VPCIPBlock",
+                        "AvailabilityZone1",
+                        "AvailabilityZone2",
+                        "ManagementSourceIP"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Common Configurations"
+                    },
+                    "Parameters" : [
+                        "OUPath",
+                        "ConfigFile",
+                        "OSType",
+                        "CfnInitSource",
+                        "LoggingBucket",
+                        "ConfigSourceBucket",
+                        "KeyName"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Active Directory Configuration"
+                    },
+                    "Parameters" : [
+                        "DomainName",
+                        "NewAdministratorPassword",
+                        "DomainControllerCloudWatchConfigFile",
+                        "DomainControllerInstanceType",
+                        "SafeModePassword",
+                        "UsersConfiguration"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Exchange Server Configuration"
+                    },
+                    "Parameters" : [
+                        "ExchangeVersion",
+                        "DAG",
+                        "WitnessServer",
+                        "ExchangeDAGDBName",
+                        "DomainJoinUsername",
+                        "ExchangeRole",
+                        "ExchangeDBName",
+                        "ExchangeServerCloudWatchConfigFile",
+                        "ExchangeServerInstanceType",
+                        "ExchangeOSVolumeSize",
+                        "ExchangeInstallationAccount",
+                        "HealthCheckPath",
+                        "ExchangeProductKey"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "CloudWatch Configuration"
+                    },
+                    "Parameters" : [
+                        "NotificationEmail",
+                        "NotificationPhone"
+                    ]
+                }
+            ],
+            "ParameterLabels" : {
+                "VPCIPBlock" : {
+                    "default" : "First two VPC octets"
+                },
+                "AvailabilityZone1" : {
+                    "default" : "Availability Zone 1"
+                },
+                "AvailabilityZone2" : {
+                    "default" : "Availability Zone 2"
+                },
+                "ManagementSourceIP" : {
+                    "default" : "Where should inbound management access be allowed from?"
+                },
+                "OSType"             : {
+                    "default" : "Operating System"
+                },
+                "InstanceSize"       : {
+                    "default" : "Instance Size"
+                },
+                "KeyName"            : {
+                    "default" : "EC2 KeyPair"
+                },
+                "CfnInitSource"      : {
+                    "default" : "Cfn Help Scripts Url"
+                },
+                "ConfigSourceBucket" : {
+                    "default" : "Configuration File Bucket"
+                },
+                "ConfigFile"         : {
+                    "default" : "Configuration Script"
+                },
+                "ExchangeServerCloudWatchConfigFile" : {
+                    "default" : "Exchange CloudWatch Logs Config"
+                },
+                "DomainControllerCloudWatchConfigFile" : {
+                    "default" : "AD CloudWatch Logs Config"
+                },
+                "NotificationEmail"                    : {
+                    "default" : "E-Mail"
+                },
+                "NotificationPhone"                    : {
+                    "default" : "Phone Number"
+                }
+            }
+        }
+    },
+    "Mappings"                 : {
+        "RegionMap" : {
+            "us-east-1" : {
+                "ELBPrincipalId" : "127311923021",
+                "WindowsServer2016" : "ami-188d6e0e",
+                "WindowsServer2012R2" : "ami-abf616bd"
+            },
+            "us-east-2" : {
+                "ELBPrincipalId" : "033677994240",
+                "WindowsServer2016" : "ami-057d5860",
+                "WindowsServer2012R2" : "ami-c06d48a5"
+            },
+            "us-west-1" : {
+                "ELBPrincipalId" : "027434742980",
+                "WindowsServer2016" : "ami-179ac977",
+                "WindowsServer2012R2" : "ami-76227116"
+            },
+            "us-west-2" : {
+                "ELBPrincipalId" : "797873946194",
+                "WindowsServer2016" : "ami-6e833e0e",
+                "WindowsServer2012R2" : "ami-1562d075"
+            },
+            "eu-west-1" : {
+                "ELBPrincipalId" : "156460612806"
+            },
+            "eu-west-2" : {
+                "ELBPrincipalId" : "652711504416"
+            },
+            "eu-central-1" : {
+                "ELBPrincipalId" : "054676820928"
+            },
+            "ap-southeast-1" : {
+                "ELBPrincipalId" : "114774131450"
+            },
+            "ap-northeast-1" : {
+                "ELBPrincipalId" : "582318560864"
+            },
+            "ap-southeast-2" : {
+                "ELBPrincipalId" : "783225319266"
+            },
+            "ap-northeast-2" : {
+                "ELBPrincipalId" : "600734575887"
+            },
+            "ap-south-1"     : {
+                "ELBPrincipalId" : "718504428378"
+            },
+            "sa-east-1"      : {
+                "ELBPrincipalId" : "507241528517"
+            },
+            "ug-gov-west-1"  : {
+                "ELBPrincipalId" : "048591011584"
+            },
+            "cn-north-1"     : {
+                "ELBPrincipalId" : "638102146993"
+            }
+        }
+    },
+    "Resources"                : {
+        "DomainController" : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path"                     : "/"
+            }
+        },
+        "CloudWatchLogsEC2AccessPolicy" : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "CloudWatchLogsAccessPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:CreateLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents",
+                                "logs:DescribeLogStreams",
+                                "logs:DescribeLogGroups"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "arn:aws:logs:*:",
+                                            {
+                                                "Ref" : "AWS::AccountId"
+                                            },
+                                            ":*"
+                                        ]
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "cloudwatch:PutMetricData"
+                            ],
+                            "Resource" : "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:GetObject"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "arn:aws:s3:::",
+                                            {
+                                                "Ref" : "ConfigSourceBucket"
+                                            },
+                                            "/*"
+                                        ]
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "ssm:ListAssociations"
+                            ],
+                            "Resource" : "*"
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "CloudWatchLogsEC2Role"
+                    }
+                ]
+            }
+        },
+        "CloudWatchLogsRole"            : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "vpc-flow-logs.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path"                     : "/"
+            }
+        },
+        "CloudWatchLogsAccessPolicy"    : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "CloudWatchLogsAccessPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:CreateLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents",
+                                "logs:DescribeLogStreams",
+                                "logs:DescribeLogGroups"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "arn:aws:logs:*:",
+                                            {
+                                                "Ref" : "AWS::AccountId"
+                                            },
+                                            ":*"
+                                        ]
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "CloudWatchLogsRole"
+                    }
+                ]
+            }
+        },
+        "CloudWatchLogsInstanceProfile" : {
+            "Type" : "AWS::IAM::InstanceProfile",
+            "Properties" : {
+                "Path" : "/",
+                "Roles" : [
+                    {
+                        "Ref" : "CloudWatchLogsEC2Role"
+                    }
+                ]
+            }
+        },
+        "VPC"                           : {
+            "Type" : "AWS::EC2::VPC",
+            "Properties" : {
+                "CidrBlock" : {
+                    "Fn::Join" : [
+                        "",
+                        [
+                            {
+                                "Ref" : "VPCIPBlock"
+                            },
+                            ".0.0/16"
+                        ]
+                    ]
+                },
+                "Tags"      : [
+                    {
+                        "Key" : "Name",
+                        "Value" : "ExchangeVPC"
+                    }
+                ]
+            }
+        },
+        "PublicSubnet1"                 : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone1"
+                },
+                "CidrBlock"        : {
+                    "Fn::Join" : [
+                        "",
+                        [
+                            {
+                                "Ref" : "VPCIPBlock"
+                            },
+                            ".0.0/18"
+                        ]
+                    ]
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : true
+            },
+            "DependsOn"  : "VPC"
+        },
+        "PublicSubnet2"                 : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone2"
+                },
+                "CidrBlock"        : {
+                    "Fn::Join" : [
+                        "",
+                        [
+                            {
+                                "Ref" : "VPCIPBlock"
+                            },
+                            ".64.0/18"
+                        ]
+                    ]
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : true
+            },
+            "DependsOn"  : "VPC"
+        },
+        "PrivateSubnet1"                : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone1"
+                },
+                "CidrBlock"        : {
+                    "Fn::Join" : [
+                        "",
+                        [
+                            {
+                                "Ref" : "VPCIPBlock"
+                            },
+                            ".128.0/18"
+                        ]
+                    ]
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                }
+            },
+            "DependsOn"  : "VPC"
+        },
+        "PrivateSubnet2"                : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone2"
+                },
+                "CidrBlock"        : {
+                    "Fn::Join" : [
+                        "",
+                        [
+                            {
+                                "Ref" : "VPCIPBlock"
+                            },
+                            ".192.0/18"
+                        ]
+                    ]
+                },
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                }
+            },
+            "DependsOn"  : "VPC"
+        },
+        "InternetGateway"               : {
+            "Type" : "AWS::EC2::InternetGateway",
+            "Properties" : {
+            },
+            "DependsOn"  : "VPC"
+        },
+        "AttachGateway"                 : {
+            "Type" : "AWS::EC2::VPCGatewayAttachment",
+            "Properties" : {
+                "InternetGatewayId" : {
+                    "Ref" : "InternetGateway"
+                },
+                "VpcId"             : {
+                    "Ref" : "VPC"
+                }
+            },
+            "DependsOn"  : "InternetGateway"
+        },
+        "PublicRouteTable"              : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                }
+            }
+        },
+        "PublicRoute"                   : {
+            "Type" : "AWS::EC2::Route",
+            "DependsOn" : [
+                "AttachGateway",
+                "PublicRouteTable"
+            ],
+            "Properties" : {
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId"            : {
+                    "Ref" : "InternetGateway"
+                },
+                "RouteTableId"         : {
+                    "Ref" : "PublicRouteTable"
+                }
+            }
+        },
+        "PublicSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "PublicSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PublicRouteTable"
+                }
+            },
+            "DependsOn"  : [
+                "PublicRoute",
+                "PublicSubnet1"
+            ]
+        },
+        "PublicSubnet2RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "PublicSubnet2"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PublicRouteTable"
+                }
+            },
+            "DependsOn"  : [
+                "PublicRoute",
+                "PublicSubnet2"
+            ]
+        },
+        "SSHSecurityGroup"                   : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Enable SSH access via port 22",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "22",
+                        "ToPort"     : "22",
+                        "CidrIp"     : {
+                            "Ref" : "ManagementSourceIP"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : "VPC"
+        },
+        "RDPSecurityGroup"                   : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Enable RDP access via port 3389",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "3389",
+                        "ToPort"     : "3389",
+                        "CidrIp"     : {
+                            "Ref" : "ManagementSourceIP"
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : "VPC"
+        },
+        "ExchangeServerSecurityGroup"        : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Allows Access To The Exchange Servers From Each Other",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "25",
+                        "ToPort"     : "25",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "465",
+                        "ToPort"     : "465",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "444",
+                        "ToPort"     : "444",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "3343",
+                        "ToPort"     : "3343",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "3343",
+                        "ToPort"     : "3343",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "2525",
+                        "ToPort"     : "2525",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "64327",
+                        "ToPort"     : "64327",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "1024",
+                        "ToPort"     : "65535",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "ExchangeServerSecurityGroupELB"     : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Allows Access To The Exchange Server From The ELB",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "25",
+                        "ToPort"     : "25",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "587",
+                        "ToPort"     : "587",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "465",
+                        "ToPort"     : "465",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "443",
+                        "ToPort"     : "443",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "80",
+                        "ToPort"     : "80",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "110",
+                        "ToPort"     : "110",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "995",
+                        "ToPort"     : "995",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "143",
+                        "ToPort"     : "143",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "993",
+                        "ToPort"     : "993",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "50636",
+                        "ToPort"     : "50636",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "5075",
+                        "ToPort"     : "5077",
+                        "SourceSecurityGroupId" : {
+                            "Fn::GetAtt" : [
+                                "ElbSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "ElbSecurityGroup"
+            ]
+        },
+        "RemoteManagementSecurityGroup"      : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Allows Remote RPC and WinRM",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "135",
+                        "ToPort"     : "135",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "5985",
+                        "ToPort"     : "5986",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "49152",
+                        "ToPort"     : "65535",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "445",
+                        "ToPort"     : "445",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "icmp",
+                        "FromPort"   : "-1",
+                        "ToPort"     : "-1",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "137",
+                        "ToPort"     : "138",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "139",
+                        "ToPort"     : "139",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "DomainControllerSecurityGroup"      : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Enable Web Access",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "389",
+                        "ToPort"     : "389",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "389",
+                        "ToPort"     : "389",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "636",
+                        "ToPort"     : "636",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "53",
+                        "ToPort"     : "53",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "53",
+                        "ToPort"     : "53",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "3268",
+                        "ToPort"     : "3269",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "88",
+                        "ToPort"     : "88",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "88",
+                        "ToPort"     : "88",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "135",
+                        "ToPort"     : "135",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "49152",
+                        "ToPort"     : "65535",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "123",
+                        "ToPort"     : "123",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "137",
+                        "ToPort"     : "138",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "139",
+                        "ToPort"     : "139",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "9389",
+                        "ToPort"     : "9389",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "445",
+                        "ToPort"     : "445",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "445",
+                        "ToPort"     : "445",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "25",
+                        "ToPort"     : "25",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "464",
+                        "ToPort"     : "464",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "464",
+                        "ToPort"     : "464",
+                        "CidrIp"     : {
+                            "Fn::GetAtt" : [
+                                "VPC",
+                                "CidrBlock"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "DomainControllerWaitConditionHandle" : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle",
+            "Properties" : {
+            }
+        },
+        "DomainControllerWaitCondition"       : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "DomainControllerWaitConditionHandle"
+                },
+                "Timeout" : 2100,
+                "Count"   : "1"
+            },
+            "DependsOn"  : "DomainController"
+        },
+        "ExchangeServerWaitConditionHandle"   : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle",
+            "Properties" : {
+            }
+        },
+        "ExchangeServer2WaitConditionHandle"  : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle",
+            "Condition" : "CreateDAG",
+            "Properties" : {
+            }
+        },
+        "ExchangeServerWaitCondition"         : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "ExchangeServerWaitConditionHandle"
+                },
+                "Timeout" : 10800,
+                "Count"   : "1"
+            },
+            "DependsOn"  : "ExchangeServer"
+        },
+        "ExchangeServer2WaitCondition"        : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "Condition" : "CreateDAG",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "ExchangeServer2WaitConditionHandle"
+                },
+                "Timeout" : 10800,
+                "Count"   : "1"
+            },
+            "DependsOn"  : "ExchangeServer2"
+        },
+        "DomainController"                    : {
+            "Type" : "AWS::EC2::Instance",
+            "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                    }
+                }
+            },
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : "DomainController"
+                    }
+                ],
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone1"
+                },
+                "ImageId"          : {
+                    "Fn::FindInMap" : [
+                        "RegionMap",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Ref" : "OSType"
+                        }
+                    ]
+                },
+                "InstanceType"     : {
+                    "Ref" : "DomainControllerInstanceType"
+                },
+                "KeyName"          : {
+                    "Ref" : "KeyName"
+                },
+                "SecurityGroupIds" : [
+                    {
+                        "Fn::GetAtt" : [
+                            "RDPSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "DomainControllerSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "RemoteManagementSecurityGroup",
+                            "GroupId"
+                        ]
+                    }
+                ],
+                "SubnetId"         : {
+                    "Ref" : "PublicSubnet1"
+                },
+                "IamInstanceProfile" : {
+                    "Ref" : "CloudWatchLogsInstanceProfile"
+                },
+                "UserData"           : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "<powershell>\n",
+                                "Import-Module -Name AWSPowershell \n",
+                                "Copy-S3Object -BucketName \"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "\" -Key \"",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                "\" -LocalFile \"$env:SystemDrive\\",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                "\" \n",
+                                "Invoke-Expression -Command \"$env:SystemDrive\\",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                " -BucketName `\"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "`\"",
+                                " -ActiveDirectory",
+                                " -InstallCfnInit",
+                                " -InstallWMF5",
+                                " -DomainName `\"",
+                                {
+                                    "Ref" : "DomainName"
+                                },
+                                "`\"",
+                                " -AdministratorPassword `\"",
+                                {
+                                    "Ref" : "NewAdministratorPassword"
+                                },
+                                "`\"",
+                                " -DSRMPassword `\"",
+                                {
+                                    "Ref" : "SafeModePassword"
+                                },
+                                "`\"",
+                                {
+                                    "Fn::If" : [
+                                        "CreateUsers",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    " -ADUsersConfig `\"",
+                                                    {
+                                                        "Ref" : "UsersConfiguration"
+                                                    },
+                                                    "`\""
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                " -CloudWatchConfig `\"",
+                                {
+                                    "Ref" : "DomainControllerCloudWatchConfigFile"
+                                },
+                                "`\"",
+                                " -CfnSignalArguments `\"",
+                                {
+                                    "Fn::Base64" : {
+                                        "Ref" : "DomainControllerWaitConditionHandle"
+                                    }
+                                },
+                                "`\"",
+                                "\" \n",
+                                "</powershell>"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "DependsOn"  : [
+                "PublicRoute",
+                "CloudWatchLogsInstanceProfile"
+            ]
+        },
+        "ExchangeServer"                      : {
+            "Type" : "AWS::EC2::Instance",
+            "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                    }
+                }
+            },
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : "ExchangeServer"
+                    }
+                ],
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone1"
+                },
+                "BlockDeviceMappings" : [
+                    {
+                        "DeviceName" : "/dev/sda1",
+                        "Ebs"        : {
+                            "VolumeSize" : {
+                                "Ref" : "ExchangeOSVolumeSize"
+                            },
+                            "VolumeType" : "gp2"
+                        }
+                    }
+                ],
+                "ImageId"             : {
+                    "Fn::FindInMap" : [
+                        "RegionMap",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Ref" : "OSType"
+                        }
+                    ]
+                },
+                "InstanceType"        : {
+                    "Ref" : "ExchangeServerInstanceType"
+                },
+                "KeyName"             : {
+                    "Ref" : "KeyName"
+                },
+                "SecurityGroupIds"    : [
+                    {
+                        "Fn::GetAtt" : [
+                            "RDPSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "ExchangeServerSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "RemoteManagementSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "ExchangeServerSecurityGroupELB",
+                            "GroupId"
+                        ]
+                    }
+                ],
+                "SubnetId"            : {
+                    "Ref" : "PublicSubnet1"
+                },
+                "IamInstanceProfile"  : {
+                    "Ref" : "CloudWatchLogsInstanceProfile"
+                },
+                "UserData"            : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "<powershell>\n",
+                                "Import-Module -Name AWSPowershell \n",
+                                "Copy-S3Object -BucketName \"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "\" -Key \"",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                "\" -LocalFile \"$env:SystemDrive\\",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                "\" \n",
+                                "Invoke-Expression -Command \"$env:SystemDrive\\",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                " -BucketName `\"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "`\"",
+                                " -Exchange",
+                                " -InstallCfnInit",
+                                " -InstallWMF5",
+                                " -ExchangeRole `\"",
+                                {
+                                    "Ref" : "ExchangeRole"
+                                },
+                                "`\"",
+                                " -ExchangeDBName `\"",
+                                {
+                                    "Ref" : "ExchangeDBName"
+                                },
+                                "`\"",
+                                " -ExchangeVersion `\"",
+                                {
+                                    "Ref" : "ExchangeVersion"
+                                },
+                                "`\"",
+                                " -ExchangeProductKey `\"",
+                                {
+                                    "Ref" : "ExchangeProductKey"
+                                },
+                                "`\"",
+                                " -DomainName `\"",
+                                {
+                                    "Ref" : "DomainName"
+                                },
+                                "`\"",
+                                " -DNSServers @(`\"",
+                                {
+                                    "Fn::GetAtt" : [
+                                        "DomainController",
+                                        "PrivateIp"
+                                    ]
+                                },
+                                "`\")",
+                                " -DomainJoinUsername `\"",
+                                {
+                                    "Ref" : "DomainJoinUsername"
+                                },
+                                "`\"",
+                                " -DomainJoinPassword `\"",
+                                {
+                                    "Ref" : "NewAdministratorPassword"
+                                },
+                                "`\"",
+                                {
+                                    "Fn::If" : [
+                                        "CreateDAG",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    " -DAGName `\"",
+                                                    {
+                                                        "Ref" : "DAG"
+                                                    },
+                                                    "`\"",
+                                                    {
+                                                        "Fn::If" : [
+                                                            "SpecifyWitness",
+                                                            {
+                                                                "Fn::Join" : [
+                                                                    "",
+                                                                    [
+                                                                        " -WitnessServer `\"",
+                                                                        {
+                                                                            "Ref" : "WitnessServer"
+                                                                        },
+                                                                        "`\""
+                                                                    ]
+                                                                ]
+                                                            },
+                                                            {
+                                                                "Ref" : "AWS::NoValue"
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "SpecifyOU",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    " -DomainJoinOUPath `\"",
+                                                    {
+                                                        "Ref" : "OUPath"
+                                                    },
+                                                    "`\""
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CustomExchangeInstallationAccount",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    " -ExchangeInstallationAccount `\"",
+                                                    {
+                                                        "Ref" : "ExchangeInstallationAccount"
+                                                    },
+                                                    "`\""
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                " -CloudWatchConfig `\"",
+                                {
+                                    "Ref" : "ExchangeServerCloudWatchConfigFile"
+                                },
+                                "`\"",
+                                " -CfnSignalArguments `\"",
+                                {
+                                    "Fn::Base64" : {
+                                        "Ref" : "ExchangeServerWaitConditionHandle"
+                                    }
+                                },
+                                "`\"",
+                                "\" \n",
+                                "</powershell>"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "DependsOn"  : [
+                "PublicRoute",
+                "CloudWatchLogsInstanceProfile",
+                "DomainControllerWaitCondition"
+            ]
+        },
+        "ExchangeServer2"                     : {
+            "Type" : "AWS::EC2::Instance",
+            "Condition" : "CreateDAG",
+            "Metadata"  : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                    }
+                }
+            },
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : "ExchangeServer"
+                    }
+                ],
+                "AvailabilityZone" : {
+                    "Ref" : "AvailabilityZone2"
+                },
+                "BlockDeviceMappings" : [
+                    {
+                        "DeviceName" : "/dev/sda1",
+                        "Ebs"        : {
+                            "VolumeSize" : {
+                                "Ref" : "ExchangeOSVolumeSize"
+                            },
+                            "VolumeType" : "gp2"
+                        }
+                    }
+                ],
+                "ImageId"             : {
+                    "Fn::FindInMap" : [
+                        "RegionMap",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Ref" : "OSType"
+                        }
+                    ]
+                },
+                "InstanceType"        : {
+                    "Ref" : "ExchangeServerInstanceType"
+                },
+                "KeyName"             : {
+                    "Ref" : "KeyName"
+                },
+                "SecurityGroupIds"    : [
+                    {
+                        "Fn::GetAtt" : [
+                            "RDPSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "ExchangeServerSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "RemoteManagementSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "ExchangeServerSecurityGroupELB",
+                            "GroupId"
+                        ]
+                    }
+                ],
+                "SubnetId"            : {
+                    "Ref" : "PublicSubnet2"
+                },
+                "IamInstanceProfile"  : {
+                    "Ref" : "CloudWatchLogsInstanceProfile"
+                },
+                "UserData"            : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "<powershell>\n",
+                                "Import-Module -Name AWSPowershell \n",
+                                "Copy-S3Object -BucketName \"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "\" -Key \"",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                "\" -LocalFile \"$env:SystemDrive\\",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                "\" \n",
+                                "Invoke-Expression -Command \"$env:SystemDrive\\",
+                                {
+                                    "Ref" : "ConfigFile"
+                                },
+                                " -BucketName `\"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "`\"",
+                                " -Exchange",
+                                " -InstallCfnInit",
+                                " -InstallWMF5",
+                                " -ExchangeRole `\"",
+                                {
+                                    "Ref" : "ExchangeRole"
+                                },
+                                "`\"",
+                                " -ExchangeDBName `\"",
+                                {
+                                    "Ref" : "ExchangeDAGDBName"
+                                },
+                                "`\"",
+                                " -ExchangeVersion `\"",
+                                {
+                                    "Ref" : "ExchangeVersion"
+                                },
+                                "`\"",
+                                " -ExchangeProductKey `\"",
+                                {
+                                    "Ref" : "ExchangeProductKey"
+                                },
+                                "`\"",
+                                " -DomainName `\"",
+                                {
+                                    "Ref" : "DomainName"
+                                },
+                                "`\"",
+                                " -DNSServers @(`\"",
+                                {
+                                    "Fn::GetAtt" : [
+                                        "DomainController",
+                                        "PrivateIp"
+                                    ]
+                                },
+                                "`\")",
+                                " -DomainJoinUsername `\"",
+                                {
+                                    "Ref" : "DomainJoinUsername"
+                                },
+                                "`\"",
+                                " -DomainJoinPassword `\"",
+                                {
+                                    "Ref" : "NewAdministratorPassword"
+                                },
+                                "`\"",
+                                " -DAGName `\"",
+                                {
+                                    "Ref" : "DAG"
+                                },
+                                "`\"",
+                                {
+                                    "Fn::If" : [
+                                        "SpecifyOU",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    " -DomainJoinOUPath `\"",
+                                                    {
+                                                        "Ref" : "OUPath"
+                                                    },
+                                                    "`\""
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CustomExchangeInstallationAccount",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    " -ExchangeInstallationAccount `\"",
+                                                    {
+                                                        "Ref" : "ExchangeInstallationAccount"
+                                                    },
+                                                    "`\""
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                " -CloudWatchConfig `\"",
+                                {
+                                    "Ref" : "ExchangeServerCloudWatchConfigFile"
+                                },
+                                "`\"",
+                                " -CfnSignalArguments `\"",
+                                {
+                                    "Fn::Base64" : {
+                                        "Ref" : "ExchangeServer2WaitConditionHandle"
+                                    }
+                                },
+                                "`\"",
+                                "\" \n",
+                                "</powershell>"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "DependsOn"  : [
+                "ExchangeServerWaitCondition"
+            ]
+        },
+        "ElbSecurityGroup"                    : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "GroupDescription" : "Enable Web Access",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "25",
+                        "ToPort"     : "25",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "465",
+                        "ToPort"     : "465",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "443",
+                        "ToPort"     : "443",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "80",
+                        "ToPort"     : "80",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "110",
+                        "ToPort"     : "110",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "587",
+                        "ToPort"     : "587",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "995",
+                        "ToPort"     : "995",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "143",
+                        "ToPort"     : "143",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "993",
+                        "ToPort"     : "993",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "50636",
+                        "ToPort"     : "50636",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "5075",
+                        "ToPort"     : "5077",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "50636",
+                        "ToPort"     : "50636",
+                        "CidrIp"     : "0.0.0.0/0"
+                    }
+                ]
+            },
+            "DependsOn"  : "VPC"
+        },
+        "ELB"                                 : {
+            "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+            "Properties" : {
+                "AccessLoggingPolicy" : {
+                    "EmitInterval" : 5,
+                    "Enabled"      : true,
+                    "S3BucketName" : {
+                        "Ref" : "LoggingBucket"
+                    },
+                    "S3BucketPrefix" : ""
+                },
+                "ConnectionDrainingPolicy" : {
+                    "Enabled" : true,
+                    "Timeout" : 30
+                },
+                "HealthCheck"              : {
+                    "HealthyThreshold" : 2,
+                    "Interval"         : 120,
+                    "Target"           : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "HTTPS:443/",
+                                {
+                                    "Ref" : "HealthCheckPath"
+                                }
+                            ]
+                        ]
+                    },
+                    "Timeout"          : 5,
+                    "UnhealthyThreshold" : 10
+                },
+                "Listeners"                : [
+                    {
+                        "InstancePort" : 80,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 80,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 443,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 443,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 25,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 25,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 465,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 465,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 587,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 587,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 110,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 110,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 995,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 995,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 143,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 143,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 993,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 993,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 5075,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 5075,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 5076,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 5076,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 5077,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 5077,
+                        "Protocol"         : "TCP"
+                    },
+                    {
+                        "InstancePort" : 50636,
+                        "InstanceProtocol" : "TCP",
+                        "LoadBalancerPort" : 50636,
+                        "Protocol"         : "TCP"
+                    }
+                ],
+                "SecurityGroups"           : [
+                    {
+                        "Ref" : "ElbSecurityGroup"
+                    }
+                ],
+                "Subnets"                  : [
+                    {
+                        "Ref" : "PublicSubnet1"
+                    },
+                    {
+                        "Ref" : "PublicSubnet2"
+                    }
+                ],
+                "Instances"                : [
+                    {
+                        "Ref" : "ExchangeServer"
+                    },
+                    {
+                        "Fn::If" : [
+                            "CreateDAG",
+                            {
+                                "Ref" : "ExchangeServer2"
+                            },
+                            {
+                                "Ref" : "AWS::NoValue"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "ExchangeServerWaitCondition"
+            ]
+        }
+    },
+    "Outputs"                  : {
+        "ExchangeAdminCenter" : {
+            "Description" : "The URL to the Exchange Admin Center",
+            "Value"       : {
+                "Fn::Join" : [
+                    "",
+                    [
+                        "https://",
+                        {
+                            "Fn::GetAtt" : [
+                                "ELB",
+                                "DNSName"
+                            ]
+                        },
+                        "/ecp"
+                    ]
+                ]
+            }
+        },
+        "OWA"                 : {
+            "Description" : "The URL to OWA Logon",
+            "Value"       : {
+                "Fn::Join" : [
+                    "",
+                    [
+                        "https://",
+                        {
+                            "Fn::GetAtt" : [
+                                "ELB",
+                                "DNSName"
+                            ]
+                        },
+                        "/owa"
+                    ]
+                ]
+            }
+        }
+    }
+}

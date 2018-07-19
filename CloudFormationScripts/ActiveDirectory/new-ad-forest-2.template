@@ -1,0 +1,1019 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "",
+    "Parameters"               : {
+        "ForestRootName" : {
+            "Type" : "String",
+            "Description" : "The FQDN of the directory",
+            "MinLength"   : 3
+        },
+        "UserName"       : {
+            "Type" : "String",
+            "Description" : "The name of a new (or default) domain admin account that will be used to join the other domain controllers and is used in the password encryption context with KMS.",
+            "Default"     : "administrator"
+        },
+        "AdminPassword"  : {
+            "Type" : "String",
+            "Description" : "The password for the default administrative user, administrator",
+            "MinLength"   : 8,
+            "NoEcho"      : true
+        },
+        "SafeModePassword" : {
+            "Description" : "The DSRM safe mode password",
+            "NoEcho"      : true,
+            "Type"        : "String",
+            "MinLength"   : 8
+        },
+        "UsersConfiguration" : {
+            "Description" : "The json file key in the config bucket containing the users to create. Will use the new administrator password for these accounts. Leave blank to not create users.",
+            "Type"        : "String",
+            "Default"     : "Users.json"
+        },
+        "ADSite"             : {
+            "Type" : "String",
+            "Description" : "The name of the AD site this domain controller belongs to, will default to Default-First-Site-Name."
+        },
+        "ComputerName"       : {
+            "Type" : "String",
+            "Description" : "The domain controller's computer name. If this is blank, the computer name will not be updated.",
+            "MaxLength"   : 15
+        },
+        
+		"OperatingSystem"             : {
+            "Description" : "The OS to launch.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "WindowsServer2008R2",
+                "WindowsServer2012",
+                "WindowsServer2012R2",
+                "WindowsServer2016"
+            ],
+            "Default"       : "WindowsServer2016"
+        },
+        "RootVolumeSize"     : {
+            "Type" : "Number",
+            "MinValue" : 5,
+            "MaxValue" : 16384,
+            "Description" : "The size in GiB of the EBS volume on the domain controller for the root volume.",
+            "Default"     : 50
+        },
+        "ADVolumeSize"       : {
+            "Type" : "Number",
+            "MinValue" : "5",
+            "MaxValue" : "16384",
+            "Description" : "The size in GiB of the EBS volume on the domain controller that will contain the NTDS.dit database, logs, and Sysvol.",
+            "Default"     : 10
+        },
+        "CloudWatchSSMDocument"  : {
+            "Type" : "String",
+            "Description" : "The SSM document that will enable all required Cloudwatch Logs and custom metrics. Leave blank to not enable.",
+            "Default"     : "mhaken-ConfigureCloudWatch-ActiveDirectory.json"
+        },
+        "InstanceType"           : {
+            "Description" : "The EC2 instance type.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "t2.nano",
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "t2.xlarge",
+                "t2.2xlarge",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                "m4.16xlarge",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "c3.large",
+                "c3.xlarge",
+                "c3.2xlarge",
+                "c3.4xlarge",
+                "c3.8xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "r3.large",
+                "r3.xlarge",
+                "r3.2xlarge",
+                "r3.4xlarge",
+                "r3.8xlarge",
+                "r4.large",
+                "r4.xlarge",
+                "r4.2xlarge",
+                "r4.4xlarge",
+                "r4.8xlarge",
+                "r4.16xlarge"
+            ],
+            "Default"       : "t2.medium",
+            "ConstraintDescription" : "Must be a valid EC2 instance type"
+        },
+        "KeyName"                : {
+            "Description" : "An existing KeyPair",
+            "Type"        : "AWS::EC2::KeyPair::KeyName"
+        },
+        "CfnInitSource"          : {
+            "Description" : "The url for the CloudFormation helper scripts",
+            "Type"        : "String",
+            "Default"     : "https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.msi"
+        },
+        "DomainControllerCloudWatchConfigFile" : {
+            "Description" : "The key value of the S3 object that is the cloudwatch config.",
+            "Type"        : "String",
+            "Default"     : "ActiveDirectory/AWS.EC2.Windows.CloudWatch.json"
+        },
+		"InstanceProfileName" : {
+			"Description" : "The name of the instance profile to assign to domain controllers.",
+			"Type" : "String",
+			"MinLength" : 1
+		},
+       
+        "ConfigSourceBucket"                   : {
+            "Description" : "Bucket to retrieve config files from.",
+            "Type"        : "String",
+            "AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
+        },
+        "ConfigScript1"                        : {
+            "Description" : "The key value of the S3 object to run the common config script.",
+            "Type"        : "String",
+            "Default"     : "Common/Invoke-AWSCommonSetup.ps1"
+        },
+        "ConfigScript2"                        : {
+            "Description" : "The key value of the S3 object to run the domain controller setup script.",
+            "Type"        : "String",
+            "Default"     : "ActiveDirectory/New-DomainController.ps1"
+        },
+
+		"NotificationEmail"                    : {
+            "Description" : "Email address to notify when alarms occur.",
+            "Type"        : "String"
+        },
+
+        "VpcId"                                : {
+            "Type" : "AWS::EC2::VPC::Id",
+            "Description" : "The VPC the directory service will be deployed into."
+        },
+        "Subnet1"                              : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The first subnet to deploy a domain controller to"
+        },
+        "Subnet2"                              : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The second subnet to deploy a domain controller to"
+        },
+        "Subnet3"                              : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The third subnet to deploy a domain controller to"
+        },
+        "BastionSecurityGroupId"               : {
+            "Type" : "AWS::EC2::SecurityGroup::Id",
+            "Description" : "The security group Id that is attached to the server being used to administer the domain controllers."
+        },
+
+        "OrganizationTag"                      : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "ApplicationTag"                       : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag"                       : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        }
+    },
+
+
+    "Metadata"                 : {
+        "AWS::CloudFormation::Interface" : {
+            "ParameterGroups" : [
+                {
+                    "Label" : {
+                        "default" : "Network Configuration"
+                    },
+                    "Parameters" : [
+                        "VpcId",
+                        "Subnet1",
+                        "Subnet2",
+                        "Subnet3"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Active Directory Configuration"
+                    },
+                    "Parameters" : [
+                        "ForestRootName",
+                        "AdminPassword",
+                        "SafeModePassword",
+                        "UsersConfiguration"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Instance Configuration"
+                    },
+                    "Parameters" : [
+						"ConfigSourceBucket",
+						"ConfigScript1",
+						"ConfigScript2",
+						"OperatingSystem",
+						"RootVolumeSize",
+						"ADVolumeSize",						
+                        "DomainControllerCloudWatchConfigFile",
+                        "InstanceType",
+                        "KeyName",
+                        "CfnInitSource"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "CloudWatch Configuration"
+                    },
+                    "Parameters" : [
+						"CloudWatchSSMDocument",
+                        "NotificationEmail"
+                    ]
+                }
+            ],
+            "ParameterLabels" : {
+                "VpcId" : {
+                    "default" : "Vpc Id"
+                },
+                "OSType" : {
+                    "default" : "Operating System"
+                },
+                "InstanceSize" : {
+                    "default" : "Instance Size"
+                },
+                "KeyName"      : {
+                    "default" : "EC2 KeyPair"
+                },
+                "CfnInitSource" : {
+                    "default" : "Cfn Help Scripts Url"
+                },
+                "ConfigSourceBucket" : {
+                    "default" : "Configuration File Bucket"
+                },
+                "ConfigFile"         : {
+                    "default" : "Configuration Script"
+                },
+                "DomainControllerCloudWatchConfigFile" : {
+                    "default" : "AD CloudWatch Logs Config"
+                },
+                "NotificationEmail"                    : {
+                    "default" : "E-Mail"
+                }
+            }
+        }
+    },
+    "Mappings"                 : {
+        "ServerAmiIdMapping" : {
+            "ap-south-1" : {
+                "Name" : "Asia Pacific (Mumbai)",
+                "WindowsServer2016" : "ami-6695ea09",
+                "WindowsServer2012R2" : "ami-c6d5aaa9",
+                "WindowsServer2012"   : "ami-ca94eba5",
+                "WindowsServer2008R2" : "ami-2fd5aa40",
+                "WindowsServer2008"   : "ami-febdc291",
+                "AmazonLinux"         : "ami-3c89f653"
+            },
+            "us-east-2"  : {
+                "Name" : "US East (Ohio)",
+                "WindowsServer2016" : "ami-3487a151",
+                "WindowsServer2012R2" : "ami-a4b395c1",
+                "WindowsServer2012"   : "ami-b385a3d6",
+                "WindowsServer2008R2" : "ami-acb593c9",
+                "WindowsServer2008"   : "ami-12ab8d77",
+                "AmazonLinux"         : "ami-3883a55d"
+            },
+            "ap-southeast-2" : {
+                "Name" : "Asia Pacific (Sydney)",
+                "WindowsServer2016" : "ami-8de6f7ee",
+                "WindowsServer2012R2" : "ami-841e0ee7",
+                "WindowsServer2012"   : "ami-0fe9f86c",
+                "WindowsServer2008R2" : "ami-011f0f62",
+                "WindowsServer2008"   : "ami-fc0f1e9f",
+                "AmazonLinux"         : "ami-a18392c2"
+            },
+            "us-west-1"      : {
+                "Name" : "US West (N. California)",
+                "WindowsServer2016" : "ami-7f2e031f",
+                "WindowsServer2012R2" : "ami-b4614cd4",
+                "WindowsServer2012"   : "ami-a0260bc0",
+                "WindowsServer2008R2" : "ami-37644957",
+                "WindowsServer2008"   : "ami-0f9ab86f",
+                "AmazonLinux"         : "ami-563a1736"
+            },
+            "sa-east-1"      : {
+                "Name" : "South America (Sao Paulo)",
+                "WindowsServer2016" : "ami-76147f1a",
+                "WindowsServer2012R2" : "ami-bc8de6d0",
+                "WindowsServer2012"   : "ami-8a6f04e6",
+                "WindowsServer2008R2" : "ami-488ce724",
+                "WindowsServer2008"   : "ami-a72942cb",
+                "AmazonLinux"         : "ami-1d660d71"
+            },
+            "ap-northeast-1" : {
+                "Name" : "Asia Pacific (Tokyo)",
+                "WindowsServer2016" : "ami-26777c41",
+                "WindowsServer2012R2" : "ami-7bffea1c",
+                "WindowsServer2012"   : "ami-010e0566",
+                "WindowsServer2008R2" : "ami-33feeb54",
+                "WindowsServer2008"   : "ami-da8b82bd",
+                "AmazonLinux"         : "ami-bbf2f9dc"
+            },
+            "eu-west-2"      : {
+                "Name" : "EU West (London)",
+                "WindowsServer2016" : "ami-23405647",
+                "WindowsServer2012R2" : "ami-21796f45",
+                "WindowsServer2012"   : "ami-2c415748",
+                "WindowsServer2008R2" : "ami-e0786e84",
+                "WindowsServer2008"   : "ami-835640e7",
+                "AmazonLinux"         : "ami-704e5814"
+            },
+            "eu-central-1"   : {
+                "Name" : "EU Central (Frankfurt)",
+                "WindowsServer2016" : "ami-9fc86ff0",
+                "WindowsServer2012R2" : "ami-b73493d8",
+                "WindowsServer2012"   : "ami-b7d077d8",
+                "WindowsServer2008R2" : "ami-ed369182",
+                "WindowsServer2008"   : "ami-a259fdcd",
+                "AmazonLinux"         : "ami-8da700e2"
+            },
+            "ca-central-1"   : {
+                "Name" : "Canada (Central)",
+                "WindowsServer2016" : "ami-dbdf60bf",
+                "WindowsServer2012R2" : "ami-37d06f53",
+                "WindowsServer2012"   : "ami-24dc6340",
+                "WindowsServer2008R2" : "ami-bdd26dd9",
+                "WindowsServer2008"   : "ami-3ae7585e",
+                "AmazonLinux"         : "ami-20db6444"
+            },
+            "eu-west-1"      : {
+                "Name" : "EU West (Ireland)",
+                "WindowsServer2016" : "ami-2d809e4b",
+                "WindowsServer2012R2" : "ami-4ad6ce2c",
+                "WindowsServer2012"   : "ami-6ab6a80c",
+                "WindowsServer2008R2" : "ami-c8d5cdae",
+                "WindowsServer2008"   : "ami-61e4fb07",
+                "AmazonLinux"         : "ami-7d50491b"
+            },
+            "ap-southeast-1" : {
+                "Name" : "Asia Pacific (Singapore)",
+                "WindowsServer2016" : "ami-5d2fad3e",
+                "WindowsServer2012R2" : "ami-b4ed61d7",
+                "WindowsServer2012"   : "ami-f531b396",
+                "WindowsServer2008R2" : "ami-72ed6111",
+                "WindowsServer2008"   : "ami-889a18eb",
+                "AmazonLinux"         : "ami-58d65b3b"
+            },
+            "us-east-1"      : {
+                "Name" : "US East (Virginia)",
+                "WindowsServer2016" : "ami-f4d1f0e2",
+                "WindowsServer2012R2" : "ami-e196b0f7",
+                "WindowsServer2012"   : "ami-02a78414",
+                "WindowsServer2008R2" : "ami-7fcbe569",
+                "WindowsServer2008"   : "ami-b190b7a7",
+                "AmazonLinux"         : "ami-643b1972"
+            },
+            "ap-northeast-2" : {
+                "Name" : "Asia Pacific (Seoul)",
+                "WindowsServer2016" : "ami-68b26d06",
+                "WindowsServer2012R2" : "ami-8fc21de1",
+                "WindowsServer2012"   : "ami-54af703a",
+                "WindowsServer2008R2" : "ami-88c21de6",
+                "WindowsServer2008"   : "ami-8c904fe2",
+                "AmazonLinux"         : "ami-9bab74f5"
+            },
+            "us-west-2"      : {
+                "Name" : "US West (Oregon)",
+                "WindowsServer2016" : "ami-48b4bf31",
+                "WindowsServer2012R2" : "ami-8d0c07f4",
+                "WindowsServer2012"   : "ami-f45f558d",
+                "WindowsServer2008R2" : "ami-d60a01af",
+                "WindowsServer2008"   : "ami-f14c4788",
+                "AmazonLinux"         : "ami-a07379d9"
+            }
+        }
+    },
+
+
+    "Conditions"               : {
+        "CreateUsers" : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "UsersConfiguration"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "SpecifyADSite" : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "ADSite"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "EnableCloudWatch" : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "CloudWatchSSMDocument"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        }
+    },
+
+
+    "Resources"                : {
+        "RDPSecurityGroup"                : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VpcId"
+                },
+                "GroupDescription" : "Enable RDP access via port 3389",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "3389",
+                        "ToPort"     : "3389",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroupId"
+                        }
+                    }
+                ]
+            }
+        },
+        "RemoteManagementSecurityGroup"   : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VpcId"
+                },
+                "GroupDescription" : "Allows Remote RPC and WinRM",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "135",
+                        "ToPort"     : "135",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroupId"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "5985",
+                        "ToPort"     : "5986",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroupId"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "49152",
+                        "ToPort"     : "65535",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroupId"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "445",
+                        "ToPort"     : "445",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroupId"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "icmp",
+                        "FromPort"   : "-1",
+                        "ToPort"     : "-1",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroupId"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "137",
+                        "ToPort"     : "138",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroupId"
+                        }
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "139",
+                        "ToPort"     : "139",
+                        "SourceSecurityGroupId" : {
+                            "Ref" : "BastionSecurityGroupId"
+                        }
+                    }
+                ]
+            }
+        },
+        "DomainControllerSecurityGroup"   : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VpcId"
+                },
+                "GroupDescription" : "Active Directory communication.",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "389",
+                        "ToPort"     : "389",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "389",
+                        "ToPort"     : "389",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "636",
+                        "ToPort"     : "636",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "53",
+                        "ToPort"     : "53",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "53",
+                        "ToPort"     : "53",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "3268",
+                        "ToPort"     : "3269",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "88",
+                        "ToPort"     : "88",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "88",
+                        "ToPort"     : "88",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "135",
+                        "ToPort"     : "135",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "49152",
+                        "ToPort"     : "65535",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "49152",
+                        "ToPort"     : "65535",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "123",
+                        "ToPort"     : "123",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "137",
+                        "ToPort"     : "138",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "139",
+                        "ToPort"     : "139",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "9389",
+                        "ToPort"     : "9389",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "445",
+                        "ToPort"     : "445",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "445",
+                        "ToPort"     : "445",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "25",
+                        "ToPort"     : "25",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "464",
+                        "ToPort"     : "464",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "464",
+                        "ToPort"     : "464",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "udp",
+                        "FromPort"   : "5985",
+                        "ToPort"     : "5986",
+                        "CidrIp"     : "0.0.0.0/0"
+                    }
+                ],
+                "Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Sub" : "SG-${ForestRootName}-${AWS::Region}-DomainController"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+
+        "DomainController1WaitConditionHandle" : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle",
+            "Properties" : {
+            }
+        },
+        "DomainController1WaitCondition"       : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "DomainController1WaitConditionHandle"
+                },
+                "Timeout" : 2100,
+                "Count"   : "1"
+            },
+            "DependsOn"  : "DomainController1"
+        },
+        "DomainController2WaitConditionHandle" : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle",
+            "Properties" : {
+            }
+        },
+        "DomainController2WaitCondition"       : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "DomainController2WaitConditionHandle"
+                },
+                "Timeout" : 2100,
+                "Count"   : "1"
+            },
+            "DependsOn"  : "DomainController2"
+        },
+        "DomainController3WaitConditionHandle" : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle",
+            "Properties" : {
+            }
+        },
+        "DomainController3WaitCondition"       : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "DomainController3WaitConditionHandle"
+                },
+                "Timeout" : 2100,
+                "Count"   : "1"
+            },
+            "DependsOn"  : "DomainController3"
+        },
+
+        "DomainController1"                    : {
+            "Type" : "AWS::EC2::Instance",
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Sub" : "${ForestRootName}-${AWS::Region}-DomainController1"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ],
+                "ImageId" : {
+                    "Fn::FindInMap" : [
+                        "ServerAmiIdMapping",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Ref" : "OperatingSystem"
+                        }
+                    ]
+                },
+                "InstanceType" : {
+                    "Ref" : "InstanceType"
+                },
+                "SecurityGroupIds" : [
+                    {
+                        "Fn::GetAtt" : [
+                            "RDPSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "RemoteManagementSecurityGroup",
+                            "GroupId"
+                        ]
+                    },
+                    {
+                        "Fn::GetAtt" : [
+                            "DomainControllerSecurityGroup",
+                            "GroupId"
+                        ]
+                    }
+                ],
+                "SubnetId"         : {
+                    "Ref" : "Subnet1"
+                },
+                "IamInstanceProfile" : {
+                    "Ref" : "InstanceProfileName"
+                },
+                "BlockDeviceMappings" : [
+                    {
+                        "DeviceName" : "/dev/sda1",
+                        "Ebs"        : {
+                            "VolumeSize" : {
+                                "Ref" : "RootVolumeSize"
+                            },
+                            "VolumeType" : "gp2"
+                        }
+                    },
+                    {
+                        "DeviceName" : "xvdf",
+                        "Ebs"        : {
+                            "VolumeSize" : {
+                                "Ref" : "ADVolumeSize"
+                            },
+                            "VolumeType" : "gp2"
+                        }
+                    }
+                ],
+                "UserData"            : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "<powershell>\n",
+                                "Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force\n",
+                                "Import-Module -Name AWSPowershell\n",
+                                "try {\n",
+                                "[System.Byte[]]$Bytes = [System.Convert]::FromBase64String(\"",
+                                {
+                                    "Ref" : "AdminPassword"
+                                },
+                                "\")\n",
+                                "[System.IO.MemoryStream]$MStream = New-Object -TypeName System.IO.MemoryStream($Bytes, 0, $Bytes.Length)\n",
+                                "[Amazon.KeyManagementService.Model.DecryptResponse]$Response = Invoke-KMSDecrypt -CiphertextBlob $MStream -EncryptionContext @{UserName = \"",
+                                {
+                                    "Ref" : "UserName"
+                                },
+                                "\"}\n",
+                                "[System.Security.SecureString]$DomainJoinPassword = ConvertTo-SecureString -String ([System.Text.Encoding]::UTF8.GetString($Response.PlainText.ToArray())) -AsPlainText -Force\n",
+                                "}\n",
+                                "finally {\n",
+                                "$MStream.Dispose()\n",
+                                "}\n",
+                                "try {\n",
+                                "[System.Byte[]]$Bytes = [System.Convert]::FromBase64String(\"",
+                                {
+                                    "Ref" : "SafeModePassword"
+                                },
+                                "\")\n",
+                                "[System.IO.MemoryStream]$MStream = New-Object -TypeName System.IO.MemoryStream($Bytes, 0, $Bytes.Length)\n",
+                                "[Amazon.KeyManagementService.Model.DecryptResponse]$Response = Invoke-KMSDecrypt -CiphertextBlob $MStream -EncryptionContext @{UserName = \"DSRM\"}\n",
+                                "[System.Security.SecureString]$SafeModePassword = ConvertTo-SecureString -String ([System.Text.Encoding]::UTF8.GetString($Response.PlainText.ToArray())) -AsPlainText -Force\n",
+                                "}\n",
+                                "finally {\n",
+                                "$MStream.Dispose()\n",
+                                "}\n",
+                                "[System.String]$FileName1 = (\"",
+                                {
+                                    "Ref" : "ConfigScript1"
+                                },
+                                "\").Split(\"/\")[-1]\n",
+                                "[System.String]$FileName2 = (\"",
+                                {
+                                    "Ref" : "ConfigScript2"
+                                },
+                                "\").Split(\"/\")[-1]\n",
+                                "Copy-S3Object -BucketName \"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "\" -Key \"",
+                                {
+                                    "Ref" : "ConfigScript1"
+                                },
+                                "\" -LocalFile \"$env:SystemDrive\\$FileName1\"\n",
+                                "Copy-S3Object -BucketName \"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "\" -Key \"",
+                                {
+                                    "Ref" : "ConfigScript2"
+                                },
+                                "\" -LocalFile \"$env:SystemDrive\\$FileName2\"\n",
+                                "$RebootRequired = & \"$env:SystemDrive\\$FileName1\"",
+                                " -NewComputerName \"",
+                                {
+                                    "Ref" : "ComputerName"
+                                },
+                                "\"",
+                                " -BucketName \"",
+                                {
+                                    "Ref" : "ConfigSourceBucket"
+                                },
+                                "\"",
+                                " -DomainName \"",
+                                {
+                                    "Ref" : "ForestRootName"
+                                },
+                                "\"",
+                                " -DomainJoinUsername \"",
+                                {
+                                    "Ref" : "UserName"
+                                },
+                                "\"",
+                                " -DomainJoinPassword $DomainJoinPassword",
+                                " -DNSServers @(\"",
+                                {
+                                    "Fn::Join" : [
+                                        "\",\"",
+                                        {
+                                            "Ref" : "DNSServers"
+                                        }
+                                    ]
+                                },
+                                "\")",
+                                " -FormatDrives\n",
+                                "Remove-Item -Path \"$env:SystemDrive\\$FileName1\" -Force\n",
+                                "& \"$env:SystemDrive\\$FileName2\"",
+                                " -DomainName \"",
+                                {
+                                    "Ref" : "ForestRootName"
+                                },
+                                "\"",
+                                {
+                                    "Fn::If" : [
+                                        "SpecifyADSite",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    " -SiteName \"",
+                                                    {
+                                                        "Ref" : "ADSite"
+                                                    },
+                                                    "\""
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                " -UserName \"",
+                                {
+                                    "Ref" : "UserName"
+                                },
+                                "\"",
+                                " -Password $DomainJoinPassword",
+                                " -SafeModePassword $SafeModePassword",
+                                " -NtdsDrive 'd'",
+                                {
+                                    "Fn::If" : [
+                                        "EnableCloudWatch",
+                                        {
+                                            "Fn::Join" : [
+                                                "",
+                                                [
+                                                    " -CloudWatchSSMDocument \"",
+                                                    {
+                                                        "Ref" : "CloudWatchSSMDocument"
+                                                    },
+                                                    "\""
+                                                ]
+                                            ]
+                                        },
+                                        {
+                                            "Ref" : "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                " -WaitConditionUrl \"",
+                                {
+                                    "Fn::Base64" : {
+                                        "Ref" : "DomainController1WaitConditionHandle"
+                                    }
+                                },
+                                "\"\n",
+                                "Remove-Item -Path \"$env:SystemDrive\\$FileName2\" -Force\n",
+                                "Restart-Computer -Force\n",
+                                "</powershell>"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "Outputs"                  : {
+    }
+}

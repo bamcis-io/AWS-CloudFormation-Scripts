@@ -28,6 +28,42 @@
             "MinLength"   : "7",
             "NoEcho"      : true
         },
+		"Edition" : {
+			"Type" : "String",
+			"Description" : "The AWS Directory Service edition.",
+			"AllowedValues" : [
+				"Standard",
+				"Enterprise"
+			],
+			"Default" : "Standard"
+		},
+		"CreateAlias" : {
+			"Type" : "String",
+			"Description" : "AWS Directory Service uses the alias to construct the access URL for the directory. This cannot be changed later without creating a new directory.",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "false"
+		},
+		"EnableSso" : {
+			"Type" : "String",
+			"Description" : "Whether to enable single sign-on for a Microsoft Active Directory in AWS.",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "false"
+		},
+		 "UpdateDhcp" : {
+			"Description" : "Specifies whether the DHCP Option Set for the VPC containing the domain controllers should be updated with Domain Name and DNS Servers.",			
+			"Type" : "String",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "true"
+		},
    
         "VpcCidrBlock"             : {
             "Description" : "The CIDR block for the VPC.",
@@ -299,6 +335,18 @@
                     "AdminPassword"  : {
                         "Ref" : "AdminPassword"
                     },
+					"Edition" : {
+						"Ref" : "Edition"
+					},
+					"EnableSso" : {
+						"Ref" : "EnableSso"
+					},
+					"CreateAlias" : {
+						"Ref" : "CreateAlias"
+					},
+					"UpdateDhcp" : {
+						"Ref" : "UpdateDhcp"						
+					},
                     "VpcId"          : {
                         "Fn::GetAtt" : [
                             "NetworkingStack",

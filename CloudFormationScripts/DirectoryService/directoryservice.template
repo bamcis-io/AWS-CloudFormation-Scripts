@@ -42,7 +42,16 @@
 			],
 			"Default" : "false"
 		},
-        "VpcId"          : {
+        "UpdateDhcp" : {
+			"Description" : "Specifies whether the DHCP Option Set for the VPC containing the domain controllers should be updated with Domain Name and DNS Servers.",			
+			"Type" : "String",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "true"
+		},
+		"VpcId"          : {
             "Type" : "AWS::EC2::VPC::Id",
             "Description" : "The VPC the directory service will be deployed into."
         },
@@ -127,6 +136,14 @@
 					"Condition" : "CreateDirectoryAlias"
 				}
 			]
+		},
+		"UpdateDHCP" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "UpdateDhcp"
+				},
+				"true"
+			]
 		}
     },
 
@@ -164,7 +181,55 @@
                     ]
                 }
             }
-        }
+        },
+
+		"DHCP" : {
+			"Type" : "AWS::EC2::DHCPOptions",
+			"Properties" : {
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+                            "Ref" : "ForestRootName"
+                        }
+                    },
+					{
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				],
+				"DomainName" : "ForestRootName",
+				"DomainNameServers" : {
+					"Fn::GetAtt" : [ "Directory", "DnsIpAddresses" ]
+				}
+			}
+		},
+
+		"DHCPAssociation" : {
+			"Type" : "AWS::EC2::VPCDHCPOptionsAssociation",
+			"Properties" : {
+				"DhcpOptionsId" : {
+					"Ref" : "DHCP"
+				},
+				"VpcId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		}
     },
 
 

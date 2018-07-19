@@ -1,0 +1,85 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "",
+
+	"Parameters" : {
+		"DemoBucketName" : {
+            "Description" : "The name of the demo bucket.",
+            "Type"        : "String",
+            "MinLength"   : 3,
+            "MaxLength"   : 63,
+            "AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
+        },
+		"AllowedRoleArn" : {
+			"Description" : "The Arn of the role that is allowed to access data in the bucket.",
+			"Type" : "String",
+			"AllowedPattern" : "arn:aws(?:-us-gov|-cn)?:.*"
+		}
+	},
+
+	"Resources" : {
+		"DemoBucket" : {
+			"Type" : "AWS::S3::Bucket",
+			"Properties" : {
+				"BucketName" : {
+					"Ref" : "DemoBucketName"
+				}
+			}
+		},
+
+		"DemoBucketPolicy" : {
+			"Type" : "AWS::S3::BucketPolicy",
+			"Properties" : {
+				"Bucket" : {
+					"Ref" : "DemoBucket"
+				},
+				"PolicyDocument" : {
+					"Version" : "2008-10-17",
+                    "Id"      : "1",
+                    "Statement" : [
+                        {
+                            "Sid" : "1",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : {
+									"Ref" : "AllowedRoleArn"
+								}
+                            },
+                            "Action"    : [
+                                "s3:GetBucketLocation",
+                                "s3:ListBucket",
+								"s3:ListBucketMultipartUploads"								
+                            ],
+                            "Resource"  : {
+								"Fn::Sub" : "arn:aws:s3:::${DemoBucket}"								
+							}
+                        },
+                        {
+                            "Sid" : "2",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : {
+									"Ref" : "AllowedRoleArn"
+								}
+                            },
+                            "Action"    : [
+                                "s3:GetObject",
+								"s3:PutObject",
+								"s3:ListMultipartUploadParts",
+								"s3:AbortMultipartUpload"
+                            ],
+                            "Resource"  : {
+								"Fn::Sub" : "arn:aws:s3:::${DemoBucket}/*"	
+							}
+                        }
+                    ]               
+				}
+			}
+		}		
+	},
+
+	"Outputs" : {
+	}
+}
