@@ -84,8 +84,8 @@
             "Type"        : "AWS::EC2::AvailabilityZone::Name",
             "ConstraintDescription" : "You must choose an availability zone."
         },
-        "EnableDnsHostNames"         : {
-            "Description" : "Indicates whether the instances launched in the VPC get public DNS hostnames.",
+        "EnablePublicDnsHostNames"         : {
+            "Description" : "Indicates whether the instances launched in the VPC get public DNS hostnames. If this attribute is true, instances in the VPC get public DNS hostnames, but only if the enableDnsSupport attribute is also set to true. ",
             "Type"        : "String",
             "AllowedValues" : [
                 "true",
@@ -94,7 +94,7 @@
             "Default"       : "false"
         },
         "EnableDnsSupport"           : {
-            "Description" : "Indicates whether the DNS resolution is supported for the VPC.",
+            "Description" : "Indicates whether the DNS resolution is supported for the VPC. If this attribute is false, the Amazon-provided DNS server in the VPC that resolves public DNS hostnames to IP addresses is not enabled. If this attribute is true, queries to the Amazon provided DNS server at the 169.254.169.253 IP address, or the reserved IP address at the base of the VPC IPv4 network range plus two will succeed.",
             "Type"        : "String",
             "AllowedValues" : [
                 "true",
@@ -187,12 +187,12 @@
 
 
     "Conditions"               : {
-        "ActuallyEnableDnsHostNames" : {
+        "ActuallyEnablePublicDnsHostNames" : {
             "Fn::And" : [
                 {
                     "Fn::Equals" : [
                         {
-                            "Ref" : "EnableDnsHostNames"
+                            "Ref" : "EnablePublicDnsHostNames"
                         },
                         "true"
                     ]
@@ -511,7 +511,7 @@
                 },
                 "EnableDnsHostnames" : {
                     "Fn::If" : [
-                        "ActuallyEnableDnsHostNames",
+						"ActuallyEnablePublicDnsHostNames",
                         "true",
                         "false"
                     ]
@@ -1779,6 +1779,9 @@
                 "VpcId" : {
                     "Ref" : "VPC"
                 },
+				"GroupName" : {
+					"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-BastionHost-${EnvironmentTag}"
+				},
                 "GroupDescription" : "Security group for the Bastion Instance",
                 "SecurityGroupIngress" : [
                     {
@@ -1802,23 +1805,7 @@
                     {
                         "Key" : "Name",
                         "Value" : {
-                            "Fn::Join" : [
-                                "",
-                                [
-                                    "SG-",
-                                    {
-                                        "Ref" : "ApplicationTag"
-                                    },
-                                    "-",
-                                    {
-                                        "Ref" : "AWS::Region"
-                                    },
-                                    "-BastionHost-",
-                                    {
-                                        "Ref" : "EnvironmentTag"
-                                    }
-                                ]
-                            ]
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-BastionHost-${EnvironmentTag}"
                         }
                     },
                     {
@@ -1848,6 +1835,9 @@
                 "VpcId" : {
                     "Ref" : "VPC"
                 },
+				"GroupName" : {
+					"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-SSHFromBastionHost-${EnvironmentTag}"
+				},
                 "GroupDescription" : "Enable SSH access via port 22",
                 "SecurityGroupIngress" : [
                     {
@@ -1863,23 +1853,7 @@
                     {
                         "Key" : "Name",
                         "Value" : {
-                            "Fn::Join" : [
-                                "",
-                                [
-                                    "SG-",
-                                    {
-                                        "Ref" : "ApplicationTag"
-                                    },
-                                    "-",
-                                    {
-                                        "Ref" : "AWS::Region"
-                                    },
-                                    "-SSHFromBastionHost-",
-                                    {
-                                        "Ref" : "EnvironmentTag"
-                                    }
-                                ]
-                            ]
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-SSHFromBastionHost-${EnvironmentTag}"
                         }
                     },
                     {
@@ -1908,6 +1882,9 @@
             "Properties" : {
                 "VpcId" : {
                     "Ref" : "VPC"
+                },
+				"GroupName" : {
+					"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-WindowsRemoteManagementFromBastionHost-${EnvironmentTag}"
                 },
                 "GroupDescription" : "Allows Remote RPC, WinRM, ICMP, and RDP from the Bastion Host.",
                 "SecurityGroupIngress" : [
@@ -1980,23 +1957,7 @@
                     {
                         "Key" : "Name",
                         "Value" : {
-                            "Fn::Join" : [
-                                "",
-                                [
-                                    "SG-",
-                                    {
-                                        "Ref" : "ApplicationTag"
-                                    },
-                                    "-",
-                                    {
-                                        "Ref" : "AWS::Region"
-                                    },
-                                    "-WindowsRemoteManagementFromBastionHost-",
-                                    {
-                                        "Ref" : "EnvironmentTag"
-                                    }
-                                ]
-                            ]
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-WindowsRemoteManagementFromBastionHost-${EnvironmentTag}"
                         }
                     },
                     {

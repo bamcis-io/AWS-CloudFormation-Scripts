@@ -77,6 +77,9 @@
     <Content Include="AthenaDemo\AmazonRDS.csv">
       <SubType>Content</SubType>
     </Content>
+    <Content Include="Networking\README.md">
+      <SubType>Content</SubType>
+    </Content>
   </ItemGroup>
   <Import Project="$(CloudFormationPath)\cloudformation.targets" />
 </Project>

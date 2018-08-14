@@ -8,13 +8,15 @@
             "Description" : "The url to the CloudFormation script to set up networking",
             "Type"        : "String",
             "AllowedPattern" : "https?\\:\\/\\/.*",
-            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*"
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*",
+			"Default" : "https://s3.amazonaws.com/<BUCKET_NAME>/networking-vpc-3-az.template"
         },
         "DirectoryServiceStackUrl" : {
             "Description" : "The url to the CloudFormation script to set up AWS Directory Service",
             "Type"        : "String",
             "AllowedPattern" : "https?\\:\\/\\/.*",
-            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*"
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*",
+			"Default" : "https://s3.amazonaws.com/<BUCKET_NAME>/directoryservice.template"
         },
 
         "ForestRootName"           : {
@@ -55,8 +57,17 @@
 			],
 			"Default" : "false"
 		},
-		 "UpdateDhcp" : {
+		"UpdateDhcp" : {
 			"Description" : "Specifies whether the DHCP Option Set for the VPC containing the domain controllers should be updated with Domain Name and DNS Servers.",			
+			"Type" : "String",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "true"
+		},
+		"CreateEC2Role" : {
+			"Description" : "If set to true, an EC2 instance profile will be created that can be used to join the Managed AD domain",
 			"Type" : "String",
 			"AllowedValues" : [
 				"true",
@@ -147,7 +158,7 @@
             "Type"        : "AWS::EC2::AvailabilityZone::Name",
             "ConstraintDescription" : "You must choose an availability zone."
         },
-        "EnableDnsHostNames"         : {
+        "EnablePublicDnsHostNames"   : {
             "Description" : "Indicates whether the instances launched in the VPC get public DNS hostnames.",
             "Type"        : "String",
             "AllowedValues" : [
@@ -197,6 +208,15 @@
     "Metadata"                 : {
         "AWS::CloudFormation::Interface" : {
             "ParameterGroups" : [
+				{
+                    "Label" : {
+                        "default" : "Stack Locations"
+                    },
+                    "Parameters" : [
+                        "NetworkingStackUrl",
+                        "DirectoryServiceStackUrl"
+                    ]
+                },
                 {
                     "Label" : {
                         "default" : "Network Configuration"
@@ -209,7 +229,7 @@
                         "EnableIPv6",
                         "AssignIPv6",
                         "EnableDnsSupport",
-                        "EnableDnsHostNames",
+                        "EnablePublicDnsHostNames",
                         "ManagementSourceIP"
                     ]
                 },
@@ -238,8 +258,13 @@
                         "default" : "Directory Service Configuration"
                     },
                     "Parameters" : [
+						"Edition",
                         "ForestRootName",
-                        "AdminPassword"
+                        "AdminPassword",
+						"CreateAlias",
+						"EnableSso",
+						"CreateEC2Role",
+						"UpdateDhcp"
                     ]
                 },
                 {
@@ -283,8 +308,8 @@
                     "AssignIPv6"        : {
                         "Ref" : "AssignIPv6"
                     },
-                    "EnableDnsHostNames" : {
-                        "Ref" : "EnableDnsHostNames"
+                    "EnablePublicDnsHostNames" : {
+                        "Ref" : "EnablePublicDnsHostNames"
                     },
                     "EnableDnsSupport"   : {
                         "Ref" : "EnableDnsSupport"
@@ -343,6 +368,9 @@
 					},
 					"CreateAlias" : {
 						"Ref" : "CreateAlias"
+					},
+					"CreateEC2Role" : {
+						"Ref" : "CreateEC2Role"
 					},
 					"UpdateDhcp" : {
 						"Ref" : "UpdateDhcp"						

@@ -63,6 +63,15 @@
             "Type" : "AWS::EC2::Subnet::Id",
             "Description" : "The second subnet to deploy a domain controller to"
         },
+		"CreateEC2Role" : {
+			"Description" : "If set to true, an EC2 instance profile will be created that can be used to join the Managed AD domain",
+			"Type" : "String",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "true"
+		},
         "OrganizationTag" : {
             "Description" : "The organization this account is associated with",
             "Type"        : "String",
@@ -94,7 +103,8 @@
                     "Parameters" : [
                         "VpcId",
                         "Subnet1",
-                        "Subnet2"
+                        "Subnet2",
+						"UpdateDhcp"
                     ]
                 },
                 {
@@ -102,8 +112,12 @@
                         "default" : "Directory Service Configuration"
                     },
                     "Parameters" : [
+						"Edition",
                         "ForestRootName",
-                        "AdminPassword"
+                        "AdminPassword",
+						"CreateAlias",
+						"EnableSso",
+						"CreateEC2Role"
                     ]
                 },
                 {
@@ -144,11 +158,54 @@
 				},
 				"true"
 			]
+		},
+		"CreateRole" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "CreateEC2Role"
+				},
+				"true"
+			]
 		}
     },
 
 
     "Resources"                : {
+		"DomainJoinRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Condition" : "CreateRole",
+			"Properties" : {
+				"RoleName" : "EC2DomainJoinRole",
+				"ManagedPolicyArns" : [
+					"arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+				],
+			    "AssumeRolePolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+						  "Effect": "Allow",
+						  "Principal": {
+							"Service": "ec2.amazonaws.com"
+						  },
+						  "Action": "sts:AssumeRole"
+						}
+					]
+				}
+			}
+		},
+		"DomainJoinInstanceProfile" : {
+			"Type" : "AWS::IAM::InstanceProfile",
+			"Condition" : "CreateRole",
+			"Properties" : {
+				"InstanceProfileName" : "EC2DomainJoinInstanceProfile",
+				"Roles" : [
+					{
+						"Ref" : "DomainJoinRole"
+					}
+				]
+			}
+		},
+
         "Directory" : {
             "Type" : "AWS::DirectoryService::MicrosoftAD",
             "Properties" : {
@@ -179,7 +236,7 @@
                             "Ref" : "Subnet2"
                         }
                     ]
-                }
+                }				 
             }
         },
 
@@ -212,7 +269,9 @@
                         }
                     }
 				],
-				"DomainName" : "ForestRootName",
+				"DomainName" : {
+					"Ref" : "ForestRootName"
+				},
 				"DomainNameServers" : {
 					"Fn::GetAtt" : [ "Directory", "DnsIpAddresses" ]
 				}
@@ -249,7 +308,12 @@
 		},
 		"DnsIpAddresses" : {
 			"Value" : {
-				"Fn::GetAtt" : ["Directory", "DnsIpAddresses"]
+				"Fn::Join" : [
+					"",
+					{
+						"Fn::GetAtt" : ["Directory", "DnsIpAddresses"]
+					}
+				]
 			},
 			"Description" : "The IP addresses of the DNS servers for the directory."
 		}
