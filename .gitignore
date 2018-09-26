@@ -259,3 +259,7 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
+/CloudFormationScripts/FileShare/Deploy.ps1
+/CloudFormationScripts/FileShare/Deploy-2-Node.ps1
+/CloudFormationScripts/FileShare/2-node-file-share.template
+/CloudFormationScripts/FileShare/file-share-3-node.template

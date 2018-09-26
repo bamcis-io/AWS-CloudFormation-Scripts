@@ -1,0 +1,4493 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "",
+
+	"Parameters" : {
+		"ConfigBucketName" : {
+			"Description" : "The name of the bucket containing the configuration scripts",
+			"Type" : "String",
+			"AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+			"Default" : "mhaken-ec2-config"
+		},
+		"ConfigS3KeyPrefix" : {
+			"Description": "S3 key prefix for the configuration files assets. Key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+			"AllowedPattern": "^[0-9a-zA-Z-/]*$",
+            "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+            "Default": "s2d/fileserver/",
+            
+            "Type": "String"
+		},
+
+		"DomainJoinPassword" : {
+			"Description" : "The password to use to join the nodes to the domain",
+			"Type" : "String",
+			"MinLength" : 1,
+			"NoEcho" : "true"
+		},
+		"DomainJoinUsername" : {
+			"Description" : "The account username that will be used to join the nodes to the domain",
+			"Type" : "String",
+			"MinLength" : 1,
+			"Default" : "administrator"
+		},
+		"DomainName" : {
+			"Description" : "The FQDN of the domain being joined. The servers must be able to resolve this name via DNS.",
+			"Type" : "String",
+			"MinLength" : 3
+		},
+		"PasswordEncryptedWithKMS" : {
+			"Description" : "Specifies that the provided password was encrypted with KMS.",
+			"Type" : "String",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "false"
+		},
+
+		"WSFCOSType"             : {
+            "Description" : "The OS for the WSFC nodes.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "WindowsServer2012R2",
+                "WindowsServer2016"
+            ],
+            "Default"       : "WindowsServer2016"
+        },
+        "WSFCInstanceType" : {
+            "Description" : "The EC2 instance type for the WSFC nodes.",
+            "Type"        : "String",
+            "AllowedValues" : [              
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                
+				"m5.large",
+				"m5.xlarge",
+				"m5.2xlarge",
+				"m5.4xlarge",
+				"m5.12xlarge",
+				"m5.24xlarge",
+
+				"m5d.large",
+				"m5d.xlarge",
+				"m5d.2xlarge",
+				"m5d.4xlarge",
+				"m5d.12xlarge",
+				"m5d.24xlarge",
+
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+
+				"c5.large",
+                "c5.xlarge",
+                "c5.2xlarge",
+                "c5.4xlarge",
+                "c5.9xlarge",
+				"c5.18xlarge",
+
+				"c5d.large",
+                "c5d.xlarge",
+                "c5d.2xlarge",
+                "c5d.4xlarge",
+                "c5d.9xlarge",
+				"c5d.18xlarge",
+
+				"r4.large",
+                "r4.xlarge",
+                "r4.2xlarge",
+                "r4.4xlarge",
+                "r4.8xlarge",
+				"r4.16xlarge",
+
+                "r5.large",
+                "r5.xlarge",
+                "r5.2xlarge",
+                "r5.4xlarge",
+                "r5.12xlarge",
+				"r5.24xlarge",
+
+				"r5d.large",
+                "r5d.xlarge",
+                "r5d.2xlarge",
+                "r5d.4xlarge",
+                "r5d.12xlarge",
+				"r5d.24xlarge",
+
+				"i3.large",
+				"i3.xlarge",
+				"i3.2xlarge",
+				"i3.4xlarge",
+				"i3.8xlarge",
+				"i3.16xlarge"
+            ],
+            "Default"       : "m5.large",
+            "ConstraintDescription" : "Must be a valid EC2 instance type"
+        },
+		"KeyPairName": {
+            "Description": "Public/private key pairs allow you to securely connect to your instance after it launches",
+            "Type": "AWS::EC2::KeyPair::KeyName"
+        },
+
+		"CachePageSizeKBytes" : {
+			"Description" : "Specifies the page size used by S2D cache. This parameter is useful to control the memory footprint used to manage the pages. To reduce the memory overhead on systems with considerably large amounts of storage the page size can be increased to 32 kilobytes (KB) or even 64 KB. The default value is 16 KB, which represents a good tradeoff on most systems.",
+			"Type" : "Number",
+			"Default" : 16,
+			"AllowedValues" : [
+				16,
+				32,
+				64
+			]
+		},
+		"CSVCacheSizeMBytes" : {
+			"Description" : "Specifies the CSV cache size. You can optionally enable the cluster shared volume (CSV) cache to use system memory (RAM) as a write-through block-level cache of read operations that aren't already cached by the Windows cache manager. Set to 0 to not enable the cache.",
+			"Type" : "Number",
+			"Default" : 2048,
+			"MinValue" : 0
+		},
+		"FileSystem" : {
+			"Description" : "The file system to format the S2D volume with.",
+			"Type" : "String",
+			"AllowedValues" : [
+				"CSVFS_ReFS",
+				"CSVFS_NTFS"
+			],
+			"Default" : "CSVFS_ReFS"
+		},
+		"FileShareType" : {
+			"Description" : "The type of the file share",
+			"Type" : "String",
+			"AllowedValues" : [
+				"SOFS",
+				"GeneralUse"
+			],
+			"Default" : "GeneralUse"
+		},
+		"EnableJumboFrames" : {
+			"Description" : "Specifies if jumbo frames should be enabled on the failover cluster nodes.",
+			"Type" : "String",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "true"
+		},
+
+		"OSVolumeSize": {
+            "Default": "30",
+            "Description": "Volume size for the OS volume",
+            "MaxValue": "16000",
+            "MinValue": "20",
+            "Type": "Number"
+        },
+        "OSVolumeType": {
+            "AllowedValues": [
+                "gp2",
+                "io1"
+            ],
+            "Default": "gp2",
+            "Description": "Volume type for the OS volume",
+            "Type": "String"
+        },
+        "OSVolumeIops": {
+            "Default": "1000",
+            "Description": "Iops for the OS volume (only used when volume type is io1)",
+            "MaxValue": "20000",
+            "MinValue": "100",
+            "Type": "Number"
+        },
+
+		"Volume1Size": {
+            "Default": "100",
+            "Description": "Volume size for the file share in GiB",
+            "MaxValue": "16000",
+            "MinValue": "100",
+            "Type": "Number"
+        },
+        "Volume1Type": {
+            "AllowedValues": [
+                "gp2",
+                "io1"
+            ],
+            "Default": "gp2",
+            "Description": "Volume type for the file share",
+            "Type": "String"
+        },
+        "Volume1Iops": {
+            "Default": "1000",
+            "Description": "Iops for the file share (only used when volume type is io1)",
+            "MaxValue": "20000",
+            "MinValue": "100",
+            "Type": "Number"
+        },
+		"DataDisksPerNode" : {
+			"Description" : "S2D requires at least 2 disks per node, and optimally 4.",
+			"Type" : "Number",
+			"AllowedValues" : [
+				2,
+				4
+			],
+			"Default" : 2
+		},
+
+		"ClusterSize" : {
+			"Description" : "The number of nodes in the failover cluster.",
+			"Type" : "Number",
+			"AllowedValues" : [
+				2,
+				3
+			],
+			"Default" : 3
+		},
+		"WSFCNetBIOSName" : {
+			"Description" : "The name of the WSFC",
+			"Type" : "String",
+			"MinLength" : 1,
+			"MaxLength" : 15,
+			"Default" : "WSFC1"
+		},
+		"StoragePoolFriendlyName" : {
+			"Description" : "The name assigned to the S2D storage pool",
+			"Type" : "String",
+			"MinLength" : 1,
+			"Default" : "S2D-StoragePool"
+		},
+		"VolumeFriendlyName" : {
+			"Description" : "The friendly name for the S2D volume.",
+			"Type" : "String",
+			"Default" : "Volume1",
+			"MinLength" : 1
+		},
+		"FileServerNetBIOSName" : {
+			"Description" : "The name of the File Server access point",
+			"Type" : "String",
+			"MinLength" : 1,
+			"MaxLength" : 15,
+			"Default" : "S2DFileServer"
+		},
+		"FileShareName" : {
+			"Description" : "The name of the share. It will be created on the root of the S2D volume.",
+			"Type" : "String",
+			"MinLength" : 1,
+			"Default" : "fileshare"
+		},
+
+		"WSFCNode1NetBIOSName": {
+            "AllowedPattern": "[a-zA-Z0-9\\-]+",
+            "Default": "WSFCNode1",
+            "Description": "NetBIOS name of the first WSFC Node (up to 15 characters)",
+            "MaxLength": "15",
+            "Type": "String"
+        },
+		"WSFCNode2NetBIOSName": {
+            "AllowedPattern": "[a-zA-Z0-9\\-]+",
+            "Default": "WSFCNode2",
+            "Description": "NetBIOS name of the second WSFC Node (up to 15 characters)",
+            "MaxLength": "15",
+            "Type": "String"
+        },
+		"WSFCNode3NetBIOSName": {
+            "AllowedPattern": "[a-zA-Z0-9\\-]+",
+            "Default": "WSFCNode3",
+            "Description": "NetBIOS name of the third WSFC Node (up to 15 characters). If this is only a 2 node cluster, this is the NetBIOS name of the server running the file share witness.",
+            "MaxLength": "15",
+            "Type": "String"
+        },
+
+		"WSFCNode1PrivateIP1": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.32.100",
+            "Description": "Primary private IP for the first WSFC Node located in Availability Zone 1",
+            "Type": "String"
+        },
+        "WSFCNode1PrivateIP2": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.32.101",
+            "Description": "Secondary private IP for WSFC cluster on first WSFC Node",
+            "Type": "String"
+        },
+        "WSFCNode1PrivateIP3": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.32.102",
+            "Description": "Third private IP for file share on first WSFC Node",
+            "Type": "String"
+        },
+
+		"WSFCNode2PrivateIP1": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.80.100",
+            "Description": "Primary private IP for the second WSFC Node located in Availability Zone 2",
+            "Type": "String"
+        },
+        "WSFCNode2PrivateIP2": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.80.101",
+            "Description": "Secondary private IP for WSFC cluster on second WSFC Node",
+            "Type": "String"
+        },
+        "WSFCNode2PrivateIP3": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.80.102",
+            "Description": "Third private IP for file share on second WSFC Node",
+            "Type": "String"
+        },
+
+		"WSFCNode3PrivateIP1": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.0.100",
+            "Description": "Primary private IP for the third WSFC Node located in Availability Zone 2",
+            "Type": "String"
+        },
+        "WSFCNode3PrivateIP2": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.0.101",
+            "Description": "Secondary private IP for WSFC cluster on third WSFC Node",
+            "Type": "String"
+        },
+        "WSFCNode3PrivateIP3": {
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+            "Default": "172.31.0.102",
+            "Description": "Third private IP for file share on second WSFC Node",
+            "Type": "String"
+        },
+
+		"VpcId" : {
+			"Description" : "The VPC to deploy the servers into",
+			"Type" : "AWS::EC2::VPC::Id"
+		},
+		"Subnet1"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The first subnet to deploy a WSFC node into",
+			"Default" : "subnet-8101c5dd"
+        },
+        "Subnet2"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The second subnet to deploy a WSFC node into",
+			"Default" : "subnet-3f458311"
+        },
+		"Subnet3"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The third subnet to deploy a WSFC node into. Set this to either Subnet1 or Subnet2 to not use a third subnet.",
+			"Default" : "subnet-94f13ef3"
+        },
+
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "s2d"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "dev"
+        }
+	},
+
+	"Metadata"                 : {
+        "AWS::CloudFormation::Interface" : {
+            "ParameterGroups" : [
+				{
+                    "Label" : {
+                        "default" : "CFN S3 Information"
+                    },
+                    "Parameters" : [
+                        "ConfigBucketName",
+                        "ConfigS3KeyPrefix"
+                    ]
+                },
+				{
+                    "Label" : {
+                        "default" : "Active Directory"
+                    },
+                    "Parameters" : [
+                        "DomainName",
+                        "DomainJoinUsername",
+                        "DomainJoinPassword",
+						"PasswordEncryptedWithKMS"
+                    ]
+                }, 
+                {
+                    "Label" : {
+                        "default" : "Network Configuration"
+                    },
+                    "Parameters" : [
+                        "VpcId",
+                        "Subnet1",
+                        "Subnet2",
+                        "Subnet3"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Instance Configuration"
+                    },
+                    "Parameters" : [
+                        "WSFCInstanceType",
+                        "WSFCOSType",
+                        "KeyPairName"
+                    ]
+                },
+				{
+                    "Label" : {
+                        "default" : "OS Disk EBS Configuration"
+                    },
+                    "Parameters" : [
+                        "OSVolumeSize",
+                        "OSVolumeType",
+                        "OSVolumeIops"
+                    ]
+                },
+				{
+                    "Label" : {
+                        "default" : "Data Volume EBS Configuration"
+                    },
+                    "Parameters" : [
+						"Volume1Size",
+                        "Volume1Type",
+                        "Volume1Iops",
+						"DataDisksPerNode"
+                    ]
+                },				
+                {
+                    "Label" : {
+                        "default" : "Failover Cluster Configuration"
+                    },
+                    "Parameters" : [
+						"FileShareType",
+                        "WSFCNetBIOSName",
+                        "FileServerNetBIOSName",
+						"ClusterSize",
+                        "StoragePoolFriendlyName",
+						"VolumeFriendlyName",
+						"FileSystem",
+						"FileShareName",
+						"CachePageSizeKBytes",
+						"CSVCacheSizeMBytes",
+						"EnableJumboFrames"
+                    ]
+                },
+				{
+                    "Label" : {
+                        "default" : "Node 1 Network Configuration"
+                    },
+                    "Parameters" : [
+						"WSFCNode1NetBIOSName",
+                        "WSFCNode1PrivateIP1",
+                        "WSFCNode1PrivateIP2",
+                        "WSFCNode1PrivateIP3"
+                    ]
+                }, 
+				{
+                    "Label" : {
+                        "default" : "Node 2 Network Configuration"
+                    },
+                    "Parameters" : [
+						"WSFCNode2NetBIOSName",
+                        "WSFCNode2PrivateIP1",
+                        "WSFCNode2PrivateIP2",
+                        "WSFCNode2PrivateIP3"
+                    ]
+                }, 
+				{
+                    "Label" : {
+                        "default" : "Node 3 Network Configuration"
+                    },
+                    "Parameters" : [
+						"WSFCNode3NetBIOSName",
+                        "WSFCNode3PrivateIP1",
+                        "WSFCNode3PrivateIP2",
+                        "WSFCNode3PrivateIP3"
+                    ]
+                }, 
+                {
+                    "Label" : {
+                        "default" : "Tagging"
+                    },
+                    "Parameters" : [
+                        "OrganizationTag",
+                        "ApplicationTag",
+                        "EnvironmentTag"
+                    ]
+                }
+            ]
+        }
+    },
+
+	"Conditions" : {
+		"Is3Node"                     : {
+            "Fn::Equals" : [
+				{
+					"Ref" : "ClusterSize"
+				},
+				3
+			]
+        },
+		"IsTwoNode": {
+            "Fn::Not": [
+                {
+                    "Condition" : "Is3Node"
+                }
+            ]
+        },
+		"OSVolIsIo1": {
+            "Fn::Equals": [
+                {
+                    "Ref": "OSVolumeType"
+                },
+                "io1"
+            ]
+        },
+        "Vol1IsIo1": {
+            "Fn::Equals": [
+                {
+                    "Ref": "Volume1Type"
+                },
+                "io1"
+            ]
+        },
+		"PasswordEncrypted" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "PasswordEncryptedWithKMS"
+				},
+				"true"
+			]
+		},
+		"RenameNode1" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "WSFCNode1NetBIOSName"
+						},
+						""						
+					]
+				}
+			]
+		},
+		"RenameNode2" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "WSFCNode2NetBIOSName"
+						},
+						""						
+					]
+				}
+			]
+		},
+		"RenameNode3" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "WSFCNode3NetBIOSName"
+						},
+						""						
+					]
+				}
+			]
+		},
+		"UseCSVCache" : {
+			"Fn::Not" : [
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "CSVCacheSizeMBytes"
+						},
+						0
+					]
+				}
+			]
+		},
+		"UseSOFS" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "FileShareType"
+				},
+				"SOFS"
+			]
+		},
+		"IsUsEast1" : {
+			"Fn::Equals"  : [
+				{
+					"Ref" : "AWS::Region"
+				},
+				"us-east-1"
+			]
+		},
+		"DisableAutoReplace" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "DataDisksPerNode"
+				},
+				2
+			]
+		},
+		"Use4Disks" : {
+			"Fn::Not" : [
+				{
+					"Condition" : "DisableAutoReplace"
+				}
+			]
+		},
+		"Use4DisksAndAZ3" : {
+			"Fn::And" : [
+				{
+					"Condition" : "Use4Disks"
+				},
+				{
+					"Condition" : "Is3Node"
+				}
+			]
+		},
+		"UsesInstanceStorageCache" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"InstanceTypeMap",
+						{
+							"Ref" : "WSFCInstanceType"
+						},
+						"UsesInstanceStorage"
+					]					
+				},
+				true
+			]
+		},
+		"UseJumboFrames" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "EnableJumboFrames"
+				},
+				"true"
+			]
+		}
+	},
+
+	"Rules": {
+        "SubnetsInVPC": {
+            "Assertions": [
+                {
+                    "Assert": {
+                        "Fn::EachMemberIn": [
+                            {
+                                "Fn::ValueOfAll": [
+                                    "AWS::EC2::Subnet::Id",
+                                    "VpcId"
+                                ]
+                            },
+                            {
+                                "Fn::RefAll": "AWS::EC2::VPC::Id"
+                            }
+                        ]
+                    },
+                    "AssertDescription": "All subnets must in the VPC"
+                }
+            ]
+        }
+    },
+
+	"Mappings" : {
+		 "RegionMap" : {
+            "us-east-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "127311923021",
+				"HostedZoneId" : "Z1UJRXOUMOOFQ8",
+				"S3DnsName" : "s3"
+            },
+            "us-east-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "033677994240",
+				"HostedZoneId" : "ZOJJZC49E0EPZ",
+				"S3DnsName" : "s3"
+            },
+            "us-west-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "797873946194",
+				"HostedZoneId" : "Z2OJLYMUO9EFXC",
+				"S3DnsName" : "s3"
+            },
+            "us-west-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "027434742980",
+				"HostedZoneId" : "Z2MUQ32089INYE",
+				"S3DnsName" : "s3"
+            },
+            "ca-central-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "985666609251",
+				"HostedZoneId" : "Z19DQILCV0OWEC",
+				"S3DnsName" : "s3"
+            },
+            "eu-west-1"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "156460612806",
+				"HostedZoneId" : "ZLY8HYME6SFDD",
+				"S3DnsName" : "s3"
+            },
+            "eu-west-2"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "652711504416",
+				"HostedZoneId" : "ZJ5UAJN8Y3Z2Q",
+				"S3DnsName" : "s3"
+            },
+			"eu-west-3"    : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "009996457667",
+				"HostedZoneId" : "Z3KY65QIEKYHQQ",
+				"S3DnsName" : "s3"
+            },
+            "eu-central-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "054676820928",
+				"HostedZoneId" : "Z1U9ULNL0V5AJ3",
+				"S3DnsName" : "s3"
+            },
+            "ap-northeast-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "582318560864",
+				"HostedZoneId" : "Z1YSHQZHG15GKL",
+				"S3DnsName" : "s3"
+            },
+            "ap-northeast-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "600734575887",
+				"HostedZoneId" : "Z20JF4UZKIW1U8",
+				"S3DnsName" : "s3"
+            },
+			"ap-northeast-3" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "383597477331",
+				"HostedZoneId" : "Z2YQB5RD63NC85",
+				"S3DnsName" : "s3"
+            },
+            "ap-southeast-1" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "114774131450",
+				"HostedZoneId" : "ZL327KTPIQFUL",
+				"S3DnsName" : "s3"
+            },
+            "ap-southeast-2" : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "783225319266",
+				"HostedZoneId" : "Z2RPCDW04V8134",
+				"S3DnsName" : "s3"
+            },
+            "ap-south-1"     : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "718504428378",
+				"HostedZoneId" : "Z3VO1THU9YC4UR",
+				"S3DnsName" : "s3"
+            },
+            "sa-east-1"      : {
+                "Arn" : "aws",
+                "ELBPrincipalId" : "507241528517",
+				"HostedZoneId" : "ZCMLWB8V5SYIT",
+				"S3DnsName" : "s3"
+            },
+            "us-gov-west-1"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "048591011584",
+				"HostedZoneId" : "",
+				"S3DnsName" : "s3-us-gov-west-1"
+            },
+            "us-gov-west-2"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+				"HostedZoneId" : "",
+				"S3DnsName" : "s3-us-gov-west-2"
+            },
+            "us-gov-east-1"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+				"HostedZoneId" : "",
+				"S3DnsName" : "s3-us-gov-east-1"
+            },
+            "us-gov-east-2"  : {
+                "Arn" : "aws-us-gov",
+                "ELBPrincipalId" : "",
+				"HostedZoneId" : "",
+				"S3DnsName" : "s3-us-gov-east-2"
+            },
+            "cn-north-1"     : {
+                "Arn" : "aws-cn",
+                "ELBPrincipalId" : "638102146993",
+				"HostedZoneId" : "",
+				"S3DnsName" : "s3"
+            },
+			"cn-northwest-1" : {
+				"Arn" : "aws-cn",
+				"ELBPrincipalId" : "037604701340",
+				"HostedZoneId" : "",
+				"S3DnsName" : "s3"
+			},
+			"us-iso-east-1" : {
+				"Arn" : "aws-iso",
+				"ELBPrincipalId" : "",
+				"HostedZoneId" : "",
+				"S3DnsName" : "s3"
+			},
+			"us-isob-east-1" : {
+				"Arn" : "aws-iso-b",
+				"ELBPrincipalId" : "",
+				"HostedZoneId" : "",
+				"S3DnsName" : "s3"
+			}
+        },
+		 "InstanceMap" : {
+    "ap-south-1":  {
+                       "Name":  "Asia Pacific (Mumbai)",
+                       "WindowsServer2016":  "ami-ae1627c1",
+                       "WindowsServer2012R2":  "ami-e013228f",
+                       "WindowsServer2012":  "ami-6411200b",
+                       "WindowsServer2008R2":  "ami-931021fc",
+                       "WindowsServer2008":  "ami-1e2e1f71",
+                       "AmazonLinux":  "ami-0912f71e06545ad88"
+                   },
+    "us-east-2":  {
+                      "Name":  "US East (Ohio)",
+                      "WindowsServer2016":  "ami-36241f53",
+                      "WindowsServer2012R2":  "ami-ca2318af",
+                      "WindowsServer2012":  "ami-2b201b4e",
+                      "WindowsServer2008R2":  "ami-bd2219d8",
+                      "WindowsServer2008":  "ami-d52318b0",
+                      "AmazonLinux":  "ami-0b59bfac6be064b78"
+                  },
+    "ap-southeast-2":  {
+                           "Name":  "Asia Pacific (Sydney)",
+                           "WindowsServer2016":  "ami-d48623b6",
+                           "WindowsServer2012R2":  "ami-e3862381",
+                           "WindowsServer2012":  "ami-d2bb1eb0",
+                           "WindowsServer2008R2":  "ami-1b852079",
+                           "WindowsServer2008":  "ami-c2bb1ea0",
+                           "AmazonLinux":  "ami-09b42976632b27e9b"
+                       },
+    "us-west-1":  {
+                      "Name":  "US West (N. California)",
+                      "WindowsServer2016":  "ami-d12ecdb2",
+                      "WindowsServer2012R2":  "ami-132ac970",
+                      "WindowsServer2012":  "ami-2d2ac94e",
+                      "WindowsServer2008R2":  "ami-312bc852",
+                      "WindowsServer2008":  "ami-092ac96a",
+                      "AmazonLinux":  "ami-0bdb828fd58c52235"
+                  },
+    "sa-east-1":  {
+                      "Name":  "South America (Sao Paulo)",
+                      "WindowsServer2016":  "ami-36caed5a",
+                      "WindowsServer2012R2":  "ami-fac4e396",
+                      "WindowsServer2012":  "ami-aad3f4c6",
+                      "WindowsServer2008R2":  "ami-4bf8df27",
+                      "WindowsServer2008":  "ami-7cc4e310",
+                      "AmazonLinux":  "ami-07b14488da8ea02a0"
+                  },
+    "ap-northeast-1":  {
+                           "Name":  "Asia Pacific (Tokyo)",
+                           "WindowsServer2016":  "ami-49096ba4",
+                           "WindowsServer2012R2":  "ami-a73c5e4a",
+                           "WindowsServer2012":  "ami-f9046614",
+                           "WindowsServer2008R2":  "ami-813a586c",
+                           "WindowsServer2008":  "ami-d53b5938",
+                           "AmazonLinux":  "ami-06cd52961ce9f0d85"
+                       },
+    "eu-west-2":  {
+                      "Name":  "EU West (London)",
+                      "WindowsServer2016":  "ami-9bb358fc",
+                      "WindowsServer2012R2":  "ami-a3b259c4",
+                      "WindowsServer2012":  "ami-9cb75cfb",
+                      "WindowsServer2008R2":  "ami-a9b259ce",
+                      "WindowsServer2008":  "ami-c6b358a1",
+                      "AmazonLinux":  "ami-f976839e"
+                  },
+    "eu-central-1":  {
+                         "Name":  "EU Central (Frankfurt)",
+                         "WindowsServer2016":  "ami-6af7f381",
+                         "WindowsServer2012R2":  "ami-f7ece81c",
+                         "WindowsServer2012":  "ami-50e9edbb",
+                         "WindowsServer2008R2":  "ami-2bece8c0",
+                         "WindowsServer2008":  "ami-8be0e460",
+                         "AmazonLinux":  "ami-0233214e13e500f77"
+                     },
+    "ca-central-1":  {
+                         "Name":  "Canada (Central)",
+                         "WindowsServer2016":  "ami-303ebc54",
+                         "WindowsServer2012R2":  "ami-f334b697",
+                         "WindowsServer2012":  "ami-573ebc33",
+                         "WindowsServer2008R2":  "ami-8b38baef",
+                         "WindowsServer2008":  "ami-ed34b689",
+                         "AmazonLinux":  "ami-0b18956f"
+                     },
+    "eu-west-1":  {
+                      "Name":  "EU West (Ireland)",
+                      "WindowsServer2016":  "ami-96e1f27c",
+                      "WindowsServer2012R2":  "ami-5ef8ebb4",
+                      "WindowsServer2012":  "ami-62fdee88",
+                      "WindowsServer2008R2":  "ami-40f9eaaa",
+                      "WindowsServer2008":  "ami-b9f2e153",
+                      "AmazonLinux":  "ami-047bb4163c506cd98"
+                  },
+    "ap-southeast-1":  {
+                           "Name":  "Asia Pacific (Singapore)",
+                           "WindowsServer2016":  "ami-84e79e6e",
+                           "WindowsServer2012R2":  "ami-43e49da9",
+                           "WindowsServer2012":  "ami-afe79e45",
+                           "WindowsServer2008R2":  "ami-bbe09951",
+                           "WindowsServer2008":  "ami-84e0996e",
+                           "AmazonLinux":  "ami-08569b978cc4dfa10"
+                       },
+    "us-east-1":  {
+                      "Name":  "US East (Virginia)",
+                      "WindowsServer2016":  "ami-2d360152",
+                      "WindowsServer2012R2":  "ami-60093e1f",
+                      "WindowsServer2012":  "ami-462c1b39",
+                      "WindowsServer2008R2":  "ami-a2bd89dd",
+                      "WindowsServer2008":  "ami-a994a0d6",
+                      "AmazonLinux":  "ami-0ff8a91507f77f867"
+                  },
+    "ap-northeast-2":  {
+                           "Name":  "Asia Pacific (Seoul)",
+                           "WindowsServer2016":  "ami-07219569",
+                           "WindowsServer2012R2":  "ami-28398d46",
+                           "WindowsServer2012":  "ami-0e398d60",
+                           "WindowsServer2008R2":  "ami-ee279380",
+                           "WindowsServer2008":  "ami-fe209490",
+                           "AmazonLinux":  "ami-0a10b2721688ce9d2"
+                       },
+    "us-west-2":  {
+                      "Name":  "US West (Oregon)",
+                      "WindowsServer2016":  "ami-6d336015",
+                      "WindowsServer2012R2":  "ami-490b5831",
+                      "WindowsServer2012":  "ami-da0754a2",
+                      "WindowsServer2008R2":  "ami-e1184b99",
+                      "WindowsServer2008":  "ami-a81d4ed0",
+                      "AmazonLinux":  "ami-a0cfeed8"
+                  }
+},
+	     "InstanceTypeMap" : {
+			"m4.large" : {
+				"UsesInstanceStorage" : false
+			},
+            "m4.xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "m4.2xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "m4.4xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "m4.10xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                
+				"m5.large" : {
+				"UsesInstanceStorage" : false
+			},
+				"m5.xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"m5.2xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"m5.4xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"m5.12xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"m5.24xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+
+				"m5d.large" : {
+				"UsesInstanceStorage" : true
+			},
+				"m5d.xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+				"m5d.2xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+				"m5d.4xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+				"m5d.12xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+				"m5d.24xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+
+                "c4.large" : {
+				"UsesInstanceStorage" : false
+			},
+                "c4.xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "c4.2xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "c4.4xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "c4.8xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+
+				"c5.large" : {
+				"UsesInstanceStorage" : false
+			},
+                "c5.xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "c5.2xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "c5.4xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "c5.9xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"c5.18xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+
+				"c5d.large" : {
+				"UsesInstanceStorage" : true
+			},
+                "c5d.xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+                "c5d.2xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+                "c5d.4xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+                "c5d.9xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+				"c5d.18xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+
+				"r4.large" : {
+				"UsesInstanceStorage" : false
+			},
+                "r4.xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "r4.2xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "r4.4xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "r4.8xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"r4.16xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+
+                "r5.large" : {
+				"UsesInstanceStorage" : false
+			},
+                "r5.xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "r5.2xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "r5.4xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+                "r5.12xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"r5.24xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+
+				"r5d.large" : {
+				"UsesInstanceStorage" : true
+			},
+                "r5d.xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+                "r5d.2xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+                "r5d.4xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+                "r5d.12xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+				"r5d.24xlarge" : {
+				"UsesInstanceStorage" : true
+			},
+
+				"i3.large" : {
+				"UsesInstanceStorage" : false
+			},
+				"i3.xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"i3.2xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"i3.4xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"i3.8xlarge" : {
+				"UsesInstanceStorage" : false
+			},
+				"i3.16xlarge" : {
+				"UsesInstanceStorage" : false
+			}
+		 },
+		 "LocalStorageMap" : {
+			"m4" : {
+				"UsesInstanceStorage" : false
+			},
+			"m5" : {
+				"UsesInstanceStorage" : false
+			},
+			"m5d" : {
+				"UsesInstanceStorage" : true
+			},
+			"r4" : {
+				"UsesInstanceStorage" : false
+			},
+			"r5" : {
+				"UsesInstanceStorage" : false
+			},
+			"r5d" : {
+				"UsesInstanceStorage" : true
+			},
+			"c4" : {
+				"UsesInstanceStorage" : false
+			},
+			"c5" : {
+				"UsesInstanceStorage" : false
+			},
+			"c5d" : {
+				"UsesInstanceStorage" : true
+			},
+			"i3" : {
+				"UsesInstanceStorage" : false
+			}
+		 }
+	},
+
+	"Resources" : {
+
+		"WSFCRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "Path": "/",
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Effect": "Allow"
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                }
+            }
+        },
+        "WSFCProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Roles": [
+                    {
+                        "Ref": "WSFCRole"
+                    }
+                ],
+                "Path": "/"
+            }
+        },
+		"WSFCS3Policy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				 "PolicyName" : "EC2S3Policy",
+				  "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:GetObject"
+                            ],
+                            "Resource" : [
+								{
+									"Fn::Sub" : [
+										"arn:${AWSArn}:s3:::${ConfigBucketName}/*",
+										{
+											"AWSArn" : {
+												"Fn::FindInMap" : [
+														"RegionMap",
+														{
+															"Ref" : "AWS::Region"
+														},
+														"Arn"
+													]
+											}
+										}
+									]
+								}                                
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "WSFCRole"
+                    }
+                ]
+			}
+		},
+		"WSFCKMSPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				 "PolicyName" : "EC2KMSPolicy",
+				  "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "kms:Decrypt"
+                            ],
+                            "Resource" : [
+								"*"                          
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "WSFCRole"
+                    }
+                ]
+			}
+		},
+
+		"WSFCWaitHandle": {
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "WSFCWaitCondition": {
+            "Type": "AWS::CloudFormation::WaitCondition",
+            "DependsOn": "WSFCNode1",
+            "Properties": {
+                "Handle": {
+                    "Ref": "WSFCWaitHandle"
+                },
+                "Timeout": "2400",
+				"Count" : 2
+            }
+        },
+
+		"WSFCWaitHandle2": {
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "WSFCWaitCondition2": {
+            "Type": "AWS::CloudFormation::WaitCondition",
+            "DependsOn": "WSFCNode2",
+            "Properties": {
+                "Handle": {
+                    "Ref": "WSFCWaitHandle2"
+                },
+                "Timeout": "2400"
+            }
+        },
+
+		"WSFCNode1": {
+            "Type": "AWS::EC2::Instance",
+			"Metadata": {
+                "AWS::CloudFormation::Authentication": {
+                    "S3AccessCreds": {
+                        "type": "S3",
+                        "roleName": {
+                            "Ref": "WSFCRole"
+                        },
+                        "buckets": [
+                            {
+                                "Ref": "ConfigBucketName"
+                            }
+                        ]
+                    }
+                },
+				"AWS::CloudFormation::Init": {
+					"configSets": {
+                        "config": [
+                            "FetchResources",
+                            "Setup",
+                            "Prep",
+							"Configure",
+							"Finalize"
+                        ]
+                    },
+					"FetchResources": {
+                        "files": {
+							"C:\\cfn\\scripts\\Initialize-Disks.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Initialize-Disks.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+                            "C:\\cfn\\scripts\\Install-WMF5.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-WMF5.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-WSFC.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-WSFC.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-FileServer.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-FileServer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Join-Domain.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Join-Domain.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Restart-Computer.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Restart-Computer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Rename-Computer.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Rename-Computer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Disable-Firewall.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Disable-Firewall.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Prepare-S2DDisks.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Prepare-S2DDisks.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Send-CfnSignal.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Send-CfnSignal.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-ADPowerShell.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-ADPowerShell.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-S2DTimeout.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Set-S2DTimeout.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-S2DDiskAutoReplace.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Set-S2DDiskAutoReplace.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },							
+							"C:\\cfn\\scripts\\Enable-JumboFrames.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Enable-JumboFrames.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-SmbClient.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Set-SmbClient.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-NetAdapterRss.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Set-NetAdapterRss.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            }
+						}
+					},
+					"Setup" : {
+                        "commands": {
+                            "a-set-execution-policy": {
+                                "command": "powershell.exe -Command { Set-ExecutionPolicy Unrestricted -Force }",
+                                "waitAfterCompletion": "0"
+                            }                           
+                        }
+                    },
+					"Prep" : {
+						"commands" : {
+							"a-initialize-disks": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Initialize-Disks.ps1 -FileSystem ReFS -PartitionStyle GPT",
+                                "waitAfterCompletion": "0"
+                            },
+							"b-rename-computer": {
+                                "command": {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Rename-Computer.ps1 -NewName \"${WSFCNode1NetBIOSName}\" -Restart"
+								},                       
+                                "waitAfterCompletion": "forever"
+                            },
+                            "c-join-domain": {
+                                "command": {
+									"Fn::Sub" : [
+										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainJoinUsername}\" ${Password} \"${DomainJoinPassword}\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
+								},                       
+                                "waitAfterCompletion": "0"
+                            },                        
+							"d-install-wmf5" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-WMF5.ps1",
+                                "waitAfterCompletion": "0"
+							},
+                            "e-install-windows-failover-clustering": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Install-WSFC.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"f-install-file-server": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Install-FileServer.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"g-disable-firewall": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Disable-Firewall.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"h-install-ad-powershell" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-ADPowerShell.ps1",
+                                "waitAfterCompletion": "0"
+							},
+							"i-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            }
+						}
+					},
+					"Configure" : {
+						"commands" : {
+							"a-prepare-s2d-disks" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Prepare-S2DDisks.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"b-set-s2d-timeout" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Set-S2DTimeout.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"c-set-s2d-disk-auto-replace" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Set-S2DDiskAutoReplace.ps1 -Enabled ${Enabled}\"",
+										{
+											"Enabled" : {
+												"Fn::If" : [
+													"DisableAutoReplace",
+													"$false",
+													"$true"
+												]
+											}
+										}
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"d-set-smb-client" : {
+								"command" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-SmbClient.ps1 -EnableMultiChannel $true -EnableLargeMtu $true -UpdateRssConnectionCount\"",
+								"waitAfterCompletion" : "0"
+							},
+							"e-set-netadapter-rss" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Set-NetAdapterRss.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"f-enable-jumbo-frames" : {
+								"command" : {
+									"Fn::If" : [
+										"UseJumboFrames",
+										"powershell.exe -File C:\\cfn\\scripts\\Enable-JumboFrames.ps1",
+										""
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"g-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            }
+						}
+					},
+					"Finalize" : {
+						"commands" : {
+							"a-send-cfn-signal" : {
+								"command" : {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Send-CfnSignal.ps1 -WaitConditionUrl \"${WSFCWaitHandle}\" -ExitCode 0"
+								},
+								"waitAfterCompletion" : "0"
+							}
+						}
+					}
+				 }
+			},
+            "Properties": {
+                "Tenancy": "default",
+                "ImageId": {
+					"Fn::FindInMap" : [
+						"InstanceMap",
+						{
+							"Ref" : "AWS::Region"
+						},
+						{
+							"Ref" : "WSFCOSType"
+						}
+					]
+				},
+                "IamInstanceProfile": {
+                    "Ref": "WSFCProfile"
+                },
+                "InstanceType": {
+                    "Ref": "WSFCInstanceType"
+                },
+                "EbsOptimized": "true",
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": "true",
+                        "DeviceIndex": 0,
+                        "SubnetId": {
+                            "Ref": "Subnet1"
+                        },
+                        "PrivateIpAddresses": [
+                            {
+                                "Primary": "true",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode1PrivateIP1"
+                                }
+                            },
+                            {
+                                "Primary": "false",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode1PrivateIP2"
+                                }
+                            },
+                            {
+                                "Primary": "false",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode1PrivateIP3"
+                                }
+                            }
+                        ],
+                        "GroupSet": [
+                            {
+                                "Ref": "WSFCSecurityGroup"
+                            }
+                        ]
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Ref": "WSFCNode1NetBIOSName"
+                        }
+                    }
+                ],
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": {
+								"Ref" : "OSVolumeSize"
+							},
+                            "VolumeType": {
+								"Ref" : "OSVolumeType"
+							},
+							"Iops": {
+								"Fn::If": [
+									"OSVolIsIo1",
+									{
+										"Ref": "OSVolumeIops"
+									},
+									{
+										"Ref": "AWS::NoValue"
+									}
+								]
+							}
+                        }
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyPairName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+								"<script>\n",
+								{
+									"Fn::Sub" : "cfn-init.exe -v --stack ${AWS::StackId} --resource WSFCNode1 --region ${AWS::Region} --configsets config\n"
+								},
+                                "</script>"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+		"WSFCNode2": {
+            "Type": "AWS::EC2::Instance",
+			"DependsOn" : [
+				"WSFCWaitCondition"
+			],
+			"Metadata": {
+                "AWS::CloudFormation::Authentication": {
+                    "S3AccessCreds": {
+                        "type": "S3",
+                        "roleName": {
+                            "Ref": "WSFCRole"
+                        },
+                        "buckets": [
+                            {
+                                "Ref": "ConfigBucketName"
+                            }
+                        ]
+                    }
+                },
+				"AWS::CloudFormation::Init": {
+					"configSets": {
+                        "config": [
+                            "FetchResources",
+                            "Setup",
+                            "Prep",
+							"Configure",
+							"Install",
+							"Finalize"
+                        ]
+                    },
+					"FetchResources": {
+                        "files": {
+							"C:\\cfn\\scripts\\Initialize-Disks.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Initialize-Disks.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+                            "C:\\cfn\\scripts\\Install-WMF5.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-WMF5.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-WSFC.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-WSFC.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-FileServer.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-FileServer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Join-Domain.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Join-Domain.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Restart-Computer.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Restart-Computer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Rename-Computer.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Rename-Computer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Disable-Firewall.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Disable-Firewall.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Prepare-S2DDisks.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Prepare-S2DDisks.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Send-CfnSignal.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Send-CfnSignal.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-ADPowerShell.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-ADPowerShell.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-S2DTimeout.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Set-S2DTimeout.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-S2DDiskAutoReplace.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Set-S2DDiskAutoReplace.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Enable-JumboFrames.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Enable-JumboFrames.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-SmbClient.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Set-SmbClient.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-NetAdapterRss.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Set-NetAdapterRss.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Enable-CredSSP.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Enable-CredSSP.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Disable-CredSSP.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Disable-CredSSP.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Configure-WSFC.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Configure-WSFC.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Enable-ClusterS2D.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Enable-ClusterS2D.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\New-StoragePool.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/New-StoragePool.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\New-S2DVolume.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/New-S2DVolume.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Enable-CSVCache.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Enable-CSVCache.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Add-WSFCFileServerRole.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Add-WSFCFileServerRole.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-CNOActiveDirectoryPermissions.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Set-CNOActiveDirectoryPermissions.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Set-ADComputerAccountStatus.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-ClusterQuorum.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Set-ClusterQuorum.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\New-S2DFileShare.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/New-S2DFileShare.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            }
+						}						
+					},
+					"Setup" : {
+                        "commands": {
+                            "a-set-execution-policy": {
+                                "command": "powershell.exe -Command { Set-ExecutionPolicy Unrestricted -Force }",
+                                "waitAfterCompletion": "0"
+                            }                           
+                        }
+                    },
+					"Prep" : {
+						"commands" : {
+							"a-initialize-disks": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Initialize-Disks.ps1 -FileSystem ReFS -PartitionStyle GPT",
+                                "waitAfterCompletion": "0"
+                            },
+							"b-rename-computer": {
+                                "command": {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Rename-Computer.ps1 -NewName \"${WSFCNode2NetBIOSName}\" -Restart"
+								},                       
+                                "waitAfterCompletion": "forever"
+                            },
+                            "c-join-domain": {
+                                "command": {
+									"Fn::Sub" : [
+										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainJoinUsername}\" ${Password} \"${DomainJoinPassword}\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
+								},                       
+                                "waitAfterCompletion": "0"
+                            },
+							"d-install-wmf5" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-WMF5.ps1",
+                                "waitAfterCompletion": "0"
+							},
+                            "e-install-windows-failover-clustering": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Install-WSFC.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"f-install-file-server": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Install-FileServer.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"g-disable-firewall": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Disable-Firewall.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"h-install-ad-powershell" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-ADPowerShell.ps1",
+                                "waitAfterCompletion": "0"
+							},
+							"i-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            },
+							"j-enable-credssp" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Enable-CredSSP.ps1",
+                                "waitAfterCompletion": "0"
+							}
+						}
+					},
+					"Configure" : {
+						"commands" : {
+							"a-prepare-s2d-disks" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Prepare-S2DDisks.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"b-set-s2d-timeout" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Set-S2DTimeout.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"c-set-s2d-disk-auto-replace" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Set-S2DDiskAutoReplace.ps1 -Enabled ${Enabled}\"",
+										{
+											"Enabled" : {
+												"Fn::If" : [
+													"DisableAutoReplace",
+													"$false",
+													"$true"
+												]
+											}
+										}
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"d-set-smb-client" : {
+								"command" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-SmbClient.ps1 -EnableMultiChannel $true -EnableLargeMtu $true -UpdateRssConnectionCount\"",
+								"waitAfterCompletion" : "0"
+							},
+							"e-set-netadapter-rss" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Set-NetAdapterRss.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"f-enable-jumbo-frames" : {
+								"command" : {
+									"Fn::If" : [
+										"UseJumboFrames",
+										"powershell.exe -File C:\\cfn\\scripts\\Enable-JumboFrames.ps1",
+										""
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"g-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            }
+						}
+					},
+					"Install" : {
+						"commands" : {
+							"a-disable-existing-computer-object": {
+                                "command": {
+									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${WSFCNetBIOSName}' -Enabled $false -Username '${DomainJoinUsername}' -Password '${DomainJoinPassword}'\""
+								},
+                                "waitAfterCompletion": "0"
+                            },
+							"b-configure-wsfc": {
+                                "command": {
+									"Fn::Join" : [
+										"",
+										[
+											"powershell.exe -Command \"C:\\cfn\\scripts\\Configure-WSFC.ps1 -IncludeS2DTest -Nodes '",
+											{
+												"Ref" : "WSFCNode1NetBIOSName"
+											},
+											"','",
+											{
+												"Ref" : "WSFCNode2NetBIOSName"
+											},
+											"'",
+											{
+												"Fn::If" : [
+													"Is3Node",
+													{
+														"Fn::Sub" : ",'${WSFCNode3NetBIOSName}'"
+													},
+													{
+														"Ref" : "AWS::NoValue"
+													}
+												]
+											},
+											" -IPAddresses '",
+											{
+												"Ref" : "WSFCNode1PrivateIP2"
+											},
+											"','",
+											{
+												"Ref" : "WSFCNode2PrivateIP2"
+											},
+											"'",
+											{
+												"Fn::If" : [
+													"Is3Node",
+													{
+														"Fn::Sub" : ",'${WSFCNode3PrivateIP2}'"
+													},
+													{
+														"Ref" : "AWS::NoValue"
+													}
+												]
+											},
+											" -ClusterName '",
+											{
+												"Ref" : "WSFCNetBIOSName"
+											},
+											"'",
+											{
+												"Fn::Sub" : " -Username '${DomainJoinUsername}' -Password '${DomainJoinPassword}'"
+											}
+										]	
+									]
+								},
+                                "waitAfterCompletion": "0"
+                            },	
+							"c-enable-s2d" : {
+								"command" : {
+									"Fn::Join" : [
+										"",
+										[
+											{
+												"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Enable-ClusterS2D.ps1 -CachePageSizeKBytes ${CachePageSizeKBytes} -StoragePoolFriendlyName \"${StoragePoolFriendlyName}\""
+											},
+											{
+												"Fn::If" : [
+													"UsesInstanceStorageCache",
+													" -CacheDeviceModel \"Amazon EC2 NVMe\"",
+													{
+														"Ref" : "AWS::NoValue"
+													}
+												]
+											}
+										]
+									]
+								},
+								"waitAfterCompletion": "0"
+							},							
+							"d-create-s2d-volume" : {
+								"command" : {
+									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\New-S2DVolume.ps1 -StoragePoolFriendlyName '${StoragePoolFriendlyName}' -FriendlyName '${VolumeFriendlyName}' -FileSystem '${FileSystem}' -Size (${Volume1Size} * 1024 * 1024 * 1024)\""
+								},
+								"waitAfterCompletion": "0"
+							},
+							"e-enable-csv-cache" : {
+								"command" : {
+									"Fn::Join" : [
+										"",
+										[
+											"powershell.exe -File C:\\cfn\\scripts\\Enable-CSVCache.ps1",
+											{
+												"Fn::If" : [
+													"UseCSVCache",
+													{
+														"Fn::Sub" : " -SizeInMB ${CSVCacheSizeMBytes}"
+													},
+													{
+														"Ref" : "AWS::NoValue"
+													}
+												]
+											}
+										]
+									]
+								},
+								"waitAfterCompletion": "0"
+							},
+							"f-set-cno-permissions" : {
+								"command" : {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Set-CNOActiveDirectoryPermissions.ps1 -ClusterNameObject \"${WSFCNetBIOSName}\" -Username \"${DomainJoinUsername}\" -Password \"${DomainJoinPassword}\""
+								},
+								"waitAfterCompletion": "0"
+							},
+							"g-disable-existing-computer-object": {
+                                "command": {
+									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${FileServerNetBIOSName}' -Enabled $false -Username '${DomainJoinUsername}' -Password '${DomainJoinPassword}'\""
+								},
+                                "waitAfterCompletion": "0"
+                            },
+							"h-add-wsfc-fileshare-role" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Add-WSFCFileServerRole.ps1 -Name '${FileServerNetBIOSName}' -Username '${DomainJoinUsername}' -Password '${DomainJoinPassword}'${Suffix}\"",
+										{
+											"Suffix" : {
+												"Fn::If" : [
+													"UseSOFS",
+													" -SOFS",
+													{
+														"Fn::Sub" : [
+															" -VirtualDisk '${VolumeFriendlyName}' -IPAddress '${WSFCNode1PrivateIP3}','${WSFCNode2PrivateIP3}'${Node3}",
+															{
+																"Node3" : {
+																	"Fn::If" : [
+																		"Is3Node",
+																		{
+																			"Fn::Sub" : ",'${WSFCNode3PrivateIP3}'"
+																		},
+																		""
+																	]
+																}
+															}
+														]
+													}					
+												]
+											}
+										}
+									]
+								},
+								"waitAfterCompletion": "0"
+							},
+							"i-set-quorum": {
+                                "command": {
+									"Fn::Sub" : [
+										"powershell.exe -File C:\\cfn\\scripts\\Set-ClusterQuorum.ps1${Suffix}",
+										{
+											"Suffix" : {
+												"Fn::If" : [
+													"IsTwoNode",
+													{
+														"Fn::Sub" : " -FileShare '\\\\${WSFCNode3NetBIOSName}.${DomainName}\\Quorom'"
+													},
+													""
+												]
+											}
+										}
+									]
+								},
+                                "waitAfterCompletion": "0"
+                            },
+							"j-new-file-share" : {
+								"command" : {
+									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\New-S2DFileShare.ps1 -Name '${FileShareName}' -DiskName '${VolumeFriendlyName}' -Resource '${FileServerNetBIOSName}' -EncryptData\""
+								},
+								"waitAfterCompletion": "0"
+							}
+						}
+					},
+					"Finalize" : {
+						"commands" : {
+							"a-disable-credssp" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Disable-CredSSP.ps1",
+                                "waitAfterCompletion": "0"
+							},
+							"b-send-cfn-signal" : {
+								"command" : {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Send-CfnSignal.ps1 -WaitConditionUrl \"${WSFCWaitHandle2}\" -ExitCode 0"
+								},
+								"waitAfterCompletion" : "0"
+							}
+						}
+					}
+				 }
+			},
+            "Properties": {
+                "Tenancy": "default",
+                "ImageId": {
+					"Fn::FindInMap" : [
+						"InstanceMap",
+						{
+							"Ref" : "AWS::Region"
+						},
+						{
+							"Ref" : "WSFCOSType"
+						}
+					]
+				},
+                "IamInstanceProfile": {
+                    "Ref": "WSFCProfile"
+                },
+                "InstanceType": {
+                    "Ref": "WSFCInstanceType"
+                },
+                "EbsOptimized": "true",
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": "true",
+                        "DeviceIndex": 0,
+                        "SubnetId": {
+                            "Ref": "Subnet2"
+                        },
+                        "PrivateIpAddresses": [
+                            {
+                                "Primary": "true",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode2PrivateIP1"
+                                }
+                            },
+                            {
+                                "Primary": "false",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode2PrivateIP2"
+                                }
+                            },
+                            {
+                                "Primary": "false",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode2PrivateIP3"
+                                }
+                            }
+                        ],
+                        "GroupSet": [
+                            {
+                                "Ref": "WSFCSecurityGroup"
+                            }
+                        ]
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Ref": "WSFCNode2NetBIOSName"
+                        }
+                    }
+                ],
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": {
+								"Ref" : "OSVolumeSize"
+							},
+                            "VolumeType": {
+								"Ref" : "OSVolumeType"
+							},
+							"Iops": {
+								"Fn::If": [
+									"OSVolIsIo1",
+									{
+										"Ref": "OSVolumeIops"
+									},
+									{
+										"Ref": "AWS::NoValue"
+									}
+								]
+							}
+                        }
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyPairName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "<script>\n",
+								{
+									"Fn::Sub" : "cfn-init.exe -v --stack ${AWS::StackId} --resource WSFCNode2 --region ${AWS::Region} --configsets config\n"
+								},
+                                "</script>"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+		"WSFCNode3": {
+            "Type": "AWS::EC2::Instance",
+			"Metadata": {
+                "AWS::CloudFormation::Authentication": {
+                    "S3AccessCreds": {
+                        "type": "S3",
+                        "roleName": {
+                            "Ref": "WSFCRole"
+                        },
+                        "buckets": [
+                            {
+                                "Ref": "ConfigBucketName"
+                            }
+                        ]
+                    }
+                },
+				"AWS::CloudFormation::Init": {
+					"configSets": {
+                        "config": [
+                            "FetchResources",
+                            "Setup",
+                            "Prep",
+							"Configure",
+							"Finalize"
+                        ]
+                    },
+					"FetchResources": {
+                        "files": {
+							"C:\\cfn\\scripts\\Initialize-Disks.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Initialize-Disks.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+                            "C:\\cfn\\scripts\\Install-WMF5.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-WMF5.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-WSFC.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-WSFC.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-FileServer.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-FileServer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Join-Domain.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Join-Domain.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Restart-Computer.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Restart-Computer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Rename-Computer.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Rename-Computer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Disable-Firewall.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Disable-Firewall.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Prepare-S2DDisks.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Prepare-S2DDisks.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Send-CfnSignal.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Send-CfnSignal.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-ADPowerShell.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-ADPowerShell.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-S2DTimeout.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Set-S2DTimeout.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-S2DDiskAutoReplace.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Set-S2DDiskAutoReplace.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Enable-JumboFrames.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Enable-JumboFrames.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-SmbClient.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Set-SmbClient.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Set-NetAdapterRss.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Set-NetAdapterRss.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            }
+						}
+					},
+					"Setup" : {
+                        "commands": {
+                            "a-set-execution-policy": {
+                                "command": "powershell.exe -Command { Set-ExecutionPolicy Unrestricted -Force }",
+                                "waitAfterCompletion": "0"
+                            }                           
+                        }
+                    },
+					"Prep" : {
+						"commands" : {
+							"a-initialize-disks": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Initialize-Disks.ps1 -FileSystem ReFS -PartitionStyle GPT",
+                                "waitAfterCompletion": "0"
+                            },
+							"b-rename-computer": {
+                                "command": {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Rename-Computer.ps1 -NewName \"${WSFCNode3NetBIOSName}\" -Restart"
+								},                       
+                                "waitAfterCompletion": "forever"
+                            },
+                            "c-join-domain": {
+                                "command": {
+									"Fn::Sub" : [
+										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainJoinUsername}\" ${Password} \"${DomainJoinPassword}\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
+								},                       
+                                "waitAfterCompletion": "0"
+                            },
+							"d-install-wmf5" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-WMF5.ps1",
+                                "waitAfterCompletion": "0"
+							},
+                            "e-install-windows-failover-clustering": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Install-WSFC.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"f-install-file-server": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Install-FileServer.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"g-disable-firewall": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Disable-Firewall.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"h-install-ad-powershell" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-ADPowerShell.ps1",
+                                "waitAfterCompletion": "0"
+							},
+							"i-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            }
+						}
+					},
+					"Configure" : {
+						"commands" : {
+							"a-prepare-s2d-disks" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Prepare-S2DDisks.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"b-set-s2d-timeout" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Set-S2DTimeout.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"c-set-s2d-disk-auto-replace" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Set-S2DDiskAutoReplace.ps1 -Enabled ${Enabled}\"",
+										{
+											"Enabled" : {
+												"Fn::If" : [
+													"DisableAutoReplace",
+													"$false",
+													"$true"
+												]
+											}
+										}
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"d-set-smb-client" : {
+								"command" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-SmbClient.ps1 -EnableMultiChannel $true -EnableLargeMtu $true -UpdateRssConnectionCount\"",
+								"waitAfterCompletion" : "0"
+							},
+							"e-set-netadapter-rss" : {
+								"command" : "powershell.exe -File C:\\cfn\\scripts\\Set-NetAdapterRss.ps1",
+								"waitAfterCompletion" : "0"
+							},
+							"f-enable-jumbo-frames" : {
+								"command" : {
+									"Fn::If" : [
+										"UseJumboFrames",
+										"powershell.exe -File C:\\cfn\\scripts\\Enable-JumboFrames.ps1",
+										""
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"g-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            }
+						}
+					},
+					"Finalize" : {
+						"commands" : {
+							"a-send-cfn-signal" : {
+								"command" : {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Send-CfnSignal.ps1 -WaitConditionUrl \"${WSFCWaitHandle}\" -ExitCode 0"
+								},
+								"waitAfterCompletion" : "0"
+							}
+						}
+					}
+				 }
+			},
+			"Condition" : "Is3Node",
+            "Properties": {
+                "Tenancy": "default",
+                "ImageId": {
+					"Fn::FindInMap" : [
+						"InstanceMap",
+						{
+							"Ref" : "AWS::Region"
+						},
+						{
+							"Ref" : "WSFCOSType"
+						}
+					]
+				},
+                "IamInstanceProfile": {
+                    "Ref": "WSFCProfile"
+                },
+                "InstanceType": {
+                    "Ref": "WSFCInstanceType"
+                },
+                "EbsOptimized": "true",
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": "true",
+                        "DeviceIndex": 0,
+                        "SubnetId": {
+                            "Ref": "Subnet3"
+                        },
+                        "PrivateIpAddresses": [
+                            {
+                                "Primary": "true",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode3PrivateIP1"
+                                }
+                            },
+                            {
+                                "Primary": "false",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode3PrivateIP2"
+                                }
+                            },
+                            {
+                                "Primary": "false",
+                                "PrivateIpAddress": {
+                                    "Ref": "WSFCNode3PrivateIP3"
+                                }
+                            }
+                        ],
+                        "GroupSet": [
+                            {
+                                "Ref": "WSFCSecurityGroup"
+                            }
+                        ]
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Ref": "WSFCNode3NetBIOSName"
+                        }
+                    }
+                ],
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                           "VolumeSize": {
+								"Ref" : "OSVolumeSize"
+							},
+                            "VolumeType": {
+								"Ref" : "OSVolumeType"
+							},
+							"Iops": {
+								"Fn::If": [
+									"OSVolIsIo1",
+									{
+										"Ref": "OSVolumeIops"
+									},
+									{
+										"Ref": "AWS::NoValue"
+									}
+								]
+							}
+                        }
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyPairName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                               "<script>\n",
+								{
+									"Fn::Sub" : "cfn-init.exe -v --stack ${AWS::StackId} --resource WSFCNode3 --region ${AWS::Region} --configsets config\n"
+								},
+                                "</script>"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+
+		"WitnessServer": {
+            "Type": "AWS::EC2::Instance",
+			"Condition" : "IsTwoNode",
+			"Metadata": {
+                "AWS::CloudFormation::Authentication": {
+                    "S3AccessCreds": {
+                        "type": "S3",
+                        "roleName": {
+                            "Ref": "WSFCRole"
+                        },
+                        "buckets": [
+                            {
+                                "Ref": "ConfigBucketName"
+                            }
+                        ]
+                    }
+                },
+				"AWS::CloudFormation::Init": {
+					"configSets": {
+                        "config": [
+                            "FetchResources",
+                            "Setup",
+                            "Prep",
+							"Configure",
+							"Finalize"
+                        ]
+                    },
+					"FetchResources": {
+                        "files": {
+							"C:\\cfn\\scripts\\Initialize-Disks.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Initialize-Disks.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+                            "C:\\cfn\\scripts\\Install-WMF5.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-WMF5.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-WSFC.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-WSFC.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-FileServer.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-FileServer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Join-Domain.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Join-Domain.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Restart-Computer.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Restart-Computer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Rename-Computer.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Rename-Computer.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Disable-Firewall.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Disable-Firewall.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Prepare-S2DDisks.ps1": {
+                                "source": {
+									"Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Prepare-S2DDisks.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Send-CfnSignal.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Send-CfnSignal.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-ADPowerShell.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-ADPowerShell.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\New-QuoromFileShare.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/New-QuoromFileShare.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            }
+						}
+					},
+					"Setup" : {
+                        "commands": {
+                            "a-set-execution-policy": {
+                                "command": "powershell.exe -Command { Set-ExecutionPolicy Unrestricted -Force }",
+                                "waitAfterCompletion": "0"
+                            }                           
+                        }
+                    },
+					"Prep" : {
+						"commands" : {
+							"a-initialize-disks": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Initialize-Disks.ps1 -FileSystem ReFS -PartitionStyle GPT",
+                                "waitAfterCompletion": "0"
+                            },
+							"b-rename-computer": {
+                                "command": {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Rename-Computer.ps1 -NewName \"${WSFCNode3NetBIOSName}\" -Restart"
+								},                       
+                                "waitAfterCompletion": "forever"
+                            },
+                            "c-join-domain": {
+                                "command": {
+									"Fn::Sub" : [
+										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainJoinUsername}\" ${Password} \"${DomainJoinPassword}\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
+								},                       
+                                "waitAfterCompletion": "0"
+                            },                        
+							"d-install-wmf5" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-WMF5.ps1",
+                                "waitAfterCompletion": "0"
+							},
+                            "e-install-windows-failover-clustering": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Install-WSFC.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"f-install-file-server": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Install-FileServer.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"g-disable-firewall": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Disable-Firewall.ps1",
+                                "waitAfterCompletion": "0"
+                            },
+							"h-install-ad-powershell" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-ADPowerShell.ps1",
+                                "waitAfterCompletion": "0"
+							}
+						}
+					},
+					"Configure" : {
+						"commands" : {
+							"a-new-share" : {
+								"command" : {
+									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\New-QuoromFileShare.ps1 -Path '$env:SystemDrive\\Quorom' -Name 'Quorom'\""
+								},
+								"waitAfterCompletion": "0"
+							}
+						}
+					},
+					"Finalize" : {
+						"commands" : {
+							"a-send-cfn-signal" : {
+								"command" : {
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Send-CfnSignal.ps1 -WaitConditionUrl \"${WSFCWaitHandle}\" -ExitCode 0"
+								},
+								"waitAfterCompletion" : "0"
+							}
+						}
+					}
+				 }
+			},
+            "Properties": {
+                "Tenancy": "default",
+                "ImageId": {
+					"Fn::FindInMap" : [
+						"InstanceMap",
+						{
+							"Ref" : "AWS::Region"
+						},
+						{
+							"Ref" : "WSFCOSType"
+						}
+					]
+				},
+                "IamInstanceProfile": {
+                    "Ref": "WSFCProfile"
+                },
+                "InstanceType": "t2.small",
+                "EbsOptimized": "true",
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": "true",
+                        "DeviceIndex": 0,
+                        "SubnetId": {
+                            "Ref": "Subnet3"
+                        },                        
+                        "GroupSet": [
+                            {
+                                "Ref": "WSFCSecurityGroup"
+                            }
+                        ]
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Ref": "WSFCNode3NetBIOSName"
+                        }
+                    }
+                ],
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": {
+								"Ref" : "OSVolumeSize"
+							},
+                            "VolumeType": {
+								"Ref" : "OSVolumeType"
+							},
+							"Iops": {
+								"Fn::If": [
+									"OSVolIsIo1",
+									{
+										"Ref": "OSVolumeIops"
+									},
+									{
+										"Ref": "AWS::NoValue"
+									}
+								]
+							}
+                        }
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyPairName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+								"<script>\n",
+								{
+									"Fn::Sub" : "cfn-init.exe -v --stack ${AWS::StackId} --resource WitnessServer --region ${AWS::Region} --configsets config\n"
+								},
+                                "</script>"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+		
+		"WSFCNode1Volume1": {
+            "Type": "AWS::EC2::Volume",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode1",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+		"WSFCNode2Volume1": {
+            "Type": "AWS::EC2::Volume",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode2",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+		"WSFCNode3Volume1": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Is3Node",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode3",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+
+		"WSFCNode1Volume2": {
+            "Type": "AWS::EC2::Volume",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode1",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+		"WSFCNode2Volume2": {
+            "Type": "AWS::EC2::Volume",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode2",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+		"WSFCNode3Volume2": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Is3Node",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode3",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+
+		"WSFCNode1Volume3": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Use4Disks",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode1",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+		"WSFCNode2Volume3": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Use4Disks",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode2",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+		"WSFCNode3Volume3": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Use4DisksAndAZ3",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode3",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+
+		"WSFCNode1Volume4": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Use4Disks",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode1",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+		"WSFCNode2Volume4": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Use4Disks",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode2",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+		"WSFCNode3Volume4": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Use4DisksAndAZ3",
+            "Properties": {
+                "Size": {
+                    "Ref": "Volume1Size"
+                },
+                "VolumeType": {
+                    "Ref": "Volume1Type"
+                },
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "WSFCNode3",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Iops": {
+                    "Fn::If": [
+                        "Vol1IsIo1",
+                        {
+                            "Ref": "Volume1Iops"
+                        },
+                        {
+                            "Ref": "AWS::NoValue"
+                        }
+                    ]
+                }
+            }
+        },
+
+		"WSFCNode1Volume1Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+            "Properties": {
+                "Device": "/dev/xvdb",
+                "InstanceId": {
+                    "Ref": "WSFCNode1"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode1Volume1"
+                }
+            }
+        },
+		"WSFCNode2Volume1Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+            "Properties": {
+                "Device": "/dev/xvdb",
+                "InstanceId": {
+                    "Ref": "WSFCNode2"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode2Volume1"
+                }
+            }
+        },
+		"WSFCNode3Volume1Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Is3Node",
+            "Properties": {
+                "Device": "/dev/xvdb",
+                "InstanceId": {
+                    "Ref": "WSFCNode3"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode3Volume1"
+                }
+            }
+        },
+
+		"WSFCNode1Volume2Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+            "Properties": {
+                "Device": "/dev/xvdc",
+                "InstanceId": {
+                    "Ref": "WSFCNode1"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode1Volume2"
+                }
+            }
+        },
+		"WSFCNode2Volume2Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+            "Properties": {
+                "Device": "/dev/xvdc",
+                "InstanceId": {
+                    "Ref": "WSFCNode2"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode2Volume2"
+                }
+            }
+        },
+		"WSFCNode3Volume2Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Is3Node",
+            "Properties": {
+                "Device": "/dev/xvdc",
+                "InstanceId": {
+                    "Ref": "WSFCNode3"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode3Volume2"
+                }
+            }
+        },
+
+		"WSFCNode1Volume3Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Use4Disks",
+            "Properties": {
+                "Device": "/dev/xvdd",
+                "InstanceId": {
+                    "Ref": "WSFCNode1"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode1Volume3"
+                }
+            }
+        },
+		"WSFCNode2Volume3Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Use4Disks",
+            "Properties": {
+                "Device": "/dev/xvdd",
+                "InstanceId": {
+                    "Ref": "WSFCNode2"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode2Volume3"
+                }
+            }
+        },
+		"WSFCNode3Volume3Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Use4DisksAndAZ3",
+            "Properties": {
+                "Device": "/dev/xvdd",
+                "InstanceId": {
+                    "Ref": "WSFCNode3"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode3Volume3"
+                }
+            }
+        },
+
+		"WSFCNode1Volume4Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Use4Disks",
+            "Properties": {
+                "Device": "/dev/xvde",
+                "InstanceId": {
+                    "Ref": "WSFCNode1"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode1Volume4"
+                }
+            }
+        },
+		"WSFCNode2Volume4Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Use4Disks",
+            "Properties": {
+                "Device": "/dev/xvde",
+                "InstanceId": {
+                    "Ref": "WSFCNode2"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode2Volume4"
+                }
+            }
+        },
+		"WSFCNode3Volume4Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Use4DisksAndAZ3",
+            "Properties": {
+                "Device": "/dev/xvde",
+                "InstanceId": {
+                    "Ref": "WSFCNode3"
+                },
+                "VolumeId": {
+                    "Ref": "WSFCNode3Volume4"
+                }
+            }
+        },
+
+		"WSFCSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enable WSFC communication",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+				"Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-BastionHost-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"WSFCSecurityGroupIngressIcmp": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "icmp",
+                "FromPort": "-1",
+                "ToPort": "-1"
+            }
+        },
+        "WSFCSecurityGroupIngressTcp135": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "135",
+                "ToPort": "135"
+            }
+        },
+        "WSFCSecurityGroupIngressTcp137": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "137",
+                "ToPort": "137"
+            }
+        },
+		"WSFCSecurityGroupIngressTcp139": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "139",
+                "ToPort": "139"
+            }
+        },
+        "WSFCSecurityGroupIngressTcp445": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "445",
+                "ToPort": "445"
+            }
+        },
+		"WSFCSecurityGroupIngressTcp3343": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "3343",
+                "ToPort": "3343"
+            }
+        },
+		"WSFCSecurityGroupIngressTcp5985to5986": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "5985",
+                "ToPort": "5986"
+            }
+        },
+        "WSFCSecurityGroupIngressUdp137to138": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "udp",
+                "FromPort": "137",
+                "ToPort": "138"
+            }
+        },
+        "WSFCSecurityGroupIngressUdp3343": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "udp",
+                "FromPort": "3343",
+                "ToPort": "3343"
+            }
+        },
+		"WSFCSecurityGroupIngressTcpEphemeral": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "WSFCSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "49152",
+                "ToPort": "65535"
+            }
+        }
+	},
+
+	"Outputs" : {
+	}
+}

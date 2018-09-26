@@ -494,6 +494,16 @@
 				"Arn" : "aws-cn",
 				"ELBPrincipalId" : "037604701340",
 				"HostedZoneId" : ""
+			},
+			"us-iso-east-1" : {
+				"Arn" : "aws-iso",
+				"ELBPrincipalId" : "",
+				"HostedZoneId" : ""
+			},
+			"us-isob-east-1" : {
+				"Arn" : "aws-iso-b",
+				"ELBPrincipalId" : "",
+				"HostedZoneId" : ""
 			}
         }
     },

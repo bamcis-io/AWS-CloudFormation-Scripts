@@ -25,6 +25,7 @@
     <Folder Include="ActiveDirectory" />
     <Folder Include="AthenaDemo" />
     <Folder Include="CostAndUsageReports" />
+    <Folder Include="FileShare" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActiveDirectory\domain-controller-iam.template">
@@ -61,6 +62,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DirectoryService\networking-and-ds-combined.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileShare\2-node-file-share.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileShare\file-share-3-node-cfn.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileShare\file-share-3-node.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Networking\networking-vpc-3-az.template">
