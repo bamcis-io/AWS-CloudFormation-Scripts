@@ -1,33 +1,31 @@
 {
 	"AWSTemplateFormatVersion" : "2010-09-09",
 
-	"Description" : "",
+	"Description" : "A 2 or 3 node Storage Spaces Direct (S2D) failover cluster with either a SOFS of General Use File Share.",
 
 	"Parameters" : {
 		"ConfigBucketName" : {
 			"Description" : "The name of the bucket containing the configuration scripts",
 			"Type" : "String",
 			"AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
-            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
-			"Default" : "mhaken-ec2-config"
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
 		},
 		"ConfigS3KeyPrefix" : {
 			"Description": "S3 key prefix for the configuration files assets. Key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
 			"AllowedPattern": "^[0-9a-zA-Z-/]*$",
             "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
-            "Default": "s2d/fileserver/",
-            
+            "Default": "s2d/fileserver/",    
             "Type": "String"
 		},
 
-		"DomainJoinPassword" : {
-			"Description" : "The password to use to join the nodes to the domain",
+		"DomainUserPassword" : {
+			"Description" : "The password for the domain user. This can optionally be provided as a KMS encrypted string (specific PasswordEncryptedWithKMS parameter).",
 			"Type" : "String",
 			"MinLength" : 1,
 			"NoEcho" : "true"
 		},
-		"DomainJoinUsername" : {
-			"Description" : "The account username that will be used to join the nodes to the domain",
+		"DomainUsername" : {
+			"Description" : "The account username that will be used to join the nodes to the domain and configure the failover cluster. Must have admin rights on the nodes and the ability to create computer objects in AD.",
 			"Type" : "String",
 			"MinLength" : 1,
 			"Default" : "administrator"
@@ -419,8 +417,8 @@
                     },
                     "Parameters" : [
                         "DomainName",
-                        "DomainJoinUsername",
-                        "DomainJoinPassword",
+                        "DomainUsername",
+                        "DomainUserPassword",
 						"PasswordEncryptedWithKMS"
                     ]
                 }, 
@@ -1166,38 +1164,6 @@
 				"i3.16xlarge" : {
 				"UsesInstanceStorage" : false
 			}
-		 },
-		 "LocalStorageMap" : {
-			"m4" : {
-				"UsesInstanceStorage" : false
-			},
-			"m5" : {
-				"UsesInstanceStorage" : false
-			},
-			"m5d" : {
-				"UsesInstanceStorage" : true
-			},
-			"r4" : {
-				"UsesInstanceStorage" : false
-			},
-			"r5" : {
-				"UsesInstanceStorage" : false
-			},
-			"r5d" : {
-				"UsesInstanceStorage" : true
-			},
-			"c4" : {
-				"UsesInstanceStorage" : false
-			},
-			"c5" : {
-				"UsesInstanceStorage" : false
-			},
-			"c5d" : {
-				"UsesInstanceStorage" : true
-			},
-			"i3" : {
-				"UsesInstanceStorage" : false
-			}
 		 }
 	},
 
@@ -1672,7 +1638,7 @@
                             "c-join-domain": {
                                 "command": {
 									"Fn::Sub" : [
-										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainJoinUsername}\" ${Password} \"${DomainJoinPassword}\"",
+										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
 										{
 											"Password" : {
 												"Fn::If" : [
@@ -1825,7 +1791,10 @@
                         "GroupSet": [
                             {
                                 "Ref": "WSFCSecurityGroup"
-                            }
+                            },
+							{
+								"Ref" : "FileShareServerAccessSecurityGroup"
+							}
                         ]
                     }
                 ],
@@ -1834,6 +1803,24 @@
                         "Key": "Name",
                         "Value": {
                             "Ref": "WSFCNode1NetBIOSName"
+                        }
+                    },
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
                         }
                     }
                 ],
@@ -2096,6 +2083,24 @@
                                 "source": {
                                     "Fn::Sub": [
 										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-ADPowerShell.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Install-DnsPowerShell.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Install-DnsPowerShell.ps1",
 										{
 											"Region" : {
 												"Fn::If" : [
@@ -2415,6 +2420,42 @@
 										}
 									]
                                 }
+                            },
+							"C:\\cfn\\scripts\\Move-ClusterRole.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/${ConfigS3KeyPrefix}scripts/Move-ClusterRole.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
+							"C:\\cfn\\scripts\\Remove-DnsRecord.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Remove-DnsRecord.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
                             }
 						}						
 					},
@@ -2441,7 +2482,7 @@
                             "c-join-domain": {
                                 "command": {
 									"Fn::Sub" : [
-										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainJoinUsername}\" ${Password} \"${DomainJoinPassword}\"",
+										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
 										{
 											"Password" : {
 												"Fn::If" : [
@@ -2475,14 +2516,18 @@
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-ADPowerShell.ps1",
                                 "waitAfterCompletion": "0"
 							},
-							"i-reboot": {
+							"i-install-dns-powershell" : {
+								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-DnsPowerShell.ps1",
+                                "waitAfterCompletion": "0"
+							},
+							"j-reboot": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
                                 "waitAfterCompletion": "forever"
                             },
-							"j-enable-credssp" : {
+							"k-enable-credssp" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Enable-CredSSP.ps1",
                                 "waitAfterCompletion": "0"
-							}
+							}						
 						}
 					},
 					"Configure" : {
@@ -2540,7 +2585,7 @@
 						"commands" : {
 							"a-disable-existing-computer-object": {
                                 "command": {
-									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${WSFCNetBIOSName}' -Enabled $false -Username '${DomainJoinUsername}' -Password '${DomainJoinPassword}'\""
+									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${WSFCNetBIOSName}' -Enabled $false -Username '${DomainUsername}' -Password '${DomainUserPassword}'\""
 								},
                                 "waitAfterCompletion": "0"
                             },
@@ -2595,7 +2640,7 @@
 											},
 											"'",
 											{
-												"Fn::Sub" : " -Username '${DomainJoinUsername}' -Password '${DomainJoinPassword}'"
+												"Fn::Sub" : " -Username '${DomainUsername}' -Password '${DomainUserPassword}'"
 											}
 										]	
 									]
@@ -2654,20 +2699,32 @@
 							},
 							"f-set-cno-permissions" : {
 								"command" : {
-									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Set-CNOActiveDirectoryPermissions.ps1 -ClusterNameObject \"${WSFCNetBIOSName}\" -Username \"${DomainJoinUsername}\" -Password \"${DomainJoinPassword}\""
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Set-CNOActiveDirectoryPermissions.ps1 -ClusterNameObject \"${WSFCNetBIOSName}\" -Username \"${DomainUsername}\" -Password \"${DomainUserPassword}\""
 								},
 								"waitAfterCompletion": "0"
 							},
 							"g-disable-existing-computer-object": {
                                 "command": {
-									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${FileServerNetBIOSName}' -Enabled $false -Username '${DomainJoinUsername}' -Password '${DomainJoinPassword}'\""
+									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${FileServerNetBIOSName}' -Enabled $false -Username '${DomainUsername}' -Password '${DomainUserPassword}'\""
 								},
                                 "waitAfterCompletion": "0"
                             },
-							"h-add-wsfc-fileshare-role" : {
+							"h-remove-existing-dns": {
+                                "command": {
+									"Fn::If" : [
+										"UseSOFS",
+										{
+											"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Remove-DnsRecord.ps1 -Record \"${FileServerNetBIOSName}\" -Username \"${DomainUsername}\" -Password \"${DomainUserPassword}\""
+										},
+										""
+									]
+								},
+                                "waitAfterCompletion": "0"
+                            },
+							"i-add-wsfc-fileshare-role" : {
 								"command" : {
 									"Fn::Sub" : [
-										"powershell.exe -Command \"C:\\cfn\\scripts\\Add-WSFCFileServerRole.ps1 -Name '${FileServerNetBIOSName}' -Username '${DomainJoinUsername}' -Password '${DomainJoinPassword}'${Suffix}\"",
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Add-WSFCFileServerRole.ps1 -Name '${FileServerNetBIOSName}' -Username '${DomainUsername}' -Password '${DomainUserPassword}'${Suffix}\"",
 										{
 											"Suffix" : {
 												"Fn::If" : [
@@ -2696,16 +2753,16 @@
 								},
 								"waitAfterCompletion": "0"
 							},
-							"i-set-quorum": {
+							"j-set-quorum": {
                                 "command": {
 									"Fn::Sub" : [
-										"powershell.exe -File C:\\cfn\\scripts\\Set-ClusterQuorum.ps1${Suffix}",
+										"powershell.exe -File C:\\cfn\\scripts\\Set-ClusterQuorum.ps1 -Username \"${DomainUsername}\" -Password \"${DomainUserPassword}\"${Suffix}",
 										{
 											"Suffix" : {
 												"Fn::If" : [
 													"IsTwoNode",
 													{
-														"Fn::Sub" : " -FileShare '\\\\${WSFCNode3NetBIOSName}.${DomainName}\\Quorom'"
+														"Fn::Sub" : " -FileShare \"\\\\${WSFCNode3NetBIOSName}.${DomainName}\\Quorom\""
 													},
 													""
 												]
@@ -2715,9 +2772,26 @@
 								},
                                 "waitAfterCompletion": "0"
                             },
-							"j-new-file-share" : {
+							"k-move-cluster-role" : {
 								"command" : {
-									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\New-S2DFileShare.ps1 -Name '${FileShareName}' -DiskName '${VolumeFriendlyName}' -Resource '${FileServerNetBIOSName}' -EncryptData\""
+									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Move-ClusterRole.ps1 -Role \"${FileServerNetBIOSName}\" -Node \"${WSFCNode2NetBIOSName}\" -Username \"${DomainUsername}\" -Password \"${DomainUserPassword}\""
+								},
+								"waitAfterCompletion": "0"
+							},
+							"l-new-file-share" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\New-S2DFileShare.ps1 -Name '${FileShareName}' -DiskName '${VolumeFriendlyName}' -Resource '${FileServerNetBIOSName}' -EncryptData -FullAccess 'Domain Admins' -ChangeAccess 'Domain Users'\"${Suffix}",
+										{
+											"Suffix" : {
+												"Fn::If" : [
+													"UseSOFS",
+													" -SOFS",
+													""
+												]
+											}
+										}
+									]
 								},
 								"waitAfterCompletion": "0"
 							}
@@ -2789,7 +2863,10 @@
                         "GroupSet": [
                             {
                                 "Ref": "WSFCSecurityGroup"
-                            }
+                            },
+							{
+								"Ref" : "FileShareServerAccessSecurityGroup"
+							}
                         ]
                     }
                 ],
@@ -2798,6 +2875,24 @@
                         "Key": "Name",
                         "Value": {
                             "Ref": "WSFCNode2NetBIOSName"
+                        }
+                    },
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
                         }
                     }
                 ],
@@ -3185,7 +3280,7 @@
                             "c-join-domain": {
                                 "command": {
 									"Fn::Sub" : [
-										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainJoinUsername}\" ${Password} \"${DomainJoinPassword}\"",
+										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
 										{
 											"Password" : {
 												"Fn::If" : [
@@ -3339,7 +3434,10 @@
                         "GroupSet": [
                             {
                                 "Ref": "WSFCSecurityGroup"
-                            }
+                            },
+							{
+								"Ref" : "FileShareServerAccessSecurityGroup"
+							}
                         ]
                     }
                 ],
@@ -3348,6 +3446,24 @@
                         "Key": "Name",
                         "Value": {
                             "Ref": "WSFCNode3NetBIOSName"
+                        }
+                    },
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
                         }
                     }
                 ],
@@ -3665,7 +3781,7 @@
                             "c-join-domain": {
                                 "command": {
 									"Fn::Sub" : [
-										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainJoinUsername}\" ${Password} \"${DomainJoinPassword}\"",
+										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
 										{
 											"Password" : {
 												"Fn::If" : [
@@ -3705,7 +3821,7 @@
 						"commands" : {
 							"a-new-share" : {
 								"command" : {
-									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\New-QuoromFileShare.ps1 -Path '$env:SystemDrive\\Quorom' -Name 'Quorom'\""
+									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\New-QuoromFileShare.ps1 -Path '%SYSTEMDRIVE%\\Quorom' -Name Quorom -FullAccess 'Domain Admins','${DomainUsername}'\""
 								},
 								"waitAfterCompletion": "0"
 							}
@@ -3740,7 +3856,6 @@
                     "Ref": "WSFCProfile"
                 },
                 "InstanceType": "t2.small",
-                "EbsOptimized": "true",
                 "NetworkInterfaces": [
                     {
                         "DeleteOnTermination": "true",
@@ -3760,6 +3875,24 @@
                         "Key": "Name",
                         "Value": {
                             "Ref": "WSFCNode3NetBIOSName"
+                        }
+                    },
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
                         }
                     }
                 ],
@@ -3832,7 +3965,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode1"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 		"WSFCNode2Volume1": {
@@ -3860,7 +4019,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode2"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 		"WSFCNode3Volume1": {
@@ -3889,7 +4074,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode3"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 
@@ -3918,7 +4129,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode1"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 		"WSFCNode2Volume2": {
@@ -3946,7 +4183,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode2"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 		"WSFCNode3Volume2": {
@@ -3975,7 +4238,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode3"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 
@@ -4005,7 +4294,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode1"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 		"WSFCNode2Volume3": {
@@ -4034,7 +4349,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode2"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 		"WSFCNode3Volume3": {
@@ -4063,7 +4404,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode3"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 
@@ -4093,7 +4460,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode1"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 		"WSFCNode2Volume4": {
@@ -4122,7 +4515,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode2"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 		"WSFCNode3Volume4": {
@@ -4151,7 +4570,33 @@
                             "Ref": "AWS::NoValue"
                         }
                     ]
-                }
+                },
+				"Tags" : [
+					{	
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "WSFCNode3"
+						}
+					},
+					 {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
             }
         },
 
@@ -4322,7 +4767,7 @@
                     {
                         "Key" : "Name",
                         "Value" : {
-							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-BastionHost-${EnvironmentTag}"
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-WSFC-${EnvironmentTag}"
                         }
                     },
                     {
@@ -4484,6 +4929,92 @@
                 "IpProtocol": "tcp",
                 "FromPort": "49152",
                 "ToPort": "65535"
+            }
+        },
+
+		"FileShareServerAccessSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enable clients to access file share",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+				"Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-FileShareAccess-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"FileShareSecurityGroupIngressTcp445": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "FileShareServerAccessSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "FileShareClientSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "445",
+                "ToPort": "445"
+            }
+        },
+
+		"FileShareClientSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Assign this groups to clients to enable them to access the file share",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+				"Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-FileShareClientAccess-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
             }
         }
 	},

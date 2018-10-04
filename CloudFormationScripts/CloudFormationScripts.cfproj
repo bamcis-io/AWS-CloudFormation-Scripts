@@ -26,6 +26,7 @@
     <Folder Include="AthenaDemo" />
     <Folder Include="CostAndUsageReports" />
     <Folder Include="FileShare" />
+    <Folder Include="m5dfailuredemo" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActiveDirectory\domain-controller-iam.template">
@@ -64,13 +65,13 @@
     <Compile Include="DirectoryService\networking-and-ds-combined.template">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FileShare\2-node-file-share.template">
+    <Compile Include="FileShare\sql-quickstart.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="FileShare\file-share-3-node-cfn.template">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FileShare\file-share-3-node.template">
+    <Compile Include="m5dfailuredemo\test.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Networking\networking-vpc-3-az.template">
@@ -85,6 +86,9 @@
       <SubType>Content</SubType>
     </Content>
     <Content Include="AthenaDemo\AmazonRDS.csv">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="m5dfailuredemo\Test.ps1">
       <SubType>Content</SubType>
     </Content>
     <Content Include="Networking\README.md">

@@ -1,0 +1,441 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Demo of m5d.large boot freeze",
+
+	"Parameters" : {
+        "InstanceType" : {
+            "Description" : "The EC2 instance type for the node.",
+            "Type"        : "String",
+            "AllowedValues" : [              
+				"m5d.large",
+				"m5.large",
+
+				"c5d.large",
+				"c5.large",
+
+				"r5d.large",
+				"r5.large"
+            ],
+            "Default"       : "m5d.large",
+            "ConstraintDescription" : "Must be a valid EC2 instance type"
+        },
+		"KeyPairName": {
+            "Description": "Public/private key pairs allow you to securely connect to your instance after it launches",
+            "Type": "AWS::EC2::KeyPair::KeyName"
+        },
+		"AdditionalVolumes" : {
+			"Type" : "Number",
+			"AllowedValues" : [
+				"2",
+				"4"
+			],
+			"Default" : "2"
+		},
+
+		"VpcId" : {
+			"Description" : "The VPC to deploy the servers into",
+			"Type" : "AWS::EC2::VPC::Id"
+		},
+		"Subnet1"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The subnet to deploy the node into",
+			"Default" : "subnet-8101c5dd"
+        }
+	},
+
+	"Rules": {
+        "SubnetsInVPC": {
+            "Assertions": [
+                {
+                    "Assert": {
+                        "Fn::EachMemberIn": [
+                            {
+                                "Fn::ValueOfAll": [
+                                    "AWS::EC2::Subnet::Id",
+                                    "VpcId"
+                                ]
+                            },
+                            {
+                                "Fn::RefAll": "AWS::EC2::VPC::Id"
+                            }
+                        ]
+                    },
+                    "AssertDescription": "All subnets must in the VPC"
+                }
+            ]
+        }
+    },
+
+	"Mappings" : {
+		 "InstanceMap" : {
+    "ap-south-1":  {
+                       "Name":  "Asia Pacific (Mumbai)",
+                       "WindowsServer2016":  "ami-ae1627c1",
+                       "WindowsServer2012R2":  "ami-e013228f",
+                       "WindowsServer2012":  "ami-6411200b",
+                       "WindowsServer2008R2":  "ami-931021fc",
+                       "WindowsServer2008":  "ami-1e2e1f71",
+                       "AmazonLinux":  "ami-0912f71e06545ad88"
+                   },
+    "us-east-2":  {
+                      "Name":  "US East (Ohio)",
+                      "WindowsServer2016":  "ami-36241f53",
+                      "WindowsServer2012R2":  "ami-ca2318af",
+                      "WindowsServer2012":  "ami-2b201b4e",
+                      "WindowsServer2008R2":  "ami-bd2219d8",
+                      "WindowsServer2008":  "ami-d52318b0",
+                      "AmazonLinux":  "ami-0b59bfac6be064b78"
+                  },
+    "ap-southeast-2":  {
+                           "Name":  "Asia Pacific (Sydney)",
+                           "WindowsServer2016":  "ami-d48623b6",
+                           "WindowsServer2012R2":  "ami-e3862381",
+                           "WindowsServer2012":  "ami-d2bb1eb0",
+                           "WindowsServer2008R2":  "ami-1b852079",
+                           "WindowsServer2008":  "ami-c2bb1ea0",
+                           "AmazonLinux":  "ami-09b42976632b27e9b"
+                       },
+    "us-west-1":  {
+                      "Name":  "US West (N. California)",
+                      "WindowsServer2016":  "ami-d12ecdb2",
+                      "WindowsServer2012R2":  "ami-132ac970",
+                      "WindowsServer2012":  "ami-2d2ac94e",
+                      "WindowsServer2008R2":  "ami-312bc852",
+                      "WindowsServer2008":  "ami-092ac96a",
+                      "AmazonLinux":  "ami-0bdb828fd58c52235"
+                  },
+    "sa-east-1":  {
+                      "Name":  "South America (Sao Paulo)",
+                      "WindowsServer2016":  "ami-36caed5a",
+                      "WindowsServer2012R2":  "ami-fac4e396",
+                      "WindowsServer2012":  "ami-aad3f4c6",
+                      "WindowsServer2008R2":  "ami-4bf8df27",
+                      "WindowsServer2008":  "ami-7cc4e310",
+                      "AmazonLinux":  "ami-07b14488da8ea02a0"
+                  },
+    "ap-northeast-1":  {
+                           "Name":  "Asia Pacific (Tokyo)",
+                           "WindowsServer2016":  "ami-49096ba4",
+                           "WindowsServer2012R2":  "ami-a73c5e4a",
+                           "WindowsServer2012":  "ami-f9046614",
+                           "WindowsServer2008R2":  "ami-813a586c",
+                           "WindowsServer2008":  "ami-d53b5938",
+                           "AmazonLinux":  "ami-06cd52961ce9f0d85"
+                       },
+    "eu-west-2":  {
+                      "Name":  "EU West (London)",
+                      "WindowsServer2016":  "ami-9bb358fc",
+                      "WindowsServer2012R2":  "ami-a3b259c4",
+                      "WindowsServer2012":  "ami-9cb75cfb",
+                      "WindowsServer2008R2":  "ami-a9b259ce",
+                      "WindowsServer2008":  "ami-c6b358a1",
+                      "AmazonLinux":  "ami-f976839e"
+                  },
+    "eu-central-1":  {
+                         "Name":  "EU Central (Frankfurt)",
+                         "WindowsServer2016":  "ami-6af7f381",
+                         "WindowsServer2012R2":  "ami-f7ece81c",
+                         "WindowsServer2012":  "ami-50e9edbb",
+                         "WindowsServer2008R2":  "ami-2bece8c0",
+                         "WindowsServer2008":  "ami-8be0e460",
+                         "AmazonLinux":  "ami-0233214e13e500f77"
+                     },
+    "ca-central-1":  {
+                         "Name":  "Canada (Central)",
+                         "WindowsServer2016":  "ami-303ebc54",
+                         "WindowsServer2012R2":  "ami-f334b697",
+                         "WindowsServer2012":  "ami-573ebc33",
+                         "WindowsServer2008R2":  "ami-8b38baef",
+                         "WindowsServer2008":  "ami-ed34b689",
+                         "AmazonLinux":  "ami-0b18956f"
+                     },
+    "eu-west-1":  {
+                      "Name":  "EU West (Ireland)",
+                      "WindowsServer2016":  "ami-96e1f27c",
+                      "WindowsServer2012R2":  "ami-5ef8ebb4",
+                      "WindowsServer2012":  "ami-62fdee88",
+                      "WindowsServer2008R2":  "ami-40f9eaaa",
+                      "WindowsServer2008":  "ami-b9f2e153",
+                      "AmazonLinux":  "ami-047bb4163c506cd98"
+                  },
+    "ap-southeast-1":  {
+                           "Name":  "Asia Pacific (Singapore)",
+                           "WindowsServer2016":  "ami-84e79e6e",
+                           "WindowsServer2012R2":  "ami-43e49da9",
+                           "WindowsServer2012":  "ami-afe79e45",
+                           "WindowsServer2008R2":  "ami-bbe09951",
+                           "WindowsServer2008":  "ami-84e0996e",
+                           "AmazonLinux":  "ami-08569b978cc4dfa10"
+                       },
+    "us-east-1":  {
+                      "Name":  "US East (Virginia)",
+                      "WindowsServer2016":  "ami-2d360152",
+                      "WindowsServer2012R2":  "ami-60093e1f",
+                      "WindowsServer2012":  "ami-462c1b39",
+                      "WindowsServer2008R2":  "ami-a2bd89dd",
+                      "WindowsServer2008":  "ami-a994a0d6",
+                      "AmazonLinux":  "ami-0ff8a91507f77f867"
+                  },
+    "ap-northeast-2":  {
+                           "Name":  "Asia Pacific (Seoul)",
+                           "WindowsServer2016":  "ami-07219569",
+                           "WindowsServer2012R2":  "ami-28398d46",
+                           "WindowsServer2012":  "ami-0e398d60",
+                           "WindowsServer2008R2":  "ami-ee279380",
+                           "WindowsServer2008":  "ami-fe209490",
+                           "AmazonLinux":  "ami-0a10b2721688ce9d2"
+                       },
+    "us-west-2":  {
+                      "Name":  "US West (Oregon)",
+                      "WindowsServer2016":  "ami-6d336015",
+                      "WindowsServer2012R2":  "ami-490b5831",
+                      "WindowsServer2012":  "ami-da0754a2",
+                      "WindowsServer2008R2":  "ami-e1184b99",
+                      "WindowsServer2008":  "ami-a81d4ed0",
+                      "AmazonLinux":  "ami-a0cfeed8"
+                  }
+}
+	},
+
+	"Conditions" : {
+		"Use4Vol" : {
+			"Fn::Equals" :[
+				{
+					"Ref" : "AdditionalVolumes"
+				},
+				"4"
+			]
+		}
+	},
+
+	"Resources" : {
+
+		"WaitHandle": {
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "WaitCondition": {
+            "Type": "AWS::CloudFormation::WaitCondition",
+            "DependsOn": "Node1",
+            "Properties": {
+                "Handle": {
+                    "Ref": "WaitHandle"
+                },
+                "Timeout": "2400",
+				"Count" : 1
+            }
+        },
+
+		"Node1": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "Tenancy": "default",
+                "ImageId": {
+					"Fn::FindInMap" : [
+						"InstanceMap",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"WindowsServer2016"
+					]
+				},
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "EbsOptimized": "true",
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": "true",
+                        "DeviceIndex": 0,
+                        "SubnetId": {
+                            "Ref": "Subnet1"
+                        }
+                    }
+                ],                
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": "30",
+                            "VolumeType": "gp2"
+                        }
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyPairName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+								"<script>\n",
+								"cfn-signal.exe --exit-code 0 ",
+								{
+									"Fn::Base64" : {
+										"Ref" : "WaitHandle"
+									}
+								},
+								"\n",
+                                "</script>"
+                            ]
+                        ]
+                    }
+                },
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "m5dfailure"
+                    }
+				]
+            }
+        },
+		
+		"Node1Volume1": {
+            "Type": "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "100",
+                "VolumeType": "gp2",
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "Node1",
+                        "AvailabilityZone"
+                    ]
+                },
+				"Tags" : [
+					{
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "Node1"
+						}	
+					}
+				]
+            }
+        },
+
+		"Node1Volume2": {
+            "Type": "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "100",
+                "VolumeType": "gp2",
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "Node1",
+                        "AvailabilityZone"
+                    ]
+                },
+				"Tags" : [
+					{
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "Node1"
+						}	
+					}
+				]
+            }
+        },
+
+		"Node1Volume3": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Use4Vol",
+            "Properties": {
+                "Size": "100",
+                "VolumeType": "gp2",
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "Node1",
+                        "AvailabilityZone"
+                    ]
+                },
+				"Tags" : [
+					{
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "Node1"
+						}	
+					}
+				]
+            }
+        },
+
+		"Node1Volume4": {
+            "Type": "AWS::EC2::Volume",
+			"Condition" : "Use4Vol",
+            "Properties": {
+                "Size": "100",
+                "VolumeType": "gp2",
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "Node1",
+                        "AvailabilityZone"
+                    ]
+                },
+				"Tags" : [
+					{
+						"Key" : "InstanceId",
+						"Value" : {
+							"Ref" : "Node1"
+						}	
+					}
+				]
+            }
+        },
+
+		"Node1Volume1Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+            "Properties": {
+                "Device": "/dev/xvdf",
+                "InstanceId": {
+                    "Ref": "Node1"
+                },
+                "VolumeId": {
+                    "Ref": "Node1Volume1"
+                }
+            }
+        },
+
+		"Node1Volume2Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+            "Properties": {
+                "Device": "/dev/xvdg",
+                "InstanceId": {
+                    "Ref": "Node1"
+                },
+                "VolumeId": {
+                    "Ref": "Node1Volume2"
+                }
+            }
+        },
+
+		"Node1Volume3Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Use4Vol",
+            "Properties": {
+                "Device": "/dev/xvdh",
+                "InstanceId": {
+                    "Ref": "Node1"
+                },
+                "VolumeId": {
+                    "Ref": "Node1Volume3"
+                }
+            }
+        },
+
+		"Node1Volume4Attachment": {
+            "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "Use4Vol",
+            "Properties": {
+                "Device": "/dev/xvdi",
+                "InstanceId": {
+                    "Ref": "Node1"
+                },
+                "VolumeId": {
+                    "Ref": "Node1Volume4"
+                }
+            }
+        }
+	},
+
+	"Outputs" : {
+	}
+}
