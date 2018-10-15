@@ -68,7 +68,7 @@
     <Compile Include="FileShare\sql-quickstart.template">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FileShare\file-share-3-node-cfn.template">
+    <Compile Include="FileShare\s2d-file-share-cluster.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="m5dfailuredemo\test.template">

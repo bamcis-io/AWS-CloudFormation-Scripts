@@ -372,7 +372,7 @@
         },
 		"Subnet3"        : {
             "Type" : "AWS::EC2::Subnet::Id",
-            "Description" : "The third subnet to deploy a WSFC node into. Set this to either Subnet1 or Subnet2 to not use a third subnet.",
+            "Description" : "The third subnet to deploy a WSFC node into.",
 			"Default" : "subnet-94f13ef3"
         },
 
@@ -1267,6 +1267,83 @@
                 ]
 			}
 		},
+		"WSFCEBSPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				 "PolicyName" : "EC2EBSPolicy",
+				  "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "ec2:DescribeVolumes"
+                            ],
+                            "Resource" : [
+								"*"                          
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "WSFCRole"
+                    }
+                ]
+			}
+		},
+		"WSFCEC2Policy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				 "PolicyName" : "EC2Policy",
+				  "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "ec2:DescribeTags"
+                            ],
+                            "Resource" : [
+								"*"                          
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "WSFCRole"
+                    }
+                ]
+			}
+		},
+		"WSFCCFNPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				 "PolicyName" : "EC2CFNPolicy",
+				  "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "cloudformation:DescribeStackResource"
+                            ],
+                            "Resource" : [
+								{
+									"Fn::Sub" : "arn:aws:cloudformation:us-east-1:252486826203:stack/${AWS::StackName}/*"                          
+								}
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "WSFCRole"
+                    }
+                ]
+			}
+		},
 
 		"WSFCWaitHandle": {
             "Type": "AWS::CloudFormation::WaitConditionHandle"
@@ -1612,6 +1689,24 @@
 										}
 									]
                                 }
+                            },
+							"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Wait-EBSVolumeAttachment.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
                             }
 						}
 					},
@@ -1625,17 +1720,34 @@
                     },
 					"Prep" : {
 						"commands" : {
-							"a-initialize-disks": {
+							"a-wait-volume-attachment" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode1Volume1','WSFCNode1Volume2'${Suffix}\"",
+										{
+											"Suffix" : {
+												"Fn::If" : [
+													"Use4Disks",
+													",'WSFCNode1Volume3','WSFCNode1Volume4'",
+													""
+												]
+											} 
+										}
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"b-initialize-disks": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Initialize-Disks.ps1 -FileSystem ReFS -PartitionStyle GPT",
                                 "waitAfterCompletion": "0"
                             },
-							"b-rename-computer": {
+							"c-rename-computer": {
                                 "command": {
 									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Rename-Computer.ps1 -NewName \"${WSFCNode1NetBIOSName}\" -Restart"
 								},                       
                                 "waitAfterCompletion": "forever"
                             },
-                            "c-join-domain": {
+                            "d-join-domain": {
                                 "command": {
 									"Fn::Sub" : [
 										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
@@ -1652,27 +1764,27 @@
 								},                       
                                 "waitAfterCompletion": "0"
                             },                        
-							"d-install-wmf5" : {
+							"e-install-wmf5" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-WMF5.ps1",
                                 "waitAfterCompletion": "0"
 							},
-                            "e-install-windows-failover-clustering": {
+                            "f-install-windows-failover-clustering": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Install-WSFC.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"f-install-file-server": {
+							"g-install-file-server": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Install-FileServer.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"g-disable-firewall": {
+							"h-disable-firewall": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Disable-Firewall.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"h-install-ad-powershell" : {
+							"i-install-ad-powershell" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-ADPowerShell.ps1",
                                 "waitAfterCompletion": "0"
 							},
-							"i-reboot": {
+							"j-reboot": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
                                 "waitAfterCompletion": "forever"
                             }
@@ -2205,6 +2317,24 @@
 									]
                                 }
                             },
+							"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Wait-EBSVolumeAttachment.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
 							"C:\\cfn\\scripts\\Enable-CredSSP.ps1": {
                                 "source": {
                                     "Fn::Sub": [
@@ -2469,17 +2599,34 @@
                     },
 					"Prep" : {
 						"commands" : {
-							"a-initialize-disks": {
+							"a-wait-volume-attachment" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode2Volume1','WSFCNode2Volume2'${Suffix}\"",
+										{
+											"Suffix" : {
+												"Fn::If" : [
+													"Use4Disks",
+													",'WSFCNode2Volume3','WSFCNode2Volume4'",
+													""
+												]
+											} 
+										}
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"b-initialize-disks": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Initialize-Disks.ps1 -FileSystem ReFS -PartitionStyle GPT",
                                 "waitAfterCompletion": "0"
                             },
-							"b-rename-computer": {
+							"c-rename-computer": {
                                 "command": {
 									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Rename-Computer.ps1 -NewName \"${WSFCNode2NetBIOSName}\" -Restart"
 								},                       
                                 "waitAfterCompletion": "forever"
                             },
-                            "c-join-domain": {
+                            "d-join-domain": {
                                 "command": {
 									"Fn::Sub" : [
 										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
@@ -2496,35 +2643,35 @@
 								},                       
                                 "waitAfterCompletion": "0"
                             },
-							"d-install-wmf5" : {
+							"e-install-wmf5" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-WMF5.ps1",
                                 "waitAfterCompletion": "0"
 							},
-                            "e-install-windows-failover-clustering": {
+                            "f-install-windows-failover-clustering": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Install-WSFC.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"f-install-file-server": {
+							"g-install-file-server": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Install-FileServer.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"g-disable-firewall": {
+							"h-disable-firewall": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Disable-Firewall.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"h-install-ad-powershell" : {
+							"i-install-ad-powershell" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-ADPowerShell.ps1",
                                 "waitAfterCompletion": "0"
 							},
-							"i-install-dns-powershell" : {
+							"j-install-dns-powershell" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-DnsPowerShell.ps1",
                                 "waitAfterCompletion": "0"
 							},
-							"j-reboot": {
+							"k-reboot": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
                                 "waitAfterCompletion": "forever"
                             },
-							"k-enable-credssp" : {
+							"l-enable-credssp" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Enable-CredSSP.ps1",
                                 "waitAfterCompletion": "0"
 							}						
@@ -2585,7 +2732,18 @@
 						"commands" : {
 							"a-disable-existing-computer-object": {
                                 "command": {
-									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${WSFCNetBIOSName}' -Enabled $false -Username '${DomainUsername}' -Password '${DomainUserPassword}'\""
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${WSFCNetBIOSName}' -Enabled $false -Username '${DomainUsername}' ${Password} '${DomainUserPassword}'\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
 								},
                                 "waitAfterCompletion": "0"
                             },
@@ -2640,7 +2798,18 @@
 											},
 											"'",
 											{
-												"Fn::Sub" : " -Username '${DomainUsername}' -Password '${DomainUserPassword}'"
+												"Fn::Sub" : [
+													" -Username '${DomainUsername}' ${Password} '${DomainUserPassword}'",
+													{
+														"Password" : {
+															"Fn::If" : [
+																"PasswordEncrypted",
+																"-KMSEncryptedPassword",
+																"-Password"																
+															]
+														}
+													}
+												]
 											}
 										]	
 									]
@@ -2699,13 +2868,35 @@
 							},
 							"f-set-cno-permissions" : {
 								"command" : {
-									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Set-CNOActiveDirectoryPermissions.ps1 -ClusterNameObject \"${WSFCNetBIOSName}\" -Username \"${DomainUsername}\" -Password \"${DomainUserPassword}\""
+									"Fn::Sub" : [
+										"powershell.exe -File C:\\cfn\\scripts\\Set-CNOActiveDirectoryPermissions.ps1 -ClusterNameObject \"${WSFCNetBIOSName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
 								},
 								"waitAfterCompletion": "0"
 							},
 							"g-disable-existing-computer-object": {
                                 "command": {
-									"Fn::Sub" : "powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${FileServerNetBIOSName}' -Enabled $false -Username '${DomainUsername}' -Password '${DomainUserPassword}'\""
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Set-ADComputerAccountStatus.ps1 -ComputerName '${FileServerNetBIOSName}' -Enabled $false -Username '${DomainUsername}' ${Password} '${DomainUserPassword}'\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
 								},
                                 "waitAfterCompletion": "0"
                             },
@@ -2714,7 +2905,18 @@
 									"Fn::If" : [
 										"UseSOFS",
 										{
-											"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Remove-DnsRecord.ps1 -Record \"${FileServerNetBIOSName}\" -Username \"${DomainUsername}\" -Password \"${DomainUserPassword}\""
+											"Fn::Sub" : [
+												"powershell.exe -File C:\\cfn\\scripts\\Remove-DnsRecord.ps1 -Record \"${FileServerNetBIOSName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
+												{
+													"Password" : {
+														"Fn::If" : [
+															"PasswordEncrypted",
+															"-KMSEncryptedPassword",
+															"-Password"																
+														]
+													}
+												}
+											]
 										},
 										""
 									]
@@ -2724,8 +2926,16 @@
 							"i-add-wsfc-fileshare-role" : {
 								"command" : {
 									"Fn::Sub" : [
-										"powershell.exe -Command \"C:\\cfn\\scripts\\Add-WSFCFileServerRole.ps1 -Name '${FileServerNetBIOSName}' -Username '${DomainUsername}' -Password '${DomainUserPassword}'${Suffix}\"",
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Add-WSFCFileServerRole.ps1 -Name '${FileServerNetBIOSName}' -Username '${DomainUsername}' ${Password} '${DomainUserPassword}'${Suffix}\"",
 										{
+											
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											},
 											"Suffix" : {
 												"Fn::If" : [
 													"UseSOFS",
@@ -2756,8 +2966,15 @@
 							"j-set-quorum": {
                                 "command": {
 									"Fn::Sub" : [
-										"powershell.exe -File C:\\cfn\\scripts\\Set-ClusterQuorum.ps1 -Username \"${DomainUsername}\" -Password \"${DomainUserPassword}\"${Suffix}",
+										"powershell.exe -File C:\\cfn\\scripts\\Set-ClusterQuorum.ps1 -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"${Suffix}",
 										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											},										
 											"Suffix" : {
 												"Fn::If" : [
 													"IsTwoNode",
@@ -2774,7 +2991,18 @@
                             },
 							"k-move-cluster-role" : {
 								"command" : {
-									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Move-ClusterRole.ps1 -Role \"${FileServerNetBIOSName}\" -Node \"${WSFCNode2NetBIOSName}\" -Username \"${DomainUsername}\" -Password \"${DomainUserPassword}\""
+									"Fn::Sub" : [
+										"powershell.exe -File C:\\cfn\\scripts\\Move-ClusterRole.ps1 -Role \"${FileServerNetBIOSName}\" -Node \"${WSFCNode2NetBIOSName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
 								},
 								"waitAfterCompletion": "0"
 							},
@@ -3254,6 +3482,24 @@
 										}
 									]
                                 }
+                            },
+							"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Wait-EBSVolumeAttachment.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
                             }
 						}
 					},
@@ -3267,17 +3513,34 @@
                     },
 					"Prep" : {
 						"commands" : {
-							"a-initialize-disks": {
+							"a-wait-volume-attachment" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode3Volume1','WSFCNode3Volume2'${Suffix}\"",
+										{
+											"Suffix" : {
+												"Fn::If" : [
+													"Use4Disks",
+													",'WSFCNode3Volume3','WSFCNode3Volume4'",
+													""
+												]
+											} 
+										}
+									]
+								},
+								"waitAfterCompletion" : "0"
+							},
+							"b-initialize-disks": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Initialize-Disks.ps1 -FileSystem ReFS -PartitionStyle GPT",
                                 "waitAfterCompletion": "0"
                             },
-							"b-rename-computer": {
+							"c-rename-computer": {
                                 "command": {
 									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Rename-Computer.ps1 -NewName \"${WSFCNode3NetBIOSName}\" -Restart"
 								},                       
                                 "waitAfterCompletion": "forever"
                             },
-                            "c-join-domain": {
+                            "d-join-domain": {
                                 "command": {
 									"Fn::Sub" : [
 										"powershell.exe -File C:\\cfn\\scripts\\Join-Domain.ps1 -DomainName \"${DomainName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
@@ -3294,27 +3557,27 @@
 								},                       
                                 "waitAfterCompletion": "0"
                             },
-							"d-install-wmf5" : {
+							"e-install-wmf5" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-WMF5.ps1",
                                 "waitAfterCompletion": "0"
 							},
-                            "e-install-windows-failover-clustering": {
+                            "f-install-windows-failover-clustering": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Install-WSFC.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"f-install-file-server": {
+							"g-install-file-server": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Install-FileServer.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"g-disable-firewall": {
+							"h-disable-firewall": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Disable-Firewall.ps1",
                                 "waitAfterCompletion": "0"
                             },
-							"h-install-ad-powershell" : {
+							"i-install-ad-powershell" : {
 								"command": "powershell.exe -File C:\\cfn\\scripts\\Install-ADPowerShell.ps1",
                                 "waitAfterCompletion": "0"
 							},
-							"i-reboot": {
+							"j-reboot": {
                                 "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
                                 "waitAfterCompletion": "forever"
                             }
