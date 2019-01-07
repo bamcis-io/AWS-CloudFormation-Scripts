@@ -1,0 +1,555 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Creates inbound and outbound Route53 resolver endpoints in a VPC across 1 to 3 subnets.",
+
+
+    "Parameters": {
+        "VpcId": {
+            "Type": "AWS::EC2::VPC::Id",
+            "Description": "The VPC to deploy the endpoints into."
+        },
+        "Subnet1": {
+            "Type": "AWS::EC2::Subnet::Id",
+            "Description": "The first subnet to place an endpoint in."
+        },
+        "Subnet2": {
+            "Type": "String",
+            "Description": "The second subnet to place an endpoint in, this is optional.",
+            "Default": ""
+        },
+        "Subnet3": {
+            "Type": "String",
+            "Description": "The third subnet to place an endpoint in, this is optional.",
+            "Default": ""
+        },
+
+        "Subnet1InboundIPAddress": {
+            "Type": "String",
+            "Description": "The IP address to use in the first subnet for inbound requests, leave blank to auto-assign an IP.",
+            "AllowedPattern": "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "Default": ""
+        },
+        "Subnet2InboundIPAddress": {
+            "Type": "String",
+            "Description": "The IP address to use in the second subnet for inbound requests, leave blank to auto-assign an IP.",
+            "AllowedPattern": "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "Default": ""
+        },
+        "Subnet3InboundIPAddress": {
+            "Type": "String",
+            "Description": "The IP address to use in the third subnet for inbound requests, leave blank to auto-assign an IP.",
+            "AllowedPattern": "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "Default": ""
+        },
+
+        "Subnet1OutboundIPAddress": {
+            "Type": "String",
+            "Description": "The IP address to use in the first subnet for outbound requests, leave blank to auto-assign an IP.",
+            "AllowedPattern": "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "Default": ""
+        },
+        "Subnet2OutboundIPAddress": {
+            "Type": "String",
+            "Description": "The IP address to use in the second subnet for outbound requests, leave blank to auto-assign an IP.",
+            "AllowedPattern": "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "Default": ""
+        },
+        "Subnet3OutboundIPAddress": {
+            "Type": "String",
+            "Description": "The IP address to use in the third subnet for outbound requests, leave blank to auto-assign an IP.",
+            "AllowedPattern": "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "Default": ""
+        },
+
+        "OutboundDNSPort": {
+            "Type": "Number",
+            "Description": "The port you are using on-premises for DNS.",
+            "MinValue": 1,
+            "MaxValue": 65535,
+            "Default": 53
+        },
+		
+        "OrganizationTag": {
+            "Description": "The organization this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default": "bamcis.io"
+        },
+        "ApplicationTag": {
+            "Description": "The application this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag": {
+            "Description": "The environment this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default": "dev"
+        }
+    },
+
+
+    "Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "Network Configuration"
+                    },
+                    "Parameters": [
+                        "VpcId",
+                        "Subnet1",
+                        "Subnet2",
+                        "Subnet3",
+                        "Subnet1InboundIPAddress",
+                        "Subnet2InboundIPAddress",
+                        "Subnet3InboundIPAddress",
+                        "Subnet1OutboundIPAddress",
+                        "Subnet2OutboundIPAddress",
+                        "Subnet3OutboundIPAddress",
+                        "OutboundDNSPort"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Tagging"
+                    },
+                    "Parameters": [
+                        "OrganizationTag",
+                        "ApplicationTag",
+                        "EnvironmentTag"
+                    ]
+                }
+            ]
+        }
+    },
+
+
+    "Conditions": {
+        "UseSubnet2": {
+            "Fn::Not": [
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "Subnet2"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "UseSubnet3": {
+            "Fn::Not": [
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "Subnet3"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "UseInboundSubnet1IPAddress": {
+            "Fn::Not": [
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "Subnet1InboundIPAddress"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "UseInboundSubnet2IPAddress": {
+            "Fn::And": [
+                {
+                    "Condition": "UseSubnet2"
+                },
+                {
+                    "Fn::Not": [
+                        {
+                            "Fn::Equals": [
+                                {
+                                    "Ref": "Subnet2InboundIPAddress"
+                                },
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "UseInboundSubnet3IPAddress": {
+            "Fn::And": [
+                {
+                    "Condition": "UseSubnet3"
+                },
+                {
+                    "Fn::Not": [
+                        {
+                            "Fn::Equals": [
+                                {
+                                    "Ref": "Subnet3InboundIPAddress"
+                                },
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "UseOutboundSubnet1IPAddress": {
+            "Fn::Not": [
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "Subnet1OutboundIPAddress"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+        "UseOutboundSubnet2IPAddress": {
+            "Fn::And": [
+                {
+                    "Condition": "UseSubnet2"
+                },
+                {
+                    "Fn::Not": [
+                        {
+                            "Fn::Equals": [
+                                {
+                                    "Ref": "Subnet2OutboundIPAddress"
+                                },
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "UseOutboundSubnet3IPAddress": {
+            "Fn::And": [
+                {
+                    "Condition": "UseSubnet3"
+                },
+                {
+                    "Fn::Not": [
+                        {
+                            "Fn::Equals": [
+                                {
+                                    "Ref": "Subnet3OutboundIPAddress"
+                                },
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+
+
+    "Resources": {
+        "SecurityGroupAllowInboundDNS": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Allows 0.0.0.0/0 access to the endpoint.",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "53",
+                        "ToPort": "53",
+                        "Description": "Allow all DNS.",
+                        "IpProtocol": "TCP",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "FromPort": "53",
+                        "ToPort": "53",
+                        "Description": "Allow all DNS.",
+                        "IpProtocol": "UDP",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
+        },
+        "SecurityGroupAllowOutboundDNS": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Allows 0.0.0.0/0 access to the endpoint.",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+                "SecurityGroupEgress": [
+                    {
+                        "FromPort": {
+                            "Ref": "OutboundDNSPort"
+                        },
+                        "ToPort": {
+                            "Ref": "OutboundDNSPort"
+                        },
+                        "Description": "Allow all DNS.",
+                        "IpProtocol": "TCP",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "FromPort": {
+                            "Ref": "OutboundDNSPort"
+                        },
+                        "ToPort": {
+                            "Ref": "OutboundDNSPort"
+                        },
+                        "Description": "Allow all DNS.",
+                        "IpProtocol": "UDP",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
+        },
+
+        "InboundResolver": {
+            "Type": "AWS::Route53Resolver::ResolverEndpoint",
+            "Properties": {
+                "Direction": "INBOUND",
+                "Name": "InboundResolver",
+                "SecurityGroupIds": [
+                    {
+                        "Fn::GetAtt": [
+                            "SecurityGroupAllowInboundDNS",
+                            "GroupId"
+                        ]
+                    }
+                ],
+                "IpAddresses": [
+                    {
+                        "SubnetId": {
+                            "Ref": "Subnet1"
+                        },
+						"Ip" : {
+							"Fn::If": [
+								"UseInboundSubnet1IPAddress",
+								{
+									"Ref": "Subnet1InboundIPAddress"
+								},
+								{
+									"Ref": "AWS::NoValue"
+								}
+							]
+						}
+                    },
+                    {
+                        "Fn::If": [
+                            "UseSubnet2",
+                            {
+                                "SubnetId": {
+                                    "Ref": "Subnet2"
+                                },
+                                "Ip" : {
+									"Fn::If": [
+										"UseInboundSubnet2IPAddress",
+										{
+											"Ref": "Subnet2InboundIPAddress"
+										},
+										{
+											"Ref": "AWS::NoValue"
+										}
+									]
+								}
+                            },
+                            {
+                                "Ref": "AWS::NoValue"
+                            }
+                        ]
+                    },
+                    {
+                        "Fn::If": [
+                            "UseSubnet3",
+                            {
+                                "SubnetId": {
+                                    "Ref": "Subnet3"
+                                },
+								"Ip" : {
+									"Fn::If": [
+										"UseInboundSubnet3IPAddress",
+										{
+											"Ref": "Subnet3InboundIPAddress"
+										},
+										{
+											"Ref": "AWS::NoValue"
+										}
+									]
+								}
+                            },
+                            {
+                                "Ref": "AWS::NoValue"
+                            }
+                        ]
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-InboundRoute53Resolver-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "OutboundResolver": {
+            "Type": "AWS::Route53Resolver::ResolverEndpoint",
+            "Properties": {
+                "Direction": "OUTBOUND",
+                "Name": "OutboundResolver",
+                "SecurityGroupIds": [
+                    {
+                        "Fn::GetAtt": [
+                            "SecurityGroupAllowOutboundDNS",
+                            "GroupId"
+                        ]
+                    }
+                ],
+                "IpAddresses": [
+                    {
+                        "SubnetId": {
+                            "Ref": "Subnet1"
+                        },
+                        "Ip" : {
+							"Fn::If": [
+								"UseOutboundSubnet1IPAddress",
+								{
+									"Ref": "Subnet1OutboundIPAddress"
+								},
+								{
+									"Ref": "AWS::NoValue"
+								}
+							]
+						}
+                    },
+                    {
+                        "Fn::If": [
+                            "UseSubnet2",
+                            {
+                                "SubnetId": {
+                                    "Ref": "Subnet2"
+                                },
+								"Ip" : {
+									"Fn::If": [
+										"UseOutboundSubnet2IPAddress",
+										{
+											"Ref": "Subnet2OutboundIPAddress"
+										},
+										{
+											"Ref": "AWS::NoValue"
+										}
+									]
+								}
+                            },
+                            {
+                                "Ref": "AWS::NoValue"
+                            }
+                        ]
+                    },
+                    {
+                        "Fn::If": [
+                            "UseSubnet3",
+                            {
+                                "SubnetId": {
+                                    "Ref": "Subnet3"
+                                },
+                                "Ip" : {
+									"Fn::If": [
+										"UseOutboundSubnet3IPAddress",
+										{
+											"Ref": "Subnet3OutboundIPAddress"
+										},
+										{
+											"Ref": "AWS::NoValue"
+										}
+									]
+								}
+                            },
+                            {
+                                "Ref": "AWS::NoValue"
+                            }
+                        ]
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-OutboundRoute53Resolver-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+
+
+    "Outputs": {
+		"InboundResolverId" : {
+			"Value" : {
+				"Fn::GetAtt" : [ "InboundResolver", "ResolverEndpointId" ]
+			}
+		},
+
+		"OutboundResolverId" : {
+			"Value" : {
+				"Fn::GetAtt" : [ "OutboundResolver", "ResolverEndpointId" ]
+			}
+		}
+	}
+}

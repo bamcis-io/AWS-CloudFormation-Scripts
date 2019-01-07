@@ -1,6 +1,6 @@
 {
     "AWSTemplateFormatVersion" : "2010-09-09",
-    "Description"              : "Creates a standard networking setup with a 3 Availability Zone VPC setup, routes, security groups, NAT gateways, and optionally IPv6.",
+    "Description"              : "Creates a completely private VPC networking setup with 3 Availability Zones, security groups, route tables, and optionally IPv6.",
     "Parameters"               : {
         "VpcCidrBlock" : {
             "Description" : "The CIDR block for the VPC.",
@@ -26,27 +26,6 @@
                 "true"
             ],
             "Default"       : "false"
-        },
-        "AZ1PublicSubnet1CidrBlock" : {
-            "Description" : "The CIDR block for the first public subnet in AZ 1.",
-            "Type"        : "String",
-            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
-            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
-            "Default"               : "192.168.1.0/24"
-        },
-        "AZ2PublicSubnet1CidrBlock" : {
-            "Description" : "The CIDR block for the first public subnet in AZ 2.",
-            "Type"        : "String",
-            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
-            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
-            "Default"               : "192.168.2.0/24"
-        },
-        "AZ3PublicSubnet1CidrBlock" : {
-            "Description" : "The CIDR block for the first public subnet in AZ 3.",
-            "Type"        : "String",
-            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
-            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
-            "Default"               : "192.168.3.0/24"
         },
         "AZ1PrivateSubnet1CidrBlock" : {
             "Description" : "The CIDR block for the first private subnet in AZ 1.",
@@ -153,16 +132,6 @@
                 },
                 {
                     "Label" : {
-                        "default" : "Public Subnets"
-                    },
-                    "Parameters" : [
-                        "AZ1PublicSubnet1CidrBlock",
-                        "AZ2PublicSubnet1CidrBlock",
-                        "AZ3PublicSubnet1CidrBlock"
-                    ]
-                },
-                {
-                    "Label" : {
                         "default" : "Private Subnets"
                     },
                     "Parameters" : [
@@ -235,49 +204,6 @@
                 }
             ]
         },
-        "CreateAZ1PublicSubnet1"     : {
-            "Fn::Not" : [
-                {
-                    "Fn::Equals" : [
-                        {
-                            "Ref" : "AZ1PublicSubnet1CidrBlock"
-                        },
-                        ""
-                    ]
-                }
-            ]
-        },
-        "CreateAZ2PublicSubnet1"     : {
-            "Fn::Not" : [
-                {
-                    "Fn::Equals" : [
-                        {
-                            "Ref" : "AZ2PublicSubnet1CidrBlock"
-                        },
-                        ""
-                    ]
-                }
-            ]
-        },
-        "CreateAZ3PublicSubnet1"     : {
-            "Fn::And" : [
-                {
-                    "Fn::Not" : [
-                        {
-                            "Fn::Equals" : [
-                                {
-                                    "Ref" : "AZ3PublicSubnet1CidrBlock"
-                                },
-                                ""
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "Condition" : "UseAZ3"
-                }
-            ]
-        },
         "CreateAZ1PrivateSubnet1"    : {
             "Fn::Not" : [
                 {
@@ -321,19 +247,6 @@
                 }
             ]
         },
-        "CreateAnyPublicSubnets"        : {
-            "Fn::Or" : [
-                {
-                    "Condition" : "CreateAZ1PublicSubnet1"
-                },
-                {
-                    "Condition" : "CreateAZ2PublicSubnet1"
-                },
-                {
-                    "Condition" : "CreateAZ3PublicSubnet1"
-                }
-            ]
-        },
         "CreateAnyPrivateSubnets"       : {
             "Fn::Or" : [
                 {
@@ -357,98 +270,6 @@
 				}
 			]			
         },
-		"AZ1PublicAndPrivateSubnetsAndIPv6" : {
-			"Fn::And" : [
-				{
-					"Condition" : "CreateAZ1PublicSubnet1"
-				},
-				{
-					"Condition" : "CreateAZ1PrivateSubnet1"
-				},
-				{
-					"Condition" : "UseIPv6"
-				}
-			]
-		},
-		"AZ2PublicAndPrivateSubnetsAndIPv6" : {
-			"Fn::And" : [
-				{
-					"Condition" : "CreateAZ2PublicSubnet1"
-				},
-				{
-					"Condition" : "CreateAZ2PrivateSubnet1"
-				},
-				{
-					"Condition" : "UseIPv6"
-				}
-			]
-		},
-		"AZ3PublicAndPrivateSubnetsAndIPv6" : {
-			"Fn::And" : [
-				{
-					"Condition" : "CreateAZ3PublicSubnet1"
-				},
-				{
-					"Condition" : "CreateAZ3PrivateSubnet1"
-				},
-				{
-					"Condition" : "UseIPv6"
-				}
-			]
-		},
-        "CreateAnySubnets"              : {
-            "Fn::Or" : [
-                {
-                    "Condition" : "CreateAnyPublicSubnets"
-                },
-                {
-                    "Condition" : "CreateAnyPrivateSubnets"
-                }
-            ]
-        },
-		"CreateAZ1PublicPrivateSubnetPair" : {
-			"Fn::And" : [
-				{
-					"Condition" : "CreateAZ1PublicSubnet1"
-				},
-				{
-					"Condition" : "CreateAZ1PrivateSubnet1"
-				}
-			]
-		},
-		"CreateAZ2PublicPrivateSubnetPair" : {
-			"Fn::And" : [
-				{
-					"Condition" : "CreateAZ2PublicSubnet1"
-				},
-				{
-					"Condition" : "CreateAZ2PrivateSubnet1"
-				}
-			]
-		},
-		"CreateAZ3PublicPrivateSubnetPair" : {
-			"Fn::And" : [
-				{
-					"Condition" : "CreateAZ3PublicSubnet1"
-				},
-				{
-					"Condition" : "CreateAZ3PrivateSubnet1"
-				}
-			]
-		},
-		"CreateAtLeast1PublicAndPrivateSubnetPair" : {
-			"Fn::Or" : [
-				{
-					"Condition" : "CreateAZ1PublicPrivateSubnetPair"
-				},
-				{
-					"Condition" : "CreateAZ2PublicPrivateSubnetPair"
-				},
-				{
-					"Condition" : "CreateAZ3PublicPrivateSubnetPair"
-				}			
-			]
-		},
         "UseIPv6"                    : {
             "Fn::Equals" : [
                 {
@@ -457,16 +278,6 @@
                 "true"
             ]
         },
-		"UseIPv6AndAnyPublicSubnets" : {
-			"Fn::And" : [
-				{
-					"Condition" : "CreateAnyPublicSubnets"
-				},
-				{
-					"Condition" : "UseIPv6"
-				}
-			]
-		},
         "AutoAssignIPv6"             : {
             "Fn::And" : [
                 {
@@ -481,17 +292,7 @@
                     ]
                 }
             ]
-        },
-		"CreateGateways" : {
-			"Fn::Or" : [
-				{
-					 "Condition" : "CreateAnyPrivateSubnetsAndIPv6"
-				},
-				{
-					"Condition" : "CreateAnyPublicSubnets"
-				}
-			]
-		}
+        }
     },
 
 
@@ -674,303 +475,6 @@
                     "Ref" : "VPC"
                 }
             }
-        },
-        "AZ1PublicSubnet1" : {
-            "Type" : "AWS::EC2::Subnet",
-            "Condition" : "CreateAZ1PublicSubnet1",
-            "Properties" : {
-                "AvailabilityZone" : {
-                    "Ref" : "AvailabilityZone1"
-                },
-                "CidrBlock"        : {
-                    "Ref" : "AZ1PublicSubnet1CidrBlock"
-                },
-                "VpcId"            : {
-                    "Ref" : "VPC"
-                },
-                "MapPublicIpOnLaunch" : {
-                    "Fn::If" : [
-                        "AutoAssignIPv6",
-                        {
-                            "Ref" : "AWS::NoValue"
-                        },
-                        "true"
-                    ]
-                },
-                "Ipv6CidrBlock"       : {
-                    "Fn::If" : [
-                        "UseIPv6",
-                        {
-                            "Fn::Join" : [
-                                "",
-                                [
-                                    {
-                                        "Fn::Select" : [
-                                            0,
-                                            {
-                                                "Fn::Split" : [
-                                                    "00::/56",
-                                                    {
-                                                        "Fn::Select" : [
-                                                            0,
-                                                            {
-                                                                "Fn::GetAtt" : [
-                                                                    "VPC",
-                                                                    "Ipv6CidrBlocks"
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    },
-                                    "00::/64"
-                                ]
-                            ]
-                        },
-                        {
-                            "Ref" : "AWS::NoValue"
-                        }
-                    ]
-                },
-                "AssignIpv6AddressOnCreation" : {
-                    "Fn::If" : [
-                        "AutoAssignIPv6",
-                        "true",
-                        {
-                            "Ref" : "AWS::NoValue"
-                        }
-                    ]
-                },
-                "Tags"                        : [
-                    {
-                        "Key" : "Name",
-                        "Value" : {
-							"Fn::Sub" : "${ApplicationTag}-${AvailabilityZone1}-PublicSubnet1-${EnvironmentTag}"
-                        }
-                    },
-                    {
-                        "Key" : "Environment",
-                        "Value" : {
-                            "Ref" : "EnvironmentTag"
-                        }
-                    },
-                    {
-                        "Key" : "Application",
-                        "Value" : {
-                            "Ref" : "ApplicationTag"
-                        }
-                    },
-                    {
-                        "Key" : "Organization",
-                        "Value" : {
-                            "Ref" : "OrganizationTag"
-                        }
-                    }
-                ]
-            },
-            "DependsOn"  : [
-                "VPCIPv6"
-            ]
-        },
-        "AZ2PublicSubnet1" : {
-            "Type" : "AWS::EC2::Subnet",
-            "Condition" : "CreateAZ2PublicSubnet1",
-            "Properties" : {
-                "AvailabilityZone" : {
-                    "Ref" : "AvailabilityZone2"
-                },
-                "CidrBlock"        : {
-                    "Ref" : "AZ2PublicSubnet1CidrBlock"
-                },
-                "VpcId"            : {
-                    "Ref" : "VPC"
-                },
-                "MapPublicIpOnLaunch" : {
-                    "Fn::If" : [
-                        "AutoAssignIPv6",
-                        {
-                            "Ref" : "AWS::NoValue"
-                        },
-                        "true"
-                    ]
-                },
-                "Ipv6CidrBlock"       : {
-                    "Fn::If" : [
-                        "UseIPv6",
-                        {
-                            "Fn::Join" : [
-                                "",
-                                [
-                                    {
-                                        "Fn::Select" : [
-                                            0,
-                                            {
-                                                "Fn::Split" : [
-                                                    "00::/56",
-                                                    {
-                                                        "Fn::Select" : [
-                                                            0,
-                                                            {
-                                                                "Fn::GetAtt" : [
-                                                                    "VPC",
-                                                                    "Ipv6CidrBlocks"
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    },
-                                    "85::/64"
-                                ]
-                            ]
-                        },
-                        {
-                            "Ref" : "AWS::NoValue"
-                        }
-                    ]
-                },
-                "AssignIpv6AddressOnCreation" : {
-                    "Fn::If" : [
-                        "AutoAssignIPv6",
-                        "true",
-                        {
-                            "Ref" : "AWS::NoValue"
-                        }
-                    ]
-                },
-                "Tags"                        : [
-                    {
-                        "Key" : "Name",
-                        "Value" : {
-							"Fn::Sub" : "${ApplicationTag}-${AvailabilityZone2}-PublicSubnet1-${EnvironmentTag}"
-                        }
-                    },
-                    {
-                        "Key" : "Environment",
-                        "Value" : {
-                            "Ref" : "EnvironmentTag"
-                        }
-                    },
-                    {
-                        "Key" : "Application",
-                        "Value" : {
-                            "Ref" : "ApplicationTag"
-                        }
-                    },
-                    {
-                        "Key" : "Organization",
-                        "Value" : {
-                            "Ref" : "OrganizationTag"
-                        }
-                    }
-                ]
-            },
-            "DependsOn"  : [
-                "VPCIPv6"
-            ]
-        },
-        "AZ3PublicSubnet1" : {
-            "Type" : "AWS::EC2::Subnet",
-            "Condition" : "CreateAZ3PublicSubnet1",
-            "Properties" : {
-                "AvailabilityZone" : {
-                    "Ref" : "AvailabilityZone3"
-                },
-                "CidrBlock"        : {
-                    "Ref" : "AZ3PublicSubnet1CidrBlock"
-                },
-                "VpcId"            : {
-                    "Ref" : "VPC"
-                },
-                "MapPublicIpOnLaunch" : {
-                    "Fn::If" : [
-                        "AutoAssignIPv6",
-                        {
-                            "Ref" : "AWS::NoValue"
-                        },
-                        "true"
-                    ]
-                },
-                "Ipv6CidrBlock"       : {
-                    "Fn::If" : [
-                        "UseIPv6",
-                        {
-                            "Fn::Join" : [
-                                "",
-                                [
-                                    {
-                                        "Fn::Select" : [
-                                            0,
-                                            {
-                                                "Fn::Split" : [
-                                                    "00::/56",
-                                                    {
-                                                        "Fn::Select" : [
-                                                            0,
-                                                            {
-                                                                "Fn::GetAtt" : [
-                                                                    "VPC",
-                                                                    "Ipv6CidrBlocks"
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    },
-                                    "AA::/64"
-                                ]
-                            ]
-                        },
-                        {
-                            "Ref" : "AWS::NoValue"
-                        }
-                    ]
-                },
-                "AssignIpv6AddressOnCreation" : {
-                    "Fn::If" : [
-                        "AutoAssignIPv6",
-                        "true",
-                        {
-                            "Ref" : "AWS::NoValue"
-                        }
-                    ]
-                },
-                "Tags"                        : [
-                    {
-                        "Key" : "Name",
-                        "Value" : {
-							"Fn::Sub" : "${ApplicationTag}-${AvailabilityZone3}-PublicSubnet1-${EnvironmentTag}"
-                        }
-                    },
-                    {
-                        "Key" : "Environment",
-                        "Value" : {
-                            "Ref" : "EnvironmentTag"
-                        }
-                    },
-                    {
-                        "Key" : "Application",
-                        "Value" : {
-                            "Ref" : "ApplicationTag"
-                        }
-                    },
-                    {
-                        "Key" : "Organization",
-                        "Value" : {
-                            "Ref" : "OrganizationTag"
-                        }
-                    }
-                ]
-            },
-            "DependsOn"  : [
-                "VPCIPv6"
-            ]
         },
         "AZ1PrivateSubnet1" : {
             "Type" : "AWS::EC2::Subnet",
@@ -1269,122 +773,10 @@
                 "VPCIPv6"
             ]
         },
-        "InternetGateway"   : {
-            "Type" : "AWS::EC2::InternetGateway",
-			"Condition" : "CreateAnyPublicSubnets",
-            "Properties" : {
-                "Tags" : [
-                    {
-                        "Key" : "Name",
-                        "Value" : {
-							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-IGW-${EnvironmentTag}"
-                        }
-                    },
-                    {
-                        "Key" : "Environment",
-                        "Value" : {
-                            "Ref" : "EnvironmentTag"
-                        }
-                    },
-                    {
-                        "Key" : "Application",
-                        "Value" : {
-                            "Ref" : "ApplicationTag"
-                        }
-                    },
-                    {
-                        "Key" : "Organization",
-                        "Value" : {
-                            "Ref" : "OrganizationTag"
-                        }
-                    }
-                ]
-            },
-            "DependsOn"  : "VPC"
-        },
-        "AttachGateway"     : {
-            "Type" : "AWS::EC2::VPCGatewayAttachment",
-			"Condition" : "CreateAnyPublicSubnets",
-            "Properties" : {
-                "InternetGatewayId" : {
-                    "Ref" : "InternetGateway"
-                },
-                "VpcId"             : {
-                    "Ref" : "VPC"
-                }
-            },
-            "DependsOn"  : "InternetGateway"
-        },
-        "PublicRouteTable"  : {
+
+		"PrivateRouteTable1" : {
             "Type" : "AWS::EC2::RouteTable",
-			"Condition" : "CreateAnyPublicSubnets",
-            "Properties" : {
-                "VpcId" : {
-                    "Ref" : "VPC"
-                },
-                "Tags"  : [
-                    {
-                        "Key" : "Name",
-                        "Value" : {
-							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-PublicRouteTable-${EnvironmentTag}"
-                        }
-                    },
-                    {
-                        "Key" : "Environment",
-                        "Value" : {
-                            "Ref" : "EnvironmentTag"
-                        }
-                    },
-                    {
-                        "Key" : "Application",
-                        "Value" : {
-                            "Ref" : "ApplicationTag"
-                        }
-                    },
-                    {
-                        "Key" : "Organization",
-                        "Value" : {
-                            "Ref" : "OrganizationTag"
-                        }
-                    }
-                ]
-            }
-        },
-        "PublicRoute"       : {
-            "Type" : "AWS::EC2::Route",
-			"Condition" : "CreateAnyPublicSubnets",
-            "DependsOn" : [
-                "AttachGateway"
-            ],
-            "Properties" : {
-                "DestinationCidrBlock" : "0.0.0.0/0",
-                "GatewayId"            : {
-                    "Ref" : "InternetGateway"
-                },
-                "RouteTableId"         : {
-                    "Ref" : "PublicRouteTable"
-                }
-            }
-        },
-        "PublicRouteIPv6"   : {
-            "Type" : "AWS::EC2::Route",
-            "Condition" : "UseIPv6AndAnyPublicSubnets",
-            "DependsOn" : [
-                "AttachGateway"
-            ],
-            "Properties" : {
-                "DestinationIpv6CidrBlock" : "::/0",
-                "GatewayId"                : {
-                    "Ref" : "InternetGateway"
-                },
-                "RouteTableId"             : {
-                    "Ref" : "PublicRouteTable"
-                }
-            }
-        },
-        "PrivateRouteTable1" : {
-            "Type" : "AWS::EC2::RouteTable",
-			"Condition" : "CreateAZ1PublicPrivateSubnetPair",
+			"Condition" : "CreateAZ1PrivateSubnet1",
             "Properties" : {
                 "VpcId" : {
                     "Ref" : "VPC"
@@ -1419,7 +811,7 @@
         },
         "PrivateRouteTable2" : {
             "Type" : "AWS::EC2::RouteTable",
-			"Condition" : "CreateAZ2PublicPrivateSubnetPair",
+			"Condition" : "CreateAZ2PrivateSubnet1",
             "Properties" : {
                 "VpcId" : {
                     "Ref" : "VPC"
@@ -1454,7 +846,7 @@
         },
         "PrivateRouteTable3" : {
             "Type" : "AWS::EC2::RouteTable",
-			"Condition" : "CreateAZ3PublicPrivateSubnetPair",
+			"Condition" : "CreateAZ3PrivateSubnet1",
             "Properties" : {
                 "VpcId" : {
                     "Ref" : "VPC"
@@ -1487,132 +879,10 @@
                 ]
             }
         },
-        "PrivateRoute1"      : {
-            "Type" : "AWS::EC2::Route",
-            "Condition" : "CreateAZ1PublicPrivateSubnetPair",
-            "Properties" : {
-                "DestinationCidrBlock" : "0.0.0.0/0",
-                "NatGatewayId"         : {
-                    "Ref" : "NATGateway1"
-                },
-                "RouteTableId"         : {
-                    "Ref" : "PrivateRouteTable1"
-                }
-            }
-        },
-        "PrivateRoute2"      : {
-            "Type" : "AWS::EC2::Route",
-            "Condition" : "CreateAZ2PublicPrivateSubnetPair",
-            "Properties" : {
-                "DestinationCidrBlock" : "0.0.0.0/0",
-                "NatGatewayId"         : {
-                    "Ref" : "NATGateway2"
-                },
-                "RouteTableId"         : {
-                    "Ref" : "PrivateRouteTable2"
-                }
-            }
-        },
-        "PrivateRoute3"      : {
-            "Type" : "AWS::EC2::Route",
-            "Condition" : "CreateAZ3PublicPrivateSubnetPair",
-            "Properties" : {
-                "DestinationCidrBlock" : "0.0.0.0/0",
-                "NatGatewayId"         : {
-                    "Ref" : "NATGateway3"
-                },
-                "RouteTableId"         : {
-                    "Ref" : "PrivateRouteTable3"
-                }
-            }
-        },
-        "PrivateRoute1IPv6"  : {
-            "Type" : "AWS::EC2::Route",
-            "Condition" : "AZ1PublicAndPrivateSubnetsAndIPv6",
-            "Properties" : {
-                "DestinationIpv6CidrBlock" : "::/0",
-                "EgressOnlyInternetGatewayId" : {
-                    "Ref" : "EgressOnlyGateway"
-                },
-                "RouteTableId"                : {
-                    "Ref" : "PrivateRouteTable1"
-                }
-            }
-        },
-        "PrivateRoute2IPv6"  : {
-            "Type" : "AWS::EC2::Route",
-            "Condition" : "AZ2PublicAndPrivateSubnetsAndIPv6",
-            "Properties" : {
-                "DestinationIpv6CidrBlock" : "::/0",
-                "EgressOnlyInternetGatewayId" : {
-                    "Ref" : "EgressOnlyGateway"
-                },
-                "RouteTableId"                : {
-                    "Ref" : "PrivateRouteTable2"
-                }
-            }
-        },
-        "PrivateRoute3IPv6"  : {
-            "Type" : "AWS::EC2::Route",
-           "Condition" : "AZ3PublicAndPrivateSubnetsAndIPv6",
-            "Properties" : {
-                "DestinationIpv6CidrBlock" : "::/0",
-                "EgressOnlyInternetGatewayId" : {
-                    "Ref" : "EgressOnlyGateway"
-                },
-                "RouteTableId"                : {
-                    "Ref" : "PrivateRouteTable3"
-                }
-            }
-        },
-        "AZ1PublicSubnet1RouteTableAssociation" : {
-            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-            "Condition" : "CreateAZ1PublicSubnet1",
-            "Properties" : {
-                "SubnetId" : {
-                    "Ref" : "AZ1PublicSubnet1"
-                },
-                "RouteTableId" : {
-                    "Ref" : "PublicRouteTable"
-                }
-            },
-            "DependsOn"  : [
-                "PublicRoute"
-            ]
-        },
-        "AZ2PublicSubnet1RouteTableAssociation" : {
-            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-            "Condition" : "CreateAZ2PublicSubnet1",
-            "Properties" : {
-                "SubnetId" : {
-                    "Ref" : "AZ2PublicSubnet1"
-                },
-                "RouteTableId" : {
-                    "Ref" : "PublicRouteTable"
-                }
-            },
-            "DependsOn"  : [
-                "PublicRoute"
-            ]
-        },
-        "AZ3PublicSubnet1RouteTableAssociation" : {
-            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-            "Condition" : "CreateAZ3PublicSubnet1",
-            "Properties" : {
-                "SubnetId" : {
-                    "Ref" : "AZ3PublicSubnet1"
-                },
-                "RouteTableId" : {
-                    "Ref" : "PublicRouteTable"
-                }
-            },
-            "DependsOn"  : [
-                "PublicRoute"
-            ]
-        },
+
         "AZ1PrivateSubnet1RouteTableAssociation" : {
             "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-            "Condition" : "CreateAZ1PublicPrivateSubnetPair",
+            "Condition" : "CreateAZ1PrivateSubnet1",
             "Properties" : {
                 "SubnetId" : {
                     "Ref" : "AZ1PrivateSubnet1"
@@ -1624,7 +894,7 @@
         },
         "AZ2PrivateSubnet1RouteTableAssociation" : {
             "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-            "Condition" : "CreateAZ2PublicPrivateSubnetPair",
+            "Condition" : "CreateAZ2PrivateSubnet1",
             "Properties" : {
                 "SubnetId" : {
                     "Ref" : "AZ2PrivateSubnet1"
@@ -1636,7 +906,7 @@
         },
         "AZ3PrivateSubnet1RouteTableAssociation" : {
             "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-            "Condition" : "CreateAZ3PublicPrivateSubnetPair",
+            "Condition" : "CreateAZ3PrivateSubnet1",
             "Properties" : {
                 "SubnetId" : {
                     "Ref" : "AZ3PrivateSubnet1"
@@ -1646,81 +916,7 @@
                 }
             }
         },
-        "ElasticIp1"                             : {
-            "Type" : "AWS::EC2::EIP",
-            "Condition" : "CreateAZ1PublicPrivateSubnetPair",
-            "Properties" : {
-                "Domain" : "vpc"
-            }
-        },
-        "NATGateway1"                            : {
-            "Type" : "AWS::EC2::NatGateway",
-            "Condition" : "CreateAZ1PublicPrivateSubnetPair",
-            "Properties" : {
-                "AllocationId" : {
-                    "Fn::GetAtt" : [
-                        "ElasticIp1",
-                        "AllocationId"
-                    ]
-                },
-                "SubnetId"     : {
-                    "Ref" : "AZ1PublicSubnet1"
-                }
-            }
-        },
-        "ElasticIp2"                             : {
-            "Type" : "AWS::EC2::EIP",
-            "Condition" : "CreateAZ2PublicPrivateSubnetPair",
-            "Properties" : {
-                "Domain" : "vpc"
-            }
-        },
-        "NATGateway2"                            : {
-            "Type" : "AWS::EC2::NatGateway",
-            "Condition" : "CreateAZ2PublicPrivateSubnetPair",
-            "Properties" : {
-                "AllocationId" : {
-                    "Fn::GetAtt" : [
-                        "ElasticIp2",
-                        "AllocationId"
-                    ]
-                },
-                "SubnetId"     : {
-                    "Ref" : "AZ2PublicSubnet1"
-                }
-            }
-        },
-        "ElasticIp3"                             : {
-            "Type" : "AWS::EC2::EIP",
-            "Condition" : "CreateAZ3PublicPrivateSubnetPair",
-            "Properties" : {
-                "Domain" : "vpc"
-            }
-        },
-        "NATGateway3"                            : {
-            "Type" : "AWS::EC2::NatGateway",
-            "Condition" : "CreateAZ3PublicPrivateSubnetPair",
-            "Properties" : {
-                "AllocationId" : {
-                    "Fn::GetAtt" : [
-                        "ElasticIp3",
-                        "AllocationId"
-                    ]
-                },
-                "SubnetId"     : {
-                    "Ref" : "AZ3PublicSubnet1"
-                }
-            }
-        },
-        "EgressOnlyGateway"                      : {
-            "Type" : "AWS::EC2::EgressOnlyInternetGateway",
-            "Condition" : "CreateAnyPrivateSubnetsAndIPv6",
-            "Properties" : {
-                "VpcId" : {
-                    "Ref" : "VPC"
-                }
-            }
-        },
+
         "BastionSecurityGroup"                   : {
             "Type" : "AWS::EC2::SecurityGroup",
             "Properties" : {
@@ -1958,83 +1154,11 @@
         "SubnetArns" : {
             "Value" : {
                 "Fn::If" : [
-                    "CreateAnySubnets",
+                    "CreateAnyPrivateSubnets",
                     {
                         "Fn::Join" : [
                             ",",
                             [
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ1PublicSubnet1",
-                                        {
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${AZ1PublicSubnet1}",
-												{
-													"Prefix" : {
-                                                        "Fn::FindInMap" : [
-                                                            "RegionMap",
-                                                            {
-                                                                "Ref" : "AWS::Region"
-                                                            },
-                                                            "Arn"
-                                                        ]
-                                                    }
-												}
-											]
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                },
-								{
-									"Fn::If" : [
-										"CreateAZ2PublicSubnet1",
-                                        {
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${AZ2PublicSubnet1}",
-												{
-													"Prefix" : {
-                                                        "Fn::FindInMap" : [
-                                                            "RegionMap",
-                                                            {
-                                                                "Ref" : "AWS::Region"
-                                                            },
-                                                            "Arn"
-                                                        ]
-                                                    }
-												}
-											]
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                },
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ3PublicSubnet1",
-                                        {
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${AZ3PublicSubnet1}",
-												{
-													"Prefix" : {
-                                                        "Fn::FindInMap" : [
-                                                            "RegionMap",
-                                                            {
-                                                                "Ref" : "AWS::Region"
-                                                            },
-                                                            "Arn"
-                                                        ]
-                                                    }
-												}
-											]
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                },
                                 {
                                     "Fn::If" : [
                                         "CreateAZ1PrivateSubnet1",
@@ -2114,87 +1238,6 @@
                 ]
             }
         },
-		"SubnetIds" : {
-			"Value" : {
-				"Fn::If" : [
-                    "CreateAnySubnets",
-                    {
-                        "Fn::Join" : [
-                            ",",
-                            [
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ1PublicSubnet1",
-                                        {
-											"Ref" : "AZ1PublicSubnet1"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                },
-								{
-									"Fn::If" : [
-										"CreateAZ2PublicSubnet1",
-                                        {
-											"Ref" : "AZ2PublicSubnet1"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                },
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ3PublicSubnet1",
-                                        {
-											"Ref" : "AZ3PublicSubnet1"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                },
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ1PrivateSubnet1",
-                                        {
-											"Ref" : "AZ1PrivateSubnet1"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                },
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ2PrivateSubnet1",
-                                        {
-											"Ref" : "AZ2PrivateSubnet1"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                },
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ3PrivateSubnet1",
-                                        {
-											"Ref" : "AZ3PrivateSubnet1"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]     
-                                }
-                            ]
-                        ]
-                    },
-                    ""
-                ]
-			}
-		},
 		"AZ1PrivateSubnet1Id": {
 			"Condition" : "CreateAZ1PrivateSubnet1",
 			"Value" : {
@@ -2212,311 +1255,7 @@
 			"Value" : {
 				"Ref" : "AZ3PrivateSubnet1"
 			}
-		},
-        "InternetGatewayArns" : {
-            "Value" : {
-				"Fn::If" : [
-					"CreateGateways",
-					{
-						"Fn::Join" : [
-							",",
-							[
-								{
-									"Fn::If" : [
-										"CreateAnySubnets",
-										{
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:internet-gateway/${InternetGateway}",
-												{
-													"Prefix" : {
-														"Fn::FindInMap" : [
-															"RegionMap",
-															{
-																"Ref" : "AWS::Region"
-															},
-															"Arn"
-														]
-													}
-												}
-											]
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]
-								},                       
-								{
-									"Fn::If" : [
-										"CreateAnyPrivateSubnetsAndIPv6",
-										{
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:egress-only-internet-gateway/${EgressOnlyGateway}",
-												{
-													"Prefix" : {
-														"Fn::FindInMap" : [
-															"RegionMap",
-															{
-																"Ref" : "AWS::Region"
-															},
-															"Arn"
-														]
-													}
-												}
-											]
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]
-								}
-							]
-						]
-					},
-					""
-				]
-            }
-        },
-        "RouteTableArns"      : {
-            "Value" : {
-				"Fn::If" : [
-					"CreateAnyPublicSubnets",
-					{
-						"Fn::Join" : [
-							",",
-							[
-								{
-									"Fn::Sub" : [
-										"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/${PublicRouteTable}",
-										{
-											"Prefix" : {
-												"Fn::FindInMap" : [
-													"RegionMap",
-													{
-														"Ref" : "AWS::Region"
-													},
-													"Arn"
-												]
-											}
-										}
-									]
-								},
-								{
-									"Fn::If" : [
-										"CreateAZ1PublicPrivateSubnetPair",
-										{
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/${PrivateRouteTable1}",
-												{
-													"Prefix" : {
-														"Fn::FindInMap" : [
-															"RegionMap",
-															{
-																"Ref" : "AWS::Region"
-															},
-															"Arn"
-														]
-													}
-												}
-											]
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]
-								},
-								{
-									"Fn::If" : [
-										"CreateAZ2PublicPrivateSubnetPair",
-										{
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/${PrivateRouteTable2}",
-												{
-													"Prefix" : {
-														"Fn::FindInMap" : [
-															"RegionMap",
-															{
-																"Ref" : "AWS::Region"
-															},
-															"Arn"
-														]
-													}
-												}
-											]
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]
-								},
-								{
-									"Fn::If" : [
-										"CreateAZ3PublicPrivateSubnetPair",
-										{
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/${PrivateRouteTable3}",
-												{
-													"Prefix" : {
-														"Fn::FindInMap" : [
-															"RegionMap",
-															{
-																"Ref" : "AWS::Region"
-															},
-															"Arn"
-														]
-													}
-												}
-											]
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]
-								}
-							]
-						]
-					},
-					""
-				]
-            }
-        },
-		"RouteTableIds" : {
-			"Value" : {
-				"Fn::If" : [
-					"CreateAnyPublicSubnets",
-					{
-						"Fn::Join" : [
-							",",
-							[
-								{
-									"Ref" : "PublicRouteTable"
-								},
-								{
-									"Fn::If" : [
-										"CreateAZ1PublicPrivateSubnetPair",
-										{
-											"Ref" : "PrivateRouteTable1"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]
-								},
-								{
-									"Fn::If" : [
-										"CreateAZ2PublicPrivateSubnetPair",
-										{
-											"Ref" : "PrivateRouteTable2"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]
-								},
-								{
-									"Fn::If" : [
-										"CreateAZ3PublicPrivateSubnetPair",
-										{
-											"Ref" : "PrivateRouteTable3"
-										},
-										{
-											"Ref" : "AWS::NoValue"
-										}
-									]
-								}
-							]
-						]
-					},
-					""
-				]
-            }		 
-		},
-        "NatGatewayArns"      : {
-            "Value" : {
-                "Fn::If" : [
-                    "CreateAtLeast1PublicAndPrivateSubnetPair",
-                    {
-                        "Fn::Join" : [
-                            ",",
-                            [
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ1PublicPrivateSubnetPair",
-                                        {
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:nat-gateway/${NATGateway1}",
-												{
-													"Prefix" : {
-														"Fn::FindInMap" : [
-															"RegionMap",
-															{
-																"Ref" : "AWS::Region"
-															},
-															"Arn"
-														]
-													}
-												}
-											]
-                                        },
-                                        {
-                                            "Ref" : "AWS::NoValue"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ2PublicPrivateSubnetPair",
-                                        {
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:nat-gateway/${NATGateway2}",
-												{
-													"Prefix" : {
-														"Fn::FindInMap" : [
-															"RegionMap",
-															{
-																"Ref" : "AWS::Region"
-															},
-															"Arn"
-														]
-													}
-												}
-											]
-                                        },
-                                        {
-                                            "Ref" : "AWS::NoValue"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "Fn::If" : [
-                                        "CreateAZ3PublicPrivateSubnetPair",
-                                        {
-											"Fn::Sub" : [
-												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:nat-gateway/${NATGateway3}",
-												{
-													"Prefix" : {
-														"Fn::FindInMap" : [
-															"RegionMap",
-															{
-																"Ref" : "AWS::Region"
-															},
-															"Arn"
-														]
-													}
-												}
-											]
-                                        },
-                                        {
-                                            "Ref" : "AWS::NoValue"
-                                        }
-                                    ]
-                                }
-                            ]
-                        ]
-                    },
-                    ""
-                ]
-            }
-        },
+		},   
         "SecurityGroupArns"   : {
             "Value" : {
                 "Fn::Join" : [
@@ -2591,6 +1330,189 @@
                     ]
                 ]
             }
-        }
+        },
+		"SubnetIds" : {
+			"Value" : {
+				"Fn::If" : [
+                    "CreateAnyPrivateSubnets",
+                    {
+                        "Fn::Join" : [
+                            ",",
+                            [
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ1PrivateSubnet1",
+                                        {
+											"Ref" : "AZ1PrivateSubnet1"
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]     
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ2PrivateSubnet1",
+                                        {
+											"Ref" : "AZ2PrivateSubnet1"
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]     
+                                },
+                                {
+                                    "Fn::If" : [
+                                        "CreateAZ3PrivateSubnet1",
+                                        {
+											"Ref" : "AZ3PrivateSubnet1"
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]     
+                                }
+                            ]
+                        ]
+                    },
+                    ""
+                ]
+			}
+		},
+		"RouteTableArns"      : {
+            "Value" : {
+				"Fn::If" : [
+					"CreateAnyPrivateSubnets",
+					{
+						"Fn::Join" : [
+							",",
+							[
+								{
+									"Fn::If" : [
+										"CreateAZ1PrivateSubnet1",
+										{
+											"Fn::Sub" : [
+												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/${PrivateRouteTable1}",
+												{
+													"Prefix" : {
+														"Fn::FindInMap" : [
+															"RegionMap",
+															{
+																"Ref" : "AWS::Region"
+															},
+															"Arn"
+														]
+													}
+												}
+											]
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]
+								},
+								{
+									"Fn::If" : [
+										"CreateAZ2PrivateSubnet1",
+										{
+											"Fn::Sub" : [
+												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/${PrivateRouteTable2}",
+												{
+													"Prefix" : {
+														"Fn::FindInMap" : [
+															"RegionMap",
+															{
+																"Ref" : "AWS::Region"
+															},
+															"Arn"
+														]
+													}
+												}
+											]
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]
+								},
+								{
+									"Fn::If" : [
+										"CreateAZ3PrivateSubnet1",
+										{
+											"Fn::Sub" : [
+												"arn:${Prefix}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/${PrivateRouteTable3}",
+												{
+													"Prefix" : {
+														"Fn::FindInMap" : [
+															"RegionMap",
+															{
+																"Ref" : "AWS::Region"
+															},
+															"Arn"
+														]
+													}
+												}
+											]
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]
+								}
+							]
+						]
+					},
+					""
+				]
+            }
+        },
+		"RouteTableIds" : {
+			"Value" : {
+				"Fn::If" : [
+					"CreateAnyPrivateSubnets",
+					{
+						"Fn::Join" : [
+							",",
+							[
+								{
+									"Fn::If" : [
+										"CreateAZ1PrivateSubnet1",
+										{
+											"Ref" : "PrivateRouteTable1"
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]
+								},
+								{
+									"Fn::If" : [
+										"CreateAZ2PrivateSubnet1",
+										{
+											"Ref" : "PrivateRouteTable2"
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]
+								},
+								{
+									"Fn::If" : [
+										"CreateAZ3PrivateSubnet1",
+										{
+											"Ref" : "PrivateRouteTable3"
+										},
+										{
+											"Ref" : "AWS::NoValue"
+										}
+									]
+								}
+							]
+						]
+					},
+					""
+				]
+            }		 
+		}
     }
 }

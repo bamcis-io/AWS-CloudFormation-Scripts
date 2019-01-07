@@ -1,0 +1,759 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates a VPC with all available VPC interface and gateway endpoints.",
+
+	"Parameters" : {
+		"NetworkingStackUrl" : {
+            "Description" : "The url to the CloudFormation script to set up networking.",
+            "Type"        : "String",
+            "AllowedPattern" : "https?\\:\\/\\/.*",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*",
+			"Default" : "https://s3.amazonaws.com/<BUCKET_NAME>/networking-private-vpc-3-az.template"
+        },
+        "InterfaceEndpointsStackUrl" : {
+            "Description" : "The url to the CloudFormation script to set up the VPC Interface Endpoints.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|https?\\:\\/\\/.*)",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*",
+			"Default" : "https://s3.amazonaws.com/<BUCKET_NAME>/interface-endpoints.template"
+        },
+		"GatewayEndpointsStackUrl" : {
+            "Description" : "The url to the CloudFormation script to set up the VPC Gateway Endpoints.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|https?\\:\\/\\/.*)",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*",
+			"Default" : "https://s3.amazonaws.com/<BUCKET_NAME>/gateway-endpoints.template"
+        },
+		"Route53ResolverEndpointsStackUrl" : {
+            "Description" : "The url to the CloudFormation script to set up the Route53 Resolver Endpoints.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|https?\\:\\/\\/.*)",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*",
+			"Default" : "https://s3.amazonaws.com/<BUCKET_NAME>/route53-resolver-endpoints.template"
+        },
+		"Route53ResolverForwardingRuleStackUrl" : {
+            "Description" : "The url to the CloudFormation script to set up the Route53 Resolver forwarding rule.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|https?\\:\\/\\/.*)",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: https?\\:\\/\\/.*",
+			"Default" : "https://s3.amazonaws.com/<BUCKET_NAME>/route53-resolver-on-premises-forwarding.template"
+        },
+
+		"VpcCidrBlock"             : {
+            "Description" : "The CIDR block for the VPC.",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "192.168.0.0/16"
+        },
+        "EnableIPv6"               : {
+            "Type" : "String",
+            "Description" : "The VPC will be assigned an AWS IPv6 /56 CIDR block and the subnets will be assigned IPv6 /64 CIDR blocks (if this is false a /56 CIDR will still be assigned to the VPC, but not used anywhere).",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "AssignIPv6"               : {
+            "Type" : "String",
+            "Description" : "Whether to auto-assign IPv6 addresses to all subnets. This setting is ignored if IPv6 is set to false.",
+            "AllowedValues" : [
+                "false",
+                "true"
+            ],
+            "Default"       : "false"
+        },
+
+        "AZ1PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 1.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.10.0/24"
+        },
+        "AZ2PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 2.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.20.0/24"
+        },
+        "AZ3PrivateSubnet1CidrBlock" : {
+            "Description" : "The CIDR block for the first private subnet in AZ 3.",
+            "Type"        : "String",
+            "AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: (?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2})",
+			"Default"               : "192.168.30.0/24"
+        },
+
+        "AvailabilityZone1"          : {
+            "Description" : "The first availability zone.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "AvailabilityZone2"          : {
+            "Description" : "The second availability zone.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "AvailabilityZone3"          : {
+            "Description" : "The third availability zone. To not use a third AZ, set this equal to AZ1 or AZ2.",
+            "Type"        : "AWS::EC2::AvailabilityZone::Name",
+            "ConstraintDescription" : "You must choose an availability zone."
+        },
+        "EnablePublicDnsHostNames"   : {
+            "Description" : "Indicates whether the instances launched in the VPC get public DNS hostnames.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "EnableDnsSupport"           : {
+            "Description" : "Indicates whether the DNS resolution is supported for the VPC.",
+            "Type"        : "String",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "false"
+        },
+        "ManagementSourceIP"         : {
+            "Description" : "The IP in CIDR of the source for allowed management",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "0.0.0.0/0"
+        },
+
+		"PrincipalOrgId" : {
+			"Type" : "String",
+			"Description" : "The id of the organization to limit IAM credentials to. If left blank, all principals can use the gateway endpoints.",
+			"Default" : ""
+		},
+
+		"Subnet1DNSInboundIPAddress" : {
+			"Type" : "String",
+			"Description" : "The IP address to use in the first subnet for inbound requests, leave blank to auto-assign an IP.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+			"Default" : ""
+		},
+		"Subnet2DNSInboundIPAddress" : {
+			"Type" : "String",
+			"Description" : "The IP address to use in the second subnet for inbound requests, leave blank to auto-assign an IP.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+			"Default" : ""
+		},
+		"Subnet3DNSInboundIPAddress" : {
+			"Type" : "String",
+			"Description" : "The IP address to use in the third subnet for inbound requests, leave blank to auto-assign an IP.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+			"Default" : ""
+		},
+
+		"Subnet1DNSOutboundIPAddress" : {
+			"Type" : "String",
+			"Description" : "The IP address to use in the first subnet for outbound requests, leave blank to auto-assign an IP.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+			"Default" : ""
+		},
+		"Subnet2DNSOutboundIPAddress" : {
+			"Type" : "String",
+			"Description" : "The IP address to use in the second subnet for outbound requests, leave blank to auto-assign an IP.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+			"Default" : ""
+		},
+		"Subnet3DNSOutboundIPAddress" : {
+			"Type" : "String",
+			"Description" : "The IP address to use in the third subnet for outbound requests, leave blank to auto-assign an IP.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+			"Default" : ""
+		},
+
+		"OnPremisesDNSServerIpAddress" : {
+			"Type" : "String",
+			"Description" : "The IP Address of your on-premises DNS server to forward all non-AWS DNS queries to.",
+			"AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+		},
+		"OnPremisesDNSServerPort": {
+            "Type": "Number",
+            "Description": "The port you are using on-premises for DNS.",
+            "MinValue": 1,
+            "MaxValue": 65535,
+            "Default": 53
+        },
+		"BackupOnPremisesDNSServerIpAddress" : {
+			"Type" : "String",
+			"Description" : "The backup IP Address of your on-premises DNS server to forward all non-AWS DNS queries to, this is optional.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+		},
+		"BackupOnPremisesDNSServerPort": {
+            "Type": "Number",
+            "Description": "The port you are using on-premises for DNS.",
+            "MinValue": 1,
+            "MaxValue": 65535,
+            "Default": 53
+        },
+
+		"OrganizationTag"          : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "ApplicationTag"           : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag"           : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        }
+	},
+
+	"Metadata"                 : {
+        "AWS::CloudFormation::Interface" : {
+            "ParameterGroups" : [
+				{
+                    "Label" : {
+                        "default" : "Nested CloudFormation Stacks"
+                    },
+                    "Parameters" : [
+                        "NetworkingStackUrl",
+                        "InterfaceEndpointsStackUrl",
+                        "GatewayEndpointsStackUrl",
+                        "Route53ResolverEndpointsStackUrl"
+                    ]
+                },  
+                {
+                    "Label" : {
+                        "default" : "Network Configuration"
+                    },
+                    "Parameters" : [
+                        "VpcCidrBlock",
+                        "EnableIPv6",
+                        "AssignIPv6",
+                        "AZ1PrivateSubnet1CidrBlock",
+                        "AZ2PrivateSubnet1CidrBlock",
+                        "AZ3PrivateSubnet1CidrBlock",
+                        "AvailabilityZone1",
+                        "AvailabilityZone2",
+                        "AvailabilityZone3",
+						"EnablePublicDnsHostNames",
+						"EnableDnsSupport",
+						"ManagementSourceIP"
+                    ]
+                },
+				{
+                    "Label" : {
+                        "default" : "Gateway Endpoints Configuration"
+                    },
+                    "Parameters" : [
+                        "PrincipalOrgId"
+                    ]
+                },
+				{
+                    "Label" : {
+                        "default" : "Route53 Resolver Endpoints Configuration"
+                    },
+                    "Parameters" : [
+                        "Subnet1DNSInboundIPAddress",
+						"Subnet2DNSInboundIPAddress",
+						"Subnet3DNSInboundIPAddress",
+						"Subnet1DNSOutboundIPAddress",
+						"Subnet2DNSOutboundIPAddress",
+						"Subnet3DNSOutboundIPAddress"
+                    ]
+                },
+				{
+                    "Label" : {
+                        "default" : "Route53 Resolver Rule Configuration"
+                    },
+                    "Parameters" : [
+                        "OnPremisesDNSServerIpAddress",
+						"OnPremisesDNSServerPort",
+						"BackupOnPremisesDNSServerIpAddress",
+						"BackupOnPremisesDNSServerPort"
+                    ]
+                },
+                {
+                    "Label" : {
+                        "default" : "Tagging"
+                    },
+                    "Parameters" : [
+                        "OrganizationTag",
+                        "ApplicationTag",
+                        "EnvironmentTag"
+                    ]
+                }
+            ]
+        }
+    },
+
+	 "Conditions"               : {
+        "ActuallyEnablePublicDnsHostNames" : {
+            "Fn::And" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "EnablePublicDnsHostNames"
+                        },
+                        "true"
+                    ]
+                },
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "EnableDnsSupport"
+                        },
+                        "true"
+                    ]
+                }
+            ]
+        },
+		"PrincipalOrgIdPresent" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "PrincipalOrgId"
+						},
+						""
+					]
+				}
+			]
+		},
+		"CreateGatewayEndpoints" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "GatewayEndpointsStackUrl"
+						},
+						""
+					]
+				}
+			]
+		},
+		"CreateInterfaceEndpoints" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "InterfaceEndpointsStackUrl"
+						},
+						""
+					]
+				}
+			]
+		},
+		"CreateRoute53ResolverEndpoints" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "Route53ResolverEndpointsStackUrl"
+						},
+						""
+					]
+				}
+			]
+		},
+		"CreateRoute53ForwardingRule" : {
+			"Fn::And" : [
+					{
+					"Fn::Not" : [
+						{
+							"Fn::Equals" : [
+								{
+									"Ref" : "Route53ResolverForwardingRuleStackUrl"
+								},
+								""
+							]
+						}
+					]
+				},
+				{
+					"Condition" : "CreateRoute53ResolverEndpoints"
+				}
+			]
+		}
+	},
+
+	"Resources" : {
+		"NetworkingStack" : {
+            "Type" : "AWS::CloudFormation::Stack",
+            "Properties" : {
+                "TemplateURL" : {
+                    "Ref" : "NetworkingStackUrl"
+                },
+                "Parameters"  : {
+                    "AvailabilityZone1" : {
+                        "Ref" : "AvailabilityZone1"
+                    },
+                    "AvailabilityZone2" : {
+                        "Ref" : "AvailabilityZone2"
+                    },
+                    "AvailabilityZone3" : {
+                        "Ref" : "AvailabilityZone3"
+                    },
+                    "VpcCidrBlock"      : {
+                        "Ref" : "VpcCidrBlock"
+                    },
+                    "EnableIPv6"        : {
+                        "Ref" : "EnableIPv6"
+                    },
+                    "AssignIPv6"        : {
+                        "Ref" : "AssignIPv6"
+                    },
+                    "EnablePublicDnsHostNames" : {
+                        "Ref" : "EnablePublicDnsHostNames"
+                    },
+                    "EnableDnsSupport"   : {
+                        "Ref" : "EnableDnsSupport"
+                    },
+                    "AZ1PrivateSubnet1CidrBlock" : {
+                        "Ref" : "AZ1PrivateSubnet1CidrBlock"
+                    },
+                    "AZ2PrivateSubnet1CidrBlock" : {
+                        "Ref" : "AZ2PrivateSubnet1CidrBlock"
+                    },
+                    "AZ3PrivateSubnet1CidrBlock" : {
+                        "Ref" : "AZ3PrivateSubnet1CidrBlock"
+                    },
+                    "ManagementSourceIP"         : {
+                        "Ref" : "ManagementSourceIP"
+                    },
+                    "OrganizationTag"            : {
+                        "Ref" : "OrganizationTag"
+                    },
+                    "ApplicationTag"             : {
+                        "Ref" : "ApplicationTag"
+                    },
+                    "EnvironmentTag"             : {
+                        "Ref" : "EnvironmentTag"
+                    }
+                },
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${AWS::StackName}-NetworkingStack"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+            }
+        },
+		"InterfaceEndpointsStack" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Condition" : "CreateInterfaceEndpoints",
+			"Properties" : {
+				"TemplateURL" : {
+                    "Ref" : "InterfaceEndpointsStackUrl"
+                },
+                "Parameters"  : {
+					"VpcId" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.VpcId"
+                        ]
+					},
+					"Subnets" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.SubnetIds"
+                        ]
+					},
+					"IsPrivateDnsEnabled" : {
+						"Fn::If" : [
+							"ActuallyEnablePublicDnsHostNames",
+							"true",
+							"false"
+						]
+					}
+				},
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${AWS::StackName}-InterfaceEndpointsStack"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		},
+		"GatewayEndpointsStack" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Condition" : "CreateGatewayEndpoints",
+			"Properties" : {
+				"TemplateURL" : {
+                    "Ref" : "GatewayEndpointsStackUrl"
+                },
+                "Parameters"  : {
+					"VpcId" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.VpcId"
+                        ]
+					},
+					"RouteTableIds" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.RouteTableIds"
+                        ]
+					},
+					"PrincipalOrgId" : {
+						"Fn::If" : [
+							"PrincipalOrgIdPresent",
+							{
+								"Ref" : "PrincipalOrgId"
+							},
+							""
+						]
+					}
+				},
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${AWS::StackName}-GatewayEndpointsStack"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		},
+		"Route53ResolverEndpointsStack" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Condition" : "CreateRoute53ResolverEndpoints",
+			"Properties" : {
+				"TemplateURL" : {
+                    "Ref" : "Route53ResolverEndpointsStackUrl"
+                },
+                "Parameters"  : {
+					"VpcId" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.VpcId"
+                        ]
+					},
+					"Subnet1" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.AZ1PrivateSubnet1Id"
+                        ]
+					},
+					"Subnet2" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.AZ2PrivateSubnet1Id"
+                        ]
+					},
+					"Subnet3" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.AZ3PrivateSubnet1Id"
+                        ]
+					},
+					"OutboundDNSPort" : {
+						"Ref" : "OnPremisesDNSServerPort"
+					},
+					"Subnet1InboundIPAddress" : {
+						"Ref" : "Subnet1DNSInboundIPAddress"
+					},
+					"Subnet2InboundIPAddress" : {
+						"Ref" : "Subnet2DNSInboundIPAddress"
+					},
+					"Subnet3InboundIPAddress" : {
+						"Ref" : "Subnet3DNSInboundIPAddress"
+					},
+					"Subnet1OutboundIPAddress" : {
+						"Ref" : "Subnet1DNSOutboundIPAddress"
+					},
+					"Subnet2OutboundIPAddress" : {
+						"Ref" : "Subnet2DNSOutboundIPAddress"
+					},
+					"Subnet3OutboundIPAddress" : {
+						"Ref" : "Subnet3DNSOutboundIPAddress"
+					},
+					"EnvironmentTag" : {
+						"Ref" : "EnvironmentTag"
+					},
+					"ApplicationTag" : {
+						"Ref" : "ApplicationTag"
+					},
+					"OrganizationTag" : {
+						"Ref" : "OrganizationTag"
+					}
+				},
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${AWS::StackName}-Route53ResolverEndpointsStack"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		},
+		"Route53ResolverForwardingRuleStack" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Condition" : "CreateRoute53ForwardingRule",
+			"Properties" : {
+				"TemplateURL" : {
+                    "Ref" : "Route53ResolverForwardingRuleStackUrl"
+                },
+                "Parameters"  : {
+					"VpcId" : {
+						"Fn::GetAtt" : [
+                            "NetworkingStack",
+                            "Outputs.VpcId"
+                        ]
+					},
+					"Route53ResolverEndpointId" : {
+						"Fn::GetAtt" : [
+                            "Route53ResolverEndpointsStack",
+                            "Outputs.OutboundResolverId"
+                        ]
+					},
+					"OnPremisesDNSServerIpAddress" : {
+						"Ref" : "OnPremisesDNSServerIpAddress"
+					},
+					"OnPremisesDNSServerPort" : {
+						"Ref" : "OnPremisesDNSServerPort"
+					},
+					"BackupOnPremisesDNSServerIpAddress" : {
+						"Ref" : "BackupOnPremisesDNSServerIpAddress"
+					},
+					"BackupOnPremisesDNSServerPort" : {
+						"Ref" : "BackupOnPremisesDNSServerPort"
+					},
+					"EnvironmentTag" : {
+						"Ref" : "EnvironmentTag"
+					},
+					"ApplicationTag" : {
+						"Ref" : "ApplicationTag"
+					},
+					"OrganizationTag" : {
+						"Ref" : "OrganizationTag"
+					}
+				},
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${AWS::StackName}-Route53ResolverForwardingRuleStack"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

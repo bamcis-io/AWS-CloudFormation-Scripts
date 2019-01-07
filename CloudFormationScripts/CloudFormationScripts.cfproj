@@ -27,6 +27,7 @@
     <Folder Include="CostAndUsageReports" />
     <Folder Include="FileShare" />
     <Folder Include="m5dfailuredemo" />
+    <Folder Include="VPCEndpoints" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActiveDirectory\domain-controller-iam.template">
@@ -74,7 +75,31 @@
     <Compile Include="m5dfailuredemo\test.template">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Networking\networking-private-vpc-3-az.template">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Networking\networking-vpc-3-az.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Networking\route53-resolver-endpoints.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Networking\transit-gateway-vpc.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VPCEndpoints\dedicated-endpoint-vpc.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VPCEndpoints\gateway-endpoints.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VPCEndpoints\interface-endpoints.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VPCEndpoints\route53-resolver-on-premises-forwarding.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VPCEndpoints\servicesbyregion.json">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
@@ -92,6 +117,12 @@
       <SubType>Content</SubType>
     </Content>
     <Content Include="Networking\README.md">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="VPCEndpoints\deploy.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="VPCEndpoints\README.md">
       <SubType>Content</SubType>
     </Content>
   </ItemGroup>

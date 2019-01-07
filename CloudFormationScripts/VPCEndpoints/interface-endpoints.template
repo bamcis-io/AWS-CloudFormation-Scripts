@@ -1,0 +1,1599 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates all available VPC Interface Endpoints in the provided VPC for the current region.",
+
+	"Parameters" : {
+		"VpcId" : {
+			"Type" : "AWS::EC2::VPC::Id",
+			"Description" : "The VPC to deploy the endpoints into."
+		},
+		"Subnets" : {
+			"Type" : "List<AWS::EC2::Subnet::Id>",
+			"Description" : "The subnets to deploy the ENIs to."
+		},
+		"IsPrivateDnsEnabled" : {
+			"Type" : "String",
+			"Description" : "Specifies whether private DNS is enabled in the VPC and will set the default DNS name to use the endpoint as well.",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "true"
+		}
+	},
+
+	"Mappings" : {
+		"AvailableServicesByRegion" : {
+			"ap-northeast-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-northeast-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-south-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-southeast-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-southeast-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ca-central-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-central-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-3" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"sa-east-1" : {
+				"notebook" : false,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-east-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-east-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-west-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-west-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"cn-north-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"cn-northwest-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-gov-west-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-gov-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-iso-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-isob-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			}
+		}	
+	},
+
+	"Conditions" : {
+		"UseCloudFormationInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"cloudformation"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCloudTrailInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"cloudtrail"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodeBuildInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codebuild"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodeBuildFIPSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",						
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codebuildfips"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodePipelineInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codepipeline"
+					]
+				},
+				"true"
+			]
+		},
+		"UseConfigInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"config"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEC2Interface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ec2"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEC2MessagesInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ec2messages"
+					]
+				},
+				"true"
+			]
+		},
+		"UseElasticInferenceRuntimeInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"elasticinferenceruntime"
+					]
+				},
+				"true"
+			]
+		},
+		"UseElasticLoadBalancingInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",						
+						{
+							"Ref" : "AWS::Region"
+						},
+						"elasticloadbalancing"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEventsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"events"
+					]
+				},
+				"true"
+			]
+		},
+		"UseAPIGatewayInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"executeapi"
+					]
+				},
+				"true"
+			]
+		},
+		"UseKinesisStreamsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",					
+						{
+							"Ref" : "AWS::Region"
+						},
+						"kinesisstreams"
+					]
+				},
+				"true"
+			]
+		},
+		"UseKMSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"kms"
+					]
+				},
+				"true"
+			]
+		},
+		"UseLogsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"logs"
+					]
+				},
+				"true"
+			]
+		},
+		"UseMonitoringInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"monitoring"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerApiInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerapi"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerRuntimeInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerruntime"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerRuntimeFIPSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerruntimefips"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSecretsManagerInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"secretsmanager"
+					]
+				},
+				"true"
+			]
+		},
+		"UseServiceCatalogInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"servicecatalog"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSNSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sns"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSSMInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ssm"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSSMMessagesInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ssmmessages"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerNotebooksInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"notebook"
+					]
+				},
+				"true"
+			]
+		}
+	},
+
+	"Resources" : {
+		"SecurityGroupAllowAnyHTTPS" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Allows 0.0.0.0/0 access to the endpoint.",
+				 "VpcId" : {
+					"Ref" : "VpcId"
+				 },
+				 "SecurityGroupIngress" : [
+					{
+						 "FromPort" : "443",
+						 "ToPort" : "443",
+						 "Description" : "Allow all HTTPS.",
+						 "IpProtocol" : "TCP",
+						 "CidrIp" : "0.0.0.0/0"  
+					}
+				 ]
+			}
+		},
+
+		"SagemakerNotebooksInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseSagemakerNotebooksInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "aws.sagemaker.${AWS::Region}.notebook"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"CloudFormationInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseCloudFormationInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.cloudformation"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"CloudTrailInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseCloudTrailInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.cloudtrail"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}		 
+			}
+		},
+
+		"CodeBuildInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseCodeBuildInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.codebuild"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}		 
+			}
+		},
+
+		"CodeBuildFIPSInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseCodeBuildFIPSInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.codebuild-fips"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}		 
+			}
+		},
+
+		"CodePipelineInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseCodePipelineInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.codepipeline"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}		 
+			}
+		},
+
+		"ConfigInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseConfigInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.config"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}	 
+			}
+		},
+
+		"EC2InterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseEC2Interface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.ec2"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}	 
+			}
+		},
+
+		"EC2MessagesInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseEC2MessagesInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.ec2messages"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				} 
+			}
+		},
+
+		"ElasticInferenceInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseElasticInferenceRuntimeInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.elastic-inference.runtime"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"ElasticLoadBalancingInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseElasticLoadBalancingInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.elasticloadbalancing"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"EventsInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseEventsInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.events"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"APIGatewayInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseAPIGatewayInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.execute-api"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"KinesisStreamsInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseKinesisStreamsInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.kinesis-streams"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"KMSInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseKMSInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.kms"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"CloudWatchLogsInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseLogsInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.logs"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"CloudWatchInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseMonitoringInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.monitoring"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"SagemakerApiInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseSagemakerApiInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.sagemaker.api"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"SagemakerRuntimeInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseSagemakerRuntimeInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.sagemaker.runtime"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"SagemakerRuntimeFIPSInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseSagemakerRuntimeFIPSInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.sagemaker.runtime-fips"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"SecretsManagerInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseSecretsManagerInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.secretsmanager"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"ServiceCatalogInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseServiceCatalogInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.servicecatalog"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"SNSInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseSNSInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.sns"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				} 
+			}
+		},
+
+		"SSMInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseSSMInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.ssm"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		},
+
+		"SSMMessagesInterfaceEndpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Condition" : "UseSSMMessagesInterface",
+			"Properties" : {
+				"ServiceName" :  {
+					"Fn::Sub" : "com.amazonaws.${AWS::Region}.ssmmessages"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "SecurityGroupAllowAnyHTTPS"
+					}
+				],
+				"SubnetIds" : {
+					"Ref" : "Subnets"
+				},
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"PrivateDnsEnabled" : {
+					"Ref" : "IsPrivateDnsEnabled"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

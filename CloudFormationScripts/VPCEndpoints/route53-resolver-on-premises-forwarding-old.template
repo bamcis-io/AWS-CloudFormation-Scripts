@@ -1,0 +1,3665 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "The template creates forwarding rules for all domains back to on-premises DNS servers. This is for use in conjunction with using Route53 Resolver for PrivateLink name resolution only.",
+
+	"Parameters" : {
+		"OnPremisesDNSServerIpAddress" : {
+			"Type" : "String",
+			"Description" : "The IP Address of your on-premises DNS server to forward all non-AWS DNS queries to.",
+			"AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+		},
+		"OnPremisesDNSServerPort": {
+            "Type": "Number",
+            "Description": "The port you are using on-premises for DNS.",
+            "MinValue": 1,
+            "MaxValue": 65535,
+            "Default": 53
+        },
+		"BackupOnPremisesDNSServerIpAddress" : {
+			"Type" : "String",
+			"Description" : "The backup IP Address of your on-premises DNS server to forward all non-AWS DNS queries to, this is optional.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+		},
+		"BackupOnPremisesDNSServerPort": {
+            "Type": "Number",
+            "Description": "The port you are using on-premises for DNS.",
+            "MinValue": 1,
+            "MaxValue": 65535,
+            "Default": 53
+        },
+		"Route53ResolverEndpointId" : {
+			"Type" : "String",
+			"Description" : "The Id of the Route53 Resolver Endpoint to apply this rule to.",
+			"MinLength" : 1
+		},
+		"VpcId" : {
+			"Type" : "AWS::EC2::VPC::Id",
+			"Description" : "The VPC to associate this rule to"
+		},
+
+		"OrganizationTag": {
+            "Description": "The organization this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default": "bamcis.io"
+        },
+        "ApplicationTag": {
+            "Description": "The application this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag": {
+            "Description": "The environment this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default": "dev"
+        }
+	},
+
+	"Mappings" : {
+		"AvailableServicesByRegion" : {
+			"ap-northeast-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-northeast-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-south-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-southeast-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-southeast-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ca-central-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-central-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-3" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"sa-east-1" : {
+				"notebook" : false,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-east-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-east-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-west-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-west-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"cn-north-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"cn-northwest-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-gov-west-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-gov-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-iso-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-isob-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			}
+		}	
+	},
+
+	"Conditions" : {
+		"UseBackup" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "BackupOnPremisesDNSServerIpAddress"
+						},
+						""
+					]
+				}
+			]
+		},
+
+		"UseCloudFormationInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"cloudformation"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCloudTrailInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"cloudtrail"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodeBuildInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codebuild"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodeBuildFIPSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",						
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codebuildfips"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodePipelineInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codepipeline"
+					]
+				},
+				"true"
+			]
+		},
+		"UseConfigInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"config"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEC2Interface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ec2"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEC2MessagesInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ec2messages"
+					]
+				},
+				"true"
+			]
+		},
+		"UseElasticInferenceRuntimeInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"elasticinferenceruntime"
+					]
+				},
+				"true"
+			]
+		},
+		"UseElasticLoadBalancingInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",						
+						{
+							"Ref" : "AWS::Region"
+						},
+						"elasticloadbalancing"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEventsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"events"
+					]
+				},
+				"true"
+			]
+		},
+		"UseAPIGatewayInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"executeapi"
+					]
+				},
+				"true"
+			]
+		},
+		"UseKinesisStreamsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",					
+						{
+							"Ref" : "AWS::Region"
+						},
+						"kinesisstreams"
+					]
+				},
+				"true"
+			]
+		},
+		"UseKMSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"kms"
+					]
+				},
+				"true"
+			]
+		},
+		"UseLogsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"logs"
+					]
+				},
+				"true"
+			]
+		},
+		"UseMonitoringInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"monitoring"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerApiInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerapi"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerRuntimeInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerruntime"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerRuntimeFIPSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerruntimefips"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSecretsManagerInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"secretsmanager"
+					]
+				},
+				"true"
+			]
+		},
+		"UseServiceCatalogInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"servicecatalog"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSNSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sns"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSSMInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ssm"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSSMMessagesInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ssmmessages"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerNotebooksInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"notebook"
+					]
+				},
+				"true"
+			]
+		}
+	},
+
+
+	"Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "Network Configuration"
+                    },
+                    "Parameters": [
+                        "OnPremisesDNSServerIpAddress",
+                        "OnPremisesDNSServerPort",
+						"BackupOnPremisesDNSServerIpAddress",
+                        "BackupOnPremisesDNSServerPort",
+                        "Route53ResolverEndpointId",
+                        "VpcId"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Tagging"
+                    },
+                    "Parameters": [
+                        "OrganizationTag",
+                        "ApplicationTag",
+                        "EnvironmentTag"
+                    ]
+                }
+            ]
+        }
+    },
+
+	"Resources" : {
+		"DefaultRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Properties" : {
+				"DomainName" : ".",
+				"Name" : "Forward All To On-Premises",
+				"ResolverEndpointId" : {
+					"Ref" : "Route53ResolverEndpointId"
+				},
+				"RuleType" : "FORWARD",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-DefaultRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ],
+				"TargetIps" : [
+					{
+						"Ip" : {
+							"Ref" : "OnPremisesDNSServerIpAddress"
+						},
+						"Port" : {
+							"Ref" : "OnPremisesDNSServerPort"
+						}
+					},
+					{
+						"Fn::If" : [
+							"UseBackup",
+							{
+								"Ip" : {
+									"Ref" : "BackupOnPremisesDNSServerIpAddress"
+								},
+								"Port" : {
+									"Ref" : "BackupOnPremisesDNSServerPort"
+								}
+							},
+							{
+								"Ref" : "AWS::NoValue"
+							}
+						]
+					}
+				]
+			}
+		},
+		"DefaultRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Properties" : {
+				"Name" : "ForwardAllToOnPremisesAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "DefaultRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CloudFormationPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCloudFormationInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "cloudformation.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "CloudFormation Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CloudFormationPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CloudFormationPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCloudFormationInterface",
+			"Properties" : {
+				"Name" : "CloudFormationPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CloudFormationPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CloudFormationVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCloudFormationInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "cloudformation.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "CloudFormation Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CloudFormationVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CloudFormationVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCloudFormationInterface",
+			"Properties" : {
+				"Name" : "CloudFormationVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CloudFormationVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CloudTrailPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCloudTrailInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "cloudtrail.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "CloudTrail Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CloudTrailPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CloudTrailPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCloudTrailInterface",
+			"Properties" : {
+				"Name" : "CloudTrailPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CloudTrailPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CloudTrailVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCloudTrailInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "cloudtrail.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "CloudTrail Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CloudTrailVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CloudTrailVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCloudTrailInterface",
+			"Properties" : {
+				"Name" : "CloudTrailVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CloudTrailVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CodeBuildPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCodeBuildInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "codebuild.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "CodeBuild Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CodeBuildPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CodeBuildPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCodeBuildInterface",
+			"Properties" : {
+				"Name" : "CodeBuildPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CodeBuildPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CodeBuildVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCodeBuildInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "codebuild.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "CodeBuild Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CodeBuildVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CodeBuildVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCodeBuildInterface",
+			"Properties" : {
+				"Name" : "CodeBuildVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CodeBuildVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CodeBuildFIPSPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCodeBuildFIPSInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "codebuild-fips.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "CodeBuildFIPS Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CodeBuildFIPSPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CodeBuildFIPSPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCodeBuildFIPSInterface",
+			"Properties" : {
+				"Name" : "CodeBuildFIPSPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CodeBuildFIPSPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CodeBuildFIPSVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCodeBuildFIPSInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "codebuild-fips.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "CodeBuildFIPS Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CodeBuildFIPSVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CodeBuildFIPSVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCodeBuildFIPSInterface",
+			"Properties" : {
+				"Name" : "CodeBuildFIPSVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CodeBuildFIPSVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CodePipelinePublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCodePipelineInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "codepipeline.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "CodePipeline Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CodePipelinePublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CodePipelinePublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCodePipelineInterface",
+			"Properties" : {
+				"Name" : "CodePipelinePublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CodePipelinePublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"CodePipelineVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseCodePipelineInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "codepipeline.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "CodePipeline Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-CodePipelineVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"CodePipelineVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseCodePipelineInterface",
+			"Properties" : {
+				"Name" : "CodePipelineVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "CodePipelineVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"ConfigPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseConfigInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "config.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "Config Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-ConfigPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"ConfigPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseConfigInterface",
+			"Properties" : {
+				"Name" : "ConfigPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "ConfigPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"ConfigVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseConfigInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "config.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "Config Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-ConfigVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"ConfigVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseConfigInterface",
+			"Properties" : {
+				"Name" : "ConfigVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "ConfigVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"EC2PublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseEC2Interface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "ec2.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "EC2 Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-EC2PublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"EC2PublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseEC2Interface",
+			"Properties" : {
+				"Name" : "EC2PublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "EC2PublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"EC2VpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseEC2Interface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "ec2.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "EC2 Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-EC2VpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"EC2VpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseEC2Interface",
+			"Properties" : {
+				"Name" : "EC2VpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "EC2VpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"EC2MessagesPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseEC2MessagesInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "ec2messages.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "EC2Messages Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-EC2MessagesPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"EC2MessagesPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseEC2MessagesInterface",
+			"Properties" : {
+				"Name" : "EC2MessagesPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "EC2MessagesPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"EC2MessagesVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseEC2MessagesInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "ec2messages.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "EC2Messages Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-EC2MessagesVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"EC2MessagesVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseEC2MessagesInterface",
+			"Properties" : {
+				"Name" : "EC2MessagesVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "EC2MessagesVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"ElasticInferenceRuntimePublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseElasticInferenceRuntimeInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "runtime.elastic-inference.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "ElasticInferenceRuntime Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-ElasticInferenceRuntimePublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"ElasticInferenceRuntimePublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseElasticInferenceRuntimeInterface",
+			"Properties" : {
+				"Name" : "ElasticInferenceRuntimePublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "ElasticInferenceRuntimePublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"ElasticInferenceRuntimeVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseElasticInferenceRuntimeInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "runtime.elastic-inference.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "ElasticInferenceRuntime Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-ElasticInferenceRuntimeVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"ElasticInferenceRuntimeVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseElasticInferenceRuntimeInterface",
+			"Properties" : {
+				"Name" : "ElasticInferenceRuntimeVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "ElasticInferenceRuntimeVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"ElasticLoadBalancingPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseElasticLoadBalancingInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "elasticloadbalancing.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "ElasticLoadBalancing Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-ElasticLoadBalancingPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"ElasticLoadBalancingPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseElasticLoadBalancingInterface",
+			"Properties" : {
+				"Name" : "ElasticLoadBalancingPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "ElasticLoadBalancingPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"ElasticLoadBalancingVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseElasticLoadBalancingInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "elasticloadbalancing.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "ElasticLoadBalancing Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-ElasticLoadBalancingVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"ElasticLoadBalancingVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseElasticLoadBalancingInterface",
+			"Properties" : {
+				"Name" : "ElasticLoadBalancingVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "ElasticLoadBalancingVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"EventsPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseEventsInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "events.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "Events Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-EventsPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"EventsPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseEventsInterface",
+			"Properties" : {
+				"Name" : "EventsPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "EventsPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"EventsVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseEventsInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "events.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "Events Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-EventsVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"EventsVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseEventsInterface",
+			"Properties" : {
+				"Name" : "EventsVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "EventsVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"APIGatewayPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseAPIGatewayInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "execute-api.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "APIGateway Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-APIGatewayPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"APIGatewayPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseAPIGatewayInterface",
+			"Properties" : {
+				"Name" : "APIGatewayPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "APIGatewayPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"APIGatewayVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseAPIGatewayInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "execute-api.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "APIGateway Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-APIGatewayVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"APIGatewayVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseAPIGatewayInterface",
+			"Properties" : {
+				"Name" : "APIGatewayVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "APIGatewayVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"KinesisStreamsPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseKinesisStreamsInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "kinesis-streams.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "KinesisStreams Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-KinesisStreamsPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"KinesisStreamsPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseKinesisStreamsInterface",
+			"Properties" : {
+				"Name" : "KinesisStreamsPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "KinesisStreamsPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"KinesisStreamsVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseKinesisStreamsInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "kinesis-streams.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "KinesisStreams Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-KinesisStreamsVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"KinesisStreamsVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseKinesisStreamsInterface",
+			"Properties" : {
+				"Name" : "KinesisStreamsVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "KinesisStreamsVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"KMSPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseKMSInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "kms.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "KMS Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-KMSPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"KMSPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseKMSInterface",
+			"Properties" : {
+				"Name" : "KMSPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "KMSPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"KMSVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseKMSInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "kms.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "KMS Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-KMSVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"KMSVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseKMSInterface",
+			"Properties" : {
+				"Name" : "KMSVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "KMSVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"LogsPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseLogsInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "logs.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "Logs Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-LogsPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"LogsPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseLogsInterface",
+			"Properties" : {
+				"Name" : "LogsPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "LogsPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"LogsVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseLogsInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "logs.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "Logs Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-LogsVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"LogsVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseLogsInterface",
+			"Properties" : {
+				"Name" : "LogsVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "LogsVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"MonitoringPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseMonitoringInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "monitoring.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "Monitoring Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-MonitoringPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"MonitoringPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseMonitoringInterface",
+			"Properties" : {
+				"Name" : "MonitoringPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "MonitoringPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"MonitoringVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseMonitoringInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "monitoring.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "Monitoring Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-MonitoringVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"MonitoringVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseMonitoringInterface",
+			"Properties" : {
+				"Name" : "MonitoringVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "MonitoringVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SagemakerApiPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSagemakerApiInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "sagemaker.api.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "SagemakerApi Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SagemakerApiPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SagemakerApiPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSagemakerApiInterface",
+			"Properties" : {
+				"Name" : "SagemakerApiPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SagemakerApiPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SagemakerApiVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSagemakerApiInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "sagemaker.api.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "SagemakerApi Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SagemakerApiVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SagemakerApiVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSagemakerApiInterface",
+			"Properties" : {
+				"Name" : "SagemakerApiVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SagemakerApiVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SagemakerRuntimePublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSagemakerRuntimeInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "runtime.sagemaker.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "SagemakerRuntime Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SagemakerRuntimePublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SagemakerRuntimePublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSagemakerRuntimeInterface",
+			"Properties" : {
+				"Name" : "SagemakerRuntimePublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SagemakerRuntimePublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SagemakerRuntimeVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSagemakerRuntimeInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "runtime.sagemaker.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "SagemakerRuntime Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SagemakerRuntimeVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SagemakerRuntimeVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSagemakerRuntimeInterface",
+			"Properties" : {
+				"Name" : "SagemakerRuntimeVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SagemakerRuntimeVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SagemakerRuntimeFIPSPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSagemakerRuntimeFIPSInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "runtime-fips.sagemaker.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "SagemakerRuntimeFIPS Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SagemakerRuntimeFIPSPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SagemakerRuntimeFIPSPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSagemakerRuntimeFIPSInterface",
+			"Properties" : {
+				"Name" : "SagemakerRuntimeFIPSPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SagemakerRuntimeFIPSPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SagemakerRuntimeFIPSVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSagemakerRuntimeFIPSInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "runtime-fips.sagemaker.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "SagemakerRuntimeFIPS Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SagemakerRuntimeFIPSVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SagemakerRuntimeFIPSVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSagemakerRuntimeFIPSInterface",
+			"Properties" : {
+				"Name" : "SagemakerRuntimeFIPSVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SagemakerRuntimeFIPSVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SecretsManagerPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSecretsManagerInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "secretsmanager.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "SecretsManager Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SecretsManagerPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SecretsManagerPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSecretsManagerInterface",
+			"Properties" : {
+				"Name" : "SecretsManagerPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SecretsManagerPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SecretsManagerVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSecretsManagerInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "secretsmanager.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "SecretsManager Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SecretsManagerVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SecretsManagerVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSecretsManagerInterface",
+			"Properties" : {
+				"Name" : "SecretsManagerVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SecretsManagerVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"ServiceCatalogPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseServiceCatalogInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "servicecatalog.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "ServiceCatalog Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-ServiceCatalogPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"ServiceCatalogPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseServiceCatalogInterface",
+			"Properties" : {
+				"Name" : "ServiceCatalogPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "ServiceCatalogPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"ServiceCatalogVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseServiceCatalogInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "servicecatalog.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "ServiceCatalog Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-ServiceCatalogVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"ServiceCatalogVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseServiceCatalogInterface",
+			"Properties" : {
+				"Name" : "ServiceCatalogVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "ServiceCatalogVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SNSPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSNSInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "sns.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "SNS Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SNSPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SNSPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSNSInterface",
+			"Properties" : {
+				"Name" : "SNSPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SNSPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SNSVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSNSInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "sns.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "SNS Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SNSVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SNSVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSNSInterface",
+			"Properties" : {
+				"Name" : "SNSVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SNSVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SSMPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSSMInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "ssm.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "SSM Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SSMPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SSMPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSSMInterface",
+			"Properties" : {
+				"Name" : "SSMPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SSMPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SSMVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSSMInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "ssm.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "SSM Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SSMVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SSMVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSSMInterface",
+			"Properties" : {
+				"Name" : "SSMVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SSMVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SSMMessagesPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSSMMessagesInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "ssmmessages.${AWS::Region}.amazonaws.com"
+				},
+				"Name" : "SSMMessages Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SSMMessagesPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SSMMessagesPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSSMMessagesInterface",
+			"Properties" : {
+				"Name" : "SSMMessagesPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SSMMessagesPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SSMMessagesVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSSMMessagesInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "ssmmessages.${AWS::Region}.vpce.amazonaws.com"
+				},
+				"Name" : "SSMMessages Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SSMMessagesVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SSMMessagesVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSSMMessagesInterface",
+			"Properties" : {
+				"Name" : "SSMMessagesVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SSMMessagesVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SagemakerNotebooksPublicRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSagemakerNotebooksInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "notebook.${AWS::Region}.sagemaker.aws"
+				},
+				"Name" : "SagemakerNotebooks Public",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SagemakerNotebooksPublicRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SagemakerNotebooksPublicRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSagemakerNotebooksInterface",
+			"Properties" : {
+				"Name" : "SagemakerNotebooksPublicRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SagemakerNotebooksPublicRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		},
+
+		"SagemakerNotebooksVpceRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Condition" : "UseSagemakerNotebooksInterface",
+			"Properties" : {
+				"DomainName" : {
+					"Fn::Sub" : "notebook.${AWS::Region}.sagemaker.vpce.aws"
+				},
+				"Name" : "SagemakerNotebooks Vpce",
+				"RuleType" : "SYSTEM",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-SagemakerNotebooksVpceRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+		"SagemakerNotebooksVpceRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Condition" : "UseSagemakerNotebooksInterface",
+			"Properties" : {
+				"Name" : "SagemakerNotebooksVpceRuleAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "SagemakerNotebooksVpceRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		}
+
+	},
+
+	"Outputs" : {
+	}
+}

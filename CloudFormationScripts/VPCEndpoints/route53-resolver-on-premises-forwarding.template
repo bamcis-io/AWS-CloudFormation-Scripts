@@ -1,0 +1,1113 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "The template creates the forwarding rule for all domains, except Route53 resolver auto-defined domains, back to on-premises DNS servers.",
+
+	"Parameters" : {
+		"OnPremisesDNSServerIpAddress" : {
+			"Type" : "String",
+			"Description" : "The IP Address of your on-premises DNS server to forward all non-AWS DNS queries to.",
+			"AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+		},
+		"OnPremisesDNSServerPort": {
+            "Type": "Number",
+            "Description": "The port you are using on-premises for DNS.",
+            "MinValue": 1,
+            "MaxValue": 65535,
+            "Default": 53
+        },
+		"BackupOnPremisesDNSServerIpAddress" : {
+			"Type" : "String",
+			"Description" : "The backup IP Address of your on-premises DNS server to forward all non-AWS DNS queries to, this is optional.",
+			"AllowedPattern" : "(?:^$|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+		},
+		"BackupOnPremisesDNSServerPort": {
+            "Type": "Number",
+            "Description": "The port you are using on-premises for DNS.",
+            "MinValue": 1,
+            "MaxValue": 65535,
+            "Default": 53
+        },
+		"Route53ResolverEndpointId" : {
+			"Type" : "String",
+			"Description" : "The Id of the Route53 Resolver Endpoint to apply this rule to.",
+			"MinLength" : 1
+		},
+		"VpcId" : {
+			"Type" : "AWS::EC2::VPC::Id",
+			"Description" : "The VPC to associate this rule to"
+		},
+
+		"OrganizationTag": {
+            "Description": "The organization this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default": "bamcis.io"
+        },
+        "ApplicationTag": {
+            "Description": "The application this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$"
+        },
+        "EnvironmentTag": {
+            "Description": "The environment this account is associated with",
+            "Type": "String",
+            "AllowedPattern": "^\\S{2,}$",
+            "ConstraintDescription": "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default": "dev"
+        }
+	},
+
+	"Mappings" : {
+		"AvailableServicesByRegion" : {
+			"ap-northeast-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-northeast-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-south-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-southeast-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ap-southeast-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"ca-central-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-central-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"eu-west-3" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"sa-east-1" : {
+				"notebook" : false,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : false,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-east-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-east-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-west-1" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"us-west-2" : {
+				"notebook" : true,
+				"cloudformation" : true,
+				"cloudtrail" : true,
+				"codebuild" : true,
+				"codebuildfips" : true,
+				"codepipeline" : true,
+				"config" : true,
+				"ec2" : true,
+				"ec2messages" : true,
+				"elasticinferenceruntime" : true,
+				"elasticloadbalancing" : true,
+				"events" : true,
+				"executeapi" : true,
+				"kinesisstreams" : true,
+				"kms" : true,
+				"logs" : true,
+				"monitoring" : true,
+				"sagemakerapi" : true,
+				"sagemakerruntime" : true,
+				"sagemakerruntimefips" : true,
+				"secretsmanager" : true,
+				"servicecatalog" : true,
+				"sns" : true,
+				"ssm" : true,
+				"ssmmessages" : true
+			},
+			"cn-north-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"cn-northwest-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-gov-west-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-gov-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-iso-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			},
+			"us-isob-east-1" : {
+				"notebook" : false,
+				"cloudformation" : false,
+				"cloudtrail" : false,
+				"codebuild" : false,
+				"codebuildfips" : false,
+				"codepipeline" : false,
+				"config" : false,
+				"ec2" : false,
+				"ec2messages" : false,
+				"elasticinferenceruntime" : false,
+				"elasticloadbalancing" : false,
+				"events" : false,
+				"executeapi" : false,
+				"kinesisstreams" : false,
+				"kms" : false,
+				"logs" : false,
+				"monitoring" : false,
+				"sagemakerapi" : false,
+				"sagemakerruntime" : false,
+				"sagemakerruntimefips" : false,
+				"secretsmanager" : false,
+				"servicecatalog" : false,
+				"sns" : false,
+				"ssm" : false,
+				"ssmmessages" : false
+			}
+		}	
+	},
+
+	"Conditions" : {
+		"UseBackup" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "BackupOnPremisesDNSServerIpAddress"
+						},
+						""
+					]
+				}
+			]
+		},
+
+		"UseCloudFormationInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"cloudformation"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCloudTrailInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"cloudtrail"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodeBuildInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codebuild"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodeBuildFIPSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",						
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codebuildfips"
+					]
+				},
+				"true"
+			]
+		},
+		"UseCodePipelineInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"codepipeline"
+					]
+				},
+				"true"
+			]
+		},
+		"UseConfigInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"config"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEC2Interface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ec2"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEC2MessagesInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ec2messages"
+					]
+				},
+				"true"
+			]
+		},
+		"UseElasticInferenceRuntimeInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"elasticinferenceruntime"
+					]
+				},
+				"true"
+			]
+		},
+		"UseElasticLoadBalancingInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",						
+						{
+							"Ref" : "AWS::Region"
+						},
+						"elasticloadbalancing"
+					]
+				},
+				"true"
+			]
+		},
+		"UseEventsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"events"
+					]
+				},
+				"true"
+			]
+		},
+		"UseAPIGatewayInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"executeapi"
+					]
+				},
+				"true"
+			]
+		},
+		"UseKinesisStreamsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",					
+						{
+							"Ref" : "AWS::Region"
+						},
+						"kinesisstreams"
+					]
+				},
+				"true"
+			]
+		},
+		"UseKMSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"kms"
+					]
+				},
+				"true"
+			]
+		},
+		"UseLogsInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"logs"
+					]
+				},
+				"true"
+			]
+		},
+		"UseMonitoringInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"monitoring"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerApiInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerapi"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerRuntimeInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerruntime"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerRuntimeFIPSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sagemakerruntimefips"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSecretsManagerInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"secretsmanager"
+					]
+				},
+				"true"
+			]
+		},
+		"UseServiceCatalogInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"servicecatalog"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSNSInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"sns"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSSMInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ssm"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSSMMessagesInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"ssmmessages"
+					]
+				},
+				"true"
+			]
+		},
+		"UseSagemakerNotebooksInterface" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"AvailableServicesByRegion",
+						{
+							"Ref" : "AWS::Region"
+						},
+						"notebook"
+					]
+				},
+				"true"
+			]
+		}
+	},
+
+	"Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "Network Configuration"
+                    },
+                    "Parameters": [
+                        "OnPremisesDNSServerIpAddress",
+                        "OnPremisesDNSServerPort",
+						"BackupOnPremisesDNSServerIpAddress",
+                        "BackupOnPremisesDNSServerPort",
+                        "Route53ResolverEndpointId",
+                        "VpcId"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Tagging"
+                    },
+                    "Parameters": [
+                        "OrganizationTag",
+                        "ApplicationTag",
+                        "EnvironmentTag"
+                    ]
+                }
+            ]
+        }
+    },
+
+	"Resources" : {
+		"DefaultRule" : {
+			"Type" : "AWS::Route53Resolver::ResolverRule",
+			"Properties" : {
+				"DomainName" : ".",
+				"Name" : "Forward All To On-Premises",
+				"ResolverEndpointId" : {
+					"Ref" : "Route53ResolverEndpointId"
+				},
+				"RuleType" : "FORWARD",
+				"Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${ApplicationTag}-${AWS::Region}-DefaultRule-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Organization",
+                        "Value": {
+                            "Ref": "OrganizationTag"
+                        }
+                    }
+                ],
+				"TargetIps" : [
+					{
+						"Ip" : {
+							"Ref" : "OnPremisesDNSServerIpAddress"
+						},
+						"Port" : {
+							"Ref" : "OnPremisesDNSServerPort"
+						}
+					},
+					{
+						"Fn::If" : [
+							"UseBackup",
+							{
+								"Ip" : {
+									"Ref" : "BackupOnPremisesDNSServerIpAddress"
+								},
+								"Port" : {
+									"Ref" : "BackupOnPremisesDNSServerPort"
+								}
+							},
+							{
+								"Ref" : "AWS::NoValue"
+							}
+						]
+					}
+				]
+			}
+		},
+		"DefaultRuleVpcAssociation" : {
+			"Type" : "AWS::Route53Resolver::ResolverRuleAssociation",
+			"Properties" : {
+				"Name" : "ForwardAllToOnPremisesAssociation",
+				"ResolverRuleId" : {
+					"Fn::GetAtt" : [ "DefaultRule", "ResolverRuleId" ]
+				},
+				"VPCId" : {
+					"Ref" : "VpcId"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

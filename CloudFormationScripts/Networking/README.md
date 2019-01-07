@@ -5,4 +5,7 @@ IPv6 can optionally be enabled, which also includes deploying an egress only gat
 
 3 default Security Groups are also created, one for a Bastion Host to allow remote access, one for SSH management of internal EC2 instances from the Bastion Host, and one for Windows Remote Management of internal EC2 instances from the Bastion Host.
 
+## Private VPC 
+
+There is also a private VPC template that omits the public AZs, NAT Gateways, routes, and route tables that allow for inbound and outbound public access.
 

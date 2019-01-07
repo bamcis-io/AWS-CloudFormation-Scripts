@@ -648,13 +648,36 @@
 				}
 			]
 		},
-		"Use4DisksAndAZ3" : {
+		"Use4DisksAndNotNitro" : {
+			"Fn::And" : [
+				{
+					"Condition" : "Use4Disks"
+				},
+				{
+					"Condition" : "NotNitro"
+				}
+			]
+		},
+		"3NodeAndUse4Disks" : {
 			"Fn::And" : [
 				{
 					"Condition" : "Use4Disks"
 				},
 				{
 					"Condition" : "Is3Node"
+				}
+			]
+		},
+		"3NodeAndUse4DisksAndNotNitro" : {
+			"Fn::And" : [
+				{
+					"Condition" : "Is3Node"
+				},
+				{
+					"Condition" : "Use4Disks"
+				},
+				{
+					"Condition" : "NotNitro"
 				}
 			]
 		},
@@ -678,6 +701,37 @@
 					"Ref" : "EnableJumboFrames"
 				},
 				"true"
+			]
+		},
+		"IsNitro" : {
+			"Fn::Equals" : [
+				{
+					"Fn::FindInMap" : [
+						"InstanceTypeMap",
+						{
+							"Ref" : "WSFCInstanceType"
+						},
+						"IsNitroHypervisor"
+					]
+				},
+				true
+			]
+		},
+		"NotNitro" : {
+			"Fn::Not" : [
+				{
+					"Condition" : "IsNitro"
+				}
+			]
+		},
+		"3NodeAndNotNitro" : {
+			"Fn::And" : [
+				{
+					"Condition" : "NotNitro"
+				},
+				{
+					"Condition" : "Is3Node"
+				}
 			]
 		}
 	},
@@ -982,187 +1036,245 @@
 },
 	     "InstanceTypeMap" : {
 			"m4.large" : {
-				"UsesInstanceStorage" : false
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
             "m4.xlarge" : {
-				"UsesInstanceStorage" : false
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-                "m4.2xlarge" : {
-				"UsesInstanceStorage" : false
+            "m4.2xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-                "m4.4xlarge" : {
-				"UsesInstanceStorage" : false
+            "m4.4xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-                "m4.10xlarge" : {
-				"UsesInstanceStorage" : false
+            "m4.10xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
+			},        
+			
+			"m5.large" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-                
-				"m5.large" : {
-				"UsesInstanceStorage" : false
+			"m5.xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-				"m5.xlarge" : {
-				"UsesInstanceStorage" : false
+			"m5.2xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-				"m5.2xlarge" : {
-				"UsesInstanceStorage" : false
+			"m5.4xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-				"m5.4xlarge" : {
-				"UsesInstanceStorage" : false
+			"m5.12xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-				"m5.12xlarge" : {
-				"UsesInstanceStorage" : false
-			},
-				"m5.24xlarge" : {
-				"UsesInstanceStorage" : false
-			},
-
-				"m5d.large" : {
-				"UsesInstanceStorage" : true
-			},
-				"m5d.xlarge" : {
-				"UsesInstanceStorage" : true
-			},
-				"m5d.2xlarge" : {
-				"UsesInstanceStorage" : true
-			},
-				"m5d.4xlarge" : {
-				"UsesInstanceStorage" : true
-			},
-				"m5d.12xlarge" : {
-				"UsesInstanceStorage" : true
-			},
-				"m5d.24xlarge" : {
-				"UsesInstanceStorage" : true
+			"m5.24xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
 
-                "c4.large" : {
-				"UsesInstanceStorage" : false
+			"m5d.large" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "c4.xlarge" : {
-				"UsesInstanceStorage" : false
+			"m5d.xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "c4.2xlarge" : {
-				"UsesInstanceStorage" : false
+			"m5d.2xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "c4.4xlarge" : {
-				"UsesInstanceStorage" : false
+			"m5d.4xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "c4.8xlarge" : {
-				"UsesInstanceStorage" : false
+			"m5d.12xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-
-				"c5.large" : {
-				"UsesInstanceStorage" : false
+			"m5d.24xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "c5.xlarge" : {
-				"UsesInstanceStorage" : false
+            
+			"c4.large" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-                "c5.2xlarge" : {
-				"UsesInstanceStorage" : false
+            "c4.xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-                "c5.4xlarge" : {
-				"UsesInstanceStorage" : false
+            "c4.2xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-                "c5.9xlarge" : {
-				"UsesInstanceStorage" : false
+            "c4.4xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-				"c5.18xlarge" : {
-				"UsesInstanceStorage" : false
-			},
-
-				"c5d.large" : {
-				"UsesInstanceStorage" : true
-			},
-                "c5d.xlarge" : {
-				"UsesInstanceStorage" : true
-			},
-                "c5d.2xlarge" : {
-				"UsesInstanceStorage" : true
-			},
-                "c5d.4xlarge" : {
-				"UsesInstanceStorage" : true
-			},
-                "c5d.9xlarge" : {
-				"UsesInstanceStorage" : true
-			},
-				"c5d.18xlarge" : {
-				"UsesInstanceStorage" : true
+            "c4.8xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
 
-				"r4.large" : {
-				"UsesInstanceStorage" : false
+			"c5.large" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-                "r4.xlarge" : {
-				"UsesInstanceStorage" : false
+            "c5.xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-                "r4.2xlarge" : {
-				"UsesInstanceStorage" : false
+            "c5.2xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-                "r4.4xlarge" : {
-				"UsesInstanceStorage" : false
+            "c5.4xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-                "r4.8xlarge" : {
-				"UsesInstanceStorage" : false
+            "c5.9xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
-				"r4.16xlarge" : {
-				"UsesInstanceStorage" : false
-			},
-
-                "r5.large" : {
-				"UsesInstanceStorage" : false
-			},
-                "r5.xlarge" : {
-				"UsesInstanceStorage" : false
-			},
-                "r5.2xlarge" : {
-				"UsesInstanceStorage" : false
-			},
-                "r5.4xlarge" : {
-				"UsesInstanceStorage" : false
-			},
-                "r5.12xlarge" : {
-				"UsesInstanceStorage" : false
-			},
-				"r5.24xlarge" : {
-				"UsesInstanceStorage" : false
+			"c5.18xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
 			},
 
-				"r5d.large" : {
-				"UsesInstanceStorage" : true
+			"c5d.large" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "r5d.xlarge" : {
-				"UsesInstanceStorage" : true
+            "c5d.xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "r5d.2xlarge" : {
-				"UsesInstanceStorage" : true
+            "c5d.2xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "r5d.4xlarge" : {
-				"UsesInstanceStorage" : true
+            "c5d.4xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-                "r5d.12xlarge" : {
-				"UsesInstanceStorage" : true
+            "c5d.9xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
-				"r5d.24xlarge" : {
-				"UsesInstanceStorage" : true
+			"c5d.18xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
 			},
 
-				"i3.large" : {
-				"UsesInstanceStorage" : false
+			"r4.large" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-				"i3.xlarge" : {
-				"UsesInstanceStorage" : false
+            "r4.xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-				"i3.2xlarge" : {
-				"UsesInstanceStorage" : false
+            "r4.2xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-				"i3.4xlarge" : {
-				"UsesInstanceStorage" : false
+            "r4.4xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-				"i3.8xlarge" : {
-				"UsesInstanceStorage" : false
+            "r4.8xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			},
-				"i3.16xlarge" : {
-				"UsesInstanceStorage" : false
+			"r4.16xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
+			},
+
+            "r5.large" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
+			},
+            "r5.xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
+			},
+            "r5.2xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
+			},
+            "r5.4xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
+			},
+            "r5.12xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
+			},
+			"r5.24xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : true
+			},
+
+			"r5d.large" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
+			},
+            "r5d.xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
+			},
+            "r5d.2xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
+			},
+            "r5d.4xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
+			},
+            "r5d.12xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
+			},
+			"r5d.24xlarge" : {
+				"UsesInstanceStorage" : true,
+				"IsNitroHypervisor" : true
+			},
+
+			"i3.large" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
+			},
+			"i3.xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
+			},
+			"i3.2xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
+			},
+			"i3.4xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
+			},
+			"i3.8xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
+			},
+			"i3.16xlarge" : {
+				"UsesInstanceStorage" : false,
+				"IsNitroHypervisor" : false
 			}
 		 }
 	},
@@ -1277,7 +1389,9 @@
                         {
                             "Effect" : "Allow",
                             "Action" : [
-                                "ec2:DescribeVolumes"
+                                "ec2:DescribeVolumes",
+								"ec2:AttachVolume",
+								"ec2:DetachVolume"
                             ],
                             "Resource" : [
 								"*"                          
@@ -1707,6 +1821,24 @@
 										}
 									]
                                 }
+                            },
+							"C:\\cfn\\scripts\\Attach-EBSVolume.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Attach-EBSVolume.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
                             }
 						}
 					},
@@ -1720,18 +1852,37 @@
                     },
 					"Prep" : {
 						"commands" : {
-							"a-wait-volume-attachment" : {
+							"a-volume-attachment" : {
 								"command" : {
-									"Fn::Sub" : [
-										"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode1Volume1','WSFCNode1Volume2'${Suffix}\"",
+									"Fn::If" : [
+										"IsNitro",
 										{
-											"Suffix" : {
-												"Fn::If" : [
-													"Use4Disks",
-													",'WSFCNode1Volume3','WSFCNode1Volume4'",
-													""
-												]
-											} 
+											"Fn::Sub" : [
+												"powershell.exe -Command \"C:\\cfn\\scripts\\Attach-EBSVolume.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeDeviceMapping @( @{ LogicalResourceId = 'WSFCNode1Volume1'; Device = '/dev/xvdb' },@{ LogicalResourceId = 'WSFCNode1Volume2'; Device = '/dev/xvdc' }${Suffix}\"",
+												{
+													"Suffix" : {
+														"Fn::If" : [
+															"Use4Disks",
+															",@{ LogicalResourceId = 'WSFCNode1Volume3'; Device = '/dev/xvdd' },@{ LogicalResourceId = 'WSFCNode1Volume4'; Device = '/dev/xvde' })",
+															")"
+														]
+													} 
+												}
+											]
+										},
+										{
+											"Fn::Sub" : [
+												"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode1Volume1','WSFCNode1Volume2'${Suffix}\"",
+												{
+													"Suffix" : {
+														"Fn::If" : [
+															"Use4Disks",
+															",'WSFCNode1Volume3','WSFCNode1Volume4'",
+															""
+														]
+													}
+												}
+											]
 										}
 									]
 								},
@@ -1834,11 +1985,7 @@
 									]
 								},
 								"waitAfterCompletion" : "0"
-							},
-							"g-reboot": {
-                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
-                                "waitAfterCompletion": "forever"
-                            }
+							}
 						}
 					},
 					"Finalize" : {
@@ -1848,7 +1995,11 @@
 									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Send-CfnSignal.ps1 -WaitConditionUrl \"${WSFCWaitHandle}\" -ExitCode 0"
 								},
 								"waitAfterCompletion" : "0"
-							}
+							},						
+							"b-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            }
 						}
 					}
 				 }
@@ -1906,6 +2057,9 @@
                             },
 							{
 								"Ref" : "FileShareServerAccessSecurityGroup"
+							},
+							{
+								"Ref" : "ClusterManagementAccessSecurityGroup"
 							}
                         ]
                     }
@@ -2335,6 +2489,24 @@
 									]
                                 }
                             },
+							"C:\\cfn\\scripts\\Attach-EBSVolume.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Attach-EBSVolume.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
+                            },
 							"C:\\cfn\\scripts\\Enable-CredSSP.ps1": {
                                 "source": {
                                     "Fn::Sub": [
@@ -2599,18 +2771,37 @@
                     },
 					"Prep" : {
 						"commands" : {
-							"a-wait-volume-attachment" : {
+							"a-volume-attachment" : {
 								"command" : {
-									"Fn::Sub" : [
-										"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode2Volume1','WSFCNode2Volume2'${Suffix}\"",
+									"Fn::If" : [
+										"IsNitro",
 										{
-											"Suffix" : {
-												"Fn::If" : [
-													"Use4Disks",
-													",'WSFCNode2Volume3','WSFCNode2Volume4'",
-													""
-												]
-											} 
+											"Fn::Sub" : [
+												"powershell.exe -Command \"C:\\cfn\\scripts\\Attach-EBSVolume.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeDeviceMapping @( @{ LogicalResourceId = 'WSFCNode2Volume1'; Device = '/dev/xvdb' },@{ LogicalResourceId = 'WSFCNode2Volume2'; Device = '/dev/xvdc' }${Suffix}\"",
+												{
+													"Suffix" : {
+														"Fn::If" : [
+															"Use4Disks",
+															",@{ LogicalResourceId = 'WSFCNode2Volume3'; Device = '/dev/xvdd' },@{ LogicalResourceId = 'WSFCNode2Volume4'; Device = '/dev/xvde' })",
+															")"
+														]
+													} 
+												}
+											]
+										},
+										{
+											"Fn::Sub" : [
+												"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode2Volume1','WSFCNode2Volume2'${Suffix}\"",
+												{
+													"Suffix" : {
+														"Fn::If" : [
+															"Use4Disks",
+															",'WSFCNode2Volume3','WSFCNode2Volume4'",
+															""
+														]
+													}
+												}
+											]
 										}
 									]
 								},
@@ -2721,11 +2912,7 @@
 									]
 								},
 								"waitAfterCompletion" : "0"
-							},
-							"g-reboot": {
-                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
-                                "waitAfterCompletion": "forever"
-                            }
+							}
 						}
 					},
 					"Install" : {
@@ -3022,6 +3209,23 @@
 									]
 								},
 								"waitAfterCompletion": "0"
+							},
+							"m-move-cluster-role" : {
+								"command" : {
+									"Fn::Sub" : [
+										"powershell.exe -File C:\\cfn\\scripts\\Move-ClusterRole.ps1 -Role \"${FileServerNetBIOSName}\" -Node \"${WSFCNode1NetBIOSName}\" -Username \"${DomainUsername}\" ${Password} \"${DomainUserPassword}\"",
+										{
+											"Password" : {
+												"Fn::If" : [
+													"PasswordEncrypted",
+													"-KMSEncryptedPassword",
+													"-Password"																
+												]
+											}
+										}
+									]
+								},
+								"waitAfterCompletion": "0"
 							}
 						}
 					},
@@ -3036,7 +3240,11 @@
 									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Send-CfnSignal.ps1 -WaitConditionUrl \"${WSFCWaitHandle2}\" -ExitCode 0"
 								},
 								"waitAfterCompletion" : "0"
-							}
+							},
+							"c-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            }
 						}
 					}
 				 }
@@ -3094,6 +3302,9 @@
                             },
 							{
 								"Ref" : "FileShareServerAccessSecurityGroup"
+							},
+							{
+								"Ref" : "ClusterManagementAccessSecurityGroup"
 							}
                         ]
                     }
@@ -3500,6 +3711,24 @@
 										}
 									]
                                 }
+                            },
+							"C:\\cfn\\scripts\\Attach-EBSVolume.ps1": {
+                                "source": {
+                                    "Fn::Sub": [
+										"https://${ConfigBucketName}.s3${Region}.amazonaws.com/common/scripts/Attach-EBSVolume.ps1",
+										{
+											"Region" : {
+												"Fn::If" : [
+													"IsUsEast1",
+													"",
+													{
+														"Fn::Sub" : "-${AWS::Region}"
+													}
+												]													
+											}
+										}
+									]
+                                }
                             }
 						}
 					},
@@ -3513,18 +3742,37 @@
                     },
 					"Prep" : {
 						"commands" : {
-							"a-wait-volume-attachment" : {
+							"a-volume-attachment" : {
 								"command" : {
-									"Fn::Sub" : [
-										"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode3Volume1','WSFCNode3Volume2'${Suffix}\"",
+									"Fn::If" : [
+										"IsNitro",
 										{
-											"Suffix" : {
-												"Fn::If" : [
-													"Use4Disks",
-													",'WSFCNode3Volume3','WSFCNode3Volume4'",
-													""
-												]
-											} 
+											"Fn::Sub" : [
+												"powershell.exe -Command \"C:\\cfn\\scripts\\Attach-EBSVolume.ps1 -StackName '${AWS::StackName}' -CFNLogicalVolumeDeviceMapping @( @{ LogicalResourceId = 'WSFCNode3Volume1'; Device = '/dev/xvdb' },@{ LogicalResourceId = 'WSFCNode3Volume2'; Device = '/dev/xvdc' }${Suffix}\"",
+												{
+													"Suffix" : {
+														"Fn::If" : [
+															"Use4Disks",
+															",@{ LogicalResourceId = 'WSFCNode3Volume3'; Device = '/dev/xvdd' },@{ LogicalResourceId = 'WSFCNode3Volume4'; Device = '/dev/xvde' })",
+															")"
+														]
+													} 
+												}
+											]
+										},
+										{
+											"Fn::Sub" : [
+												"powershell.exe -Command \"C:\\cfn\\scripts\\Wait-EBSVolumeAttachment -StackName '${AWS::StackName}' -CFNLogicalVolumeIds 'WSFCNode3Volume1','WSFCNode3Volume2'${Suffix}\"",
+												{
+													"Suffix" : {
+														"Fn::If" : [
+															"Use4Disks",
+															",'WSFCNode3Volume3','WSFCNode3Volume4'",
+															""
+														]
+													}
+												}
+											]
 										}
 									]
 								},
@@ -3627,11 +3875,7 @@
 									]
 								},
 								"waitAfterCompletion" : "0"
-							},
-							"g-reboot": {
-                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
-                                "waitAfterCompletion": "forever"
-                            }
+							}
 						}
 					},
 					"Finalize" : {
@@ -3641,7 +3885,11 @@
 									"Fn::Sub" : "powershell.exe -File C:\\cfn\\scripts\\Send-CfnSignal.ps1 -WaitConditionUrl \"${WSFCWaitHandle}\" -ExitCode 0"
 								},
 								"waitAfterCompletion" : "0"
-							}
+							},							
+							"b-reboot": {
+                                "command": "powershell.exe -File C:\\cfn\\scripts\\Restart-Computer.ps1",
+                                "waitAfterCompletion": "forever"
+                            }
 						}
 					}
 				 }
@@ -3700,6 +3948,9 @@
                             },
 							{
 								"Ref" : "FileShareServerAccessSecurityGroup"
+							},
+							{
+								"Ref" : "ClusterManagementAccessSecurityGroup"
 							}
                         ]
                     }
@@ -4218,6 +4469,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4272,6 +4524,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4327,6 +4580,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4382,6 +4636,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4436,6 +4691,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4491,6 +4747,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4547,6 +4804,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4602,6 +4860,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4643,7 +4902,7 @@
         },
 		"WSFCNode3Volume3": {
             "Type": "AWS::EC2::Volume",
-			"Condition" : "Use4DisksAndAZ3",
+			"Condition" : "3NodeAndUse4Disks",
             "Properties": {
                 "Size": {
                     "Ref": "Volume1Size"
@@ -4657,6 +4916,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4713,6 +4973,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4768,6 +5029,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4809,7 +5071,7 @@
         },
 		"WSFCNode3Volume4": {
             "Type": "AWS::EC2::Volume",
-			"Condition" : "Use4DisksAndAZ3",
+			"Condition" : "3NodeAndUse4Disks",
             "Properties": {
                 "Size": {
                     "Ref": "Volume1Size"
@@ -4823,6 +5085,7 @@
                         "AvailabilityZone"
                     ]
                 },
+				"Encrypted" : true,
                 "Iops": {
                     "Fn::If": [
                         "Vol1IsIo1",
@@ -4865,6 +5128,7 @@
 
 		"WSFCNode1Volume1Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "NotNitro",
             "Properties": {
                 "Device": "/dev/xvdb",
                 "InstanceId": {
@@ -4877,6 +5141,7 @@
         },
 		"WSFCNode2Volume1Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "NotNitro",
             "Properties": {
                 "Device": "/dev/xvdb",
                 "InstanceId": {
@@ -4889,7 +5154,7 @@
         },
 		"WSFCNode3Volume1Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
-			"Condition" : "Is3Node",
+			"Condition" : "3NodeAndNotNitro",
             "Properties": {
                 "Device": "/dev/xvdb",
                 "InstanceId": {
@@ -4903,6 +5168,7 @@
 
 		"WSFCNode1Volume2Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "NotNitro",
             "Properties": {
                 "Device": "/dev/xvdc",
                 "InstanceId": {
@@ -4915,6 +5181,7 @@
         },
 		"WSFCNode2Volume2Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
+			"Condition" : "NotNitro",
             "Properties": {
                 "Device": "/dev/xvdc",
                 "InstanceId": {
@@ -4927,7 +5194,7 @@
         },
 		"WSFCNode3Volume2Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
-			"Condition" : "Is3Node",
+			"Condition" : "3NodeAndNotNitro",
             "Properties": {
                 "Device": "/dev/xvdc",
                 "InstanceId": {
@@ -4941,7 +5208,7 @@
 
 		"WSFCNode1Volume3Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
-			"Condition" : "Use4Disks",
+			"Condition" : "Use4DisksAndNotNitro",
             "Properties": {
                 "Device": "/dev/xvdd",
                 "InstanceId": {
@@ -4954,7 +5221,7 @@
         },
 		"WSFCNode2Volume3Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
-			"Condition" : "Use4Disks",
+			"Condition" : "Use4DisksAndNotNitro",
             "Properties": {
                 "Device": "/dev/xvdd",
                 "InstanceId": {
@@ -4967,7 +5234,7 @@
         },
 		"WSFCNode3Volume3Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
-			"Condition" : "Use4DisksAndAZ3",
+			"Condition" : "3NodeAndUse4DisksAndNotNitro",
             "Properties": {
                 "Device": "/dev/xvdd",
                 "InstanceId": {
@@ -4981,7 +5248,7 @@
 
 		"WSFCNode1Volume4Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
-			"Condition" : "Use4Disks",
+			"Condition" : "Use4DisksAndNotNitro",
             "Properties": {
                 "Device": "/dev/xvde",
                 "InstanceId": {
@@ -4994,7 +5261,7 @@
         },
 		"WSFCNode2Volume4Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
-			"Condition" : "Use4Disks",
+			"Condition" : "Use4DisksAndNotNitro",
             "Properties": {
                 "Device": "/dev/xvde",
                 "InstanceId": {
@@ -5007,7 +5274,7 @@
         },
 		"WSFCNode3Volume4Attachment": {
             "Type": "AWS::EC2::VolumeAttachment",
-			"Condition" : "Use4DisksAndAZ3",
+			"Condition" : "3NodeAndUse4DisksAndNotNitro",
             "Properties": {
                 "Device": "/dev/xvde",
                 "InstanceId": {
@@ -5257,6 +5524,176 @@
                         "Key" : "Name",
                         "Value" : {
 							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-FileShareClientAccess-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+
+		"ClusterManagementAccessSecurityGroup" : {
+			"Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enables remote administrators to manage the cluster.",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+				"Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-ClusterManagementAccess-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+		},
+		"ClusterManagementSecurityGroupIngressTcp445": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "ClusterManagementAccessSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "ClusterManagementSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "445",
+                "ToPort": "445"
+            }
+        },
+		"ClusterManagementSecurityGroupIngressTcp5895to5986": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "ClusterManagementAccessSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "ClusterManagementSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "5985",
+                "ToPort": "5986"
+            }
+        },
+		"ClusterManagementSecurityGroupIngressTcp135": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "ClusterManagementAccessSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "ClusterManagementSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "135",
+                "ToPort": "135"
+            }
+        },
+		"ClusterManagementSecurityGroupIngressTcpEphemeral": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "ClusterManagementAccessSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "ClusterManagementSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "49152",
+                "ToPort": "65535"
+            }
+        },
+		"ClusterManagementSecurityGroupIngressUdp137": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "ClusterManagementAccessSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "ClusterManagementSecurityGroup"
+                },
+                "IpProtocol": "udp",
+                "FromPort": "137",
+                "ToPort": "137"
+            }
+        },
+		"ClusterManagementSecurityGroupIngressIcmp": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "ClusterManagementAccessSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "ClusterManagementSecurityGroup"
+                },
+                "IpProtocol": "icmp",
+                "FromPort": "-1",
+                "ToPort": "-1"
+            }
+        },
+		"ClusterManagementSecurityGroupIngressTcp3389": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "ClusterManagementAccessSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "ClusterManagementSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "3389",
+                "ToPort": "3389"
+            }
+        },
+
+		"ClusterManagementSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Assign this groups to administrative instrances to enable them to manage the file share and cluster.",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+				"Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-ClusterManagement-${EnvironmentTag}"
                         }
                     },
                     {

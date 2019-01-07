@@ -11,6 +11,7 @@ directly from CloudFormation.
   * [DDNS](#ddns)
   * [Athena](#athena-demo)
   * [Active Directory](#active-directory)
+  * [VPC Endpoints](#vpc-endpoints)
 
 ## Usage
 
@@ -31,3 +32,6 @@ A cross account Athena query demo.
 
 ### Active Directory
 A working project on deploying a new Active Directory forest, not quite ready yet.
+
+### VPC Endpoints
+Deploy VPC Interface and Gateway Endpoints inside a VPC. There is also a wrapper CF stack that deploys a dedicated VPC environment to host the PrivateLink and Gateway endpoints as well as Route53 Resolver endpoints for a complete private access solution.
