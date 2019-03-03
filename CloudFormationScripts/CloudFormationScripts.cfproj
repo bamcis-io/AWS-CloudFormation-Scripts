@@ -66,10 +66,10 @@
     <Compile Include="DirectoryService\networking-and-ds-combined.template">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FileShare\sql-quickstart.template">
+    <Compile Include="FileShare\s2d.template">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FileShare\s2d-file-share-cluster.template">
+    <Compile Include="FileShare\sql-quickstart.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="m5dfailuredemo\test.template">
@@ -111,6 +111,12 @@
       <SubType>Content</SubType>
     </Content>
     <Content Include="AthenaDemo\AmazonRDS.csv">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="FileShare\Deploy-2-Node.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="FileShare\Deploy.ps1">
       <SubType>Content</SubType>
     </Content>
     <Content Include="m5dfailuredemo\Test.ps1">

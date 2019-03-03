@@ -991,7 +991,7 @@
                         {
                             "Ref" : "AWS::NoValue"
                         },
-                        "true"
+                        "false"
                     ]
                 },
                 "Ipv6CidrBlock"       : {
@@ -1090,7 +1090,7 @@
                         {
                             "Ref" : "AWS::NoValue"
                         },
-                        "true"
+                        "false"
                     ]
                 },
                 "Ipv6CidrBlock"       : {
@@ -1189,7 +1189,7 @@
                         {
                             "Ref" : "AWS::NoValue"
                         },
-                        "true"
+                        "false"
                     ]
                 },
                 "Ipv6CidrBlock"       : {
