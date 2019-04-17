@@ -27,6 +27,7 @@
     <Folder Include="CostAndUsageReports" />
     <Folder Include="FileShare" />
     <Folder Include="m5dfailuredemo" />
+    <Folder Include="CI-CD" />
     <Folder Include="VPCEndpoints" />
   </ItemGroup>
   <ItemGroup>
@@ -46,6 +47,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="AthenaDemo\README.md">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\dotnet-core-lambda-pipeline.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="CloudEndure\cloudendure-infrastructure.template">

@@ -1,0 +1,1056 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates an AWS CodePipeline that builds and deploys Lambda SAM applications.",
+
+	"Parameters" : {
+		"ProjectName" : {
+			"Type" : "String",
+			"Description" : "The name of the project this pipeline will support.",
+			"MinLength": 1
+		},
+		"ProjectParameterOverrides" : {
+			"Type" : "String",
+			"Description" : "JSON string for the parameters to set/override for the lambda application.",
+			"Default" : "{}"
+		},
+		"NotificationEmail"  : {
+            "Description" : "The email address notifications will be sent to when processing errors occur.",
+            "Type"        : "String"
+        },
+
+		"SourceStage" : {
+			"Type" : "String",
+			"Description" : "This is where you stored your input artifacts for your pipeline. Choose the provider and then provide the connection details.",
+			"AllowedValues" : [
+				"AWSCodeCommit",
+				"AmazonS3",
+				"Github"
+			],
+			"Default" : "Github"
+		},
+
+		"SourceConnection" : {
+			"Type" : "String",
+			"MinLength" : 1,
+			"Description" : "If the source stage is Github, the name of the repo. If the source stage is anything else, this is the name of the resource (i.e. CodeCommit repository or S3 bucket) that will be created."
+		},
+
+		"S3SourceObjectKey" : {
+			"Type" : "String",
+			"Description" : "If using S3 as a source, specify the object key whose updates should trigger the code pipeline. Otherwise, leave blank.",
+			"Default" : ""
+		},
+
+		"RepoBranchName" : {
+			"Type" : "String",
+			"Description" : "If using CodeCommit or Github as a source, you can specify an alternative branch to initiate the code pipeline.",
+			"Default" : "master"
+		},
+
+		"GithubOAuthToken" : {
+			"Type" : "String",
+			"Description" : "If using Github as a source, provide an OAuth token that CodePipeline will use to connect to the repo.",
+			"NoEcho" : "true",
+			"AllowedPattern" : "(?:^$|^[a-z0-9]{40}$)"
+		},
+		"GithubOwner" : {
+			"Type" : "String",
+			"Description" : "If using Github as a source, specify the owner of the repo."
+		},
+
+		"BuildSpecLocation" : {
+			"Type" : "String",
+			"Description" : "The location of the buildspec.yml file that is used during the build stage.",
+			"Default" : "buildspec.yml"
+		},
+		"BuildSpecTestLocation" : {
+			"Type" : "String",
+			"Description" : "The location of the buildspec.yml file that is used during the test stage.",
+			"Default" : "buildspec-test.yml"
+		}
+	},
+
+	"Conditions" : {
+		"UseCodeCommitSource" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "SourceStage"
+				},
+				"AWSCodeCommit"
+			]
+		},
+		"UseS3Source" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "SourceStage"
+				},
+				"AmazonS3"
+			]
+		},
+		"UseGithubSource" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "SourceStage"
+				},
+				"Github"
+			]
+		},
+		"CreateSNS"         : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "NotificationEmail"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        }
+	},
+
+	"Mappings" : {
+		"SourceMap" : {
+			"AmazonS3" : {
+				"ActionProvider" : "Amazon S3",
+				"Owner" : "AWS",
+				"BuildSource" : "S3"
+			},
+			"AWSCodeCommit" : {
+				"ActionProvider" : "CodeCommit",
+				"Owner" : "AWS",
+				"BuildSource" : "CODECOMMIT"
+			},
+			"Github" : {
+				"ActionProvider" : "GitHub",
+				"Owner" : "ThirdParty",
+				"BuildSource" : "GITHUB"
+			}
+		}
+	},
+
+	"Resources" : {
+		"CodePipelineIAMRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"Path": "/",
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Principal": {
+                                "Service": [
+                                    "codepipeline.amazonaws.com"
+                                ]
+                            },
+                            "Effect": "Allow"
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                }
+			}
+		},
+		"CodePipelineIAMPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				"PolicyName" : "IAM",
+				"PolicyDocument" : {
+					"Statement": [
+						{
+							"Action": [
+								"iam:PassRole"
+							],
+							"Resource": "*",
+							"Effect": "Allow",
+							"Condition": {
+								"StringEqualsIfExists": {
+									"iam:PassedToService": [
+										"cloudformation.amazonaws.com",
+										"lambda.amazonaws.com"
+									]
+								}
+							}
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CodePipelineIAMRole"
+					}
+				]
+			}
+		},
+		"CodePipelineCodeCommitPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Condition" : "UseCodeCommitSource",
+			"Properties" : {
+			    "PolicyName" : "CodeCommit",
+				"PolicyDocument" : {
+					"Statement": [
+						{
+							"Action": 
+							[
+								"codecommit:CancelUploadArchive",
+								"codecommit:GetBranch",
+								"codecommit:GetCommit",
+								"codecommit:GetUploadArchiveStatus",
+								"codecommit:UploadArchive"
+							],
+							"Resource": {
+								"Fn::GetAtt" : [ "CodeCommitSourceStage", "Arn" ]
+							},
+							"Effect": "Allow"
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CodePipelineIAMRole"
+					}
+				]
+			}
+		},
+		"CodePipelineCodeBuildPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+			    "PolicyName" : "CodeBuild",
+				"PolicyDocument" : {
+					"Statement": [
+						{
+							"Action": [
+								"codebuild:BatchGetBuilds",
+								"codebuild:StartBuild"
+							],
+							"Resource": "*",
+							"Effect": "Allow"
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CodePipelineIAMRole"
+					}
+				]
+			}
+		},
+		"CodePipelineCloudFormationPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				"PolicyName" : "CloudFormation",
+				"PolicyDocument" : {
+					"Statement": [
+						{
+							"Action": [
+								"cloudformation:CreateStack",
+								"cloudformation:DeleteStack",
+								"cloudformation:DescribeStacks",
+								"cloudformation:UpdateStack",
+								"cloudformation:CreateChangeSet",
+								"cloudformation:DeleteChangeSet",
+								"cloudformation:DescribeChangeSet",
+								"cloudformation:ExecuteChangeSet",
+								"cloudformation:SetStackPolicy",
+								"cloudformation:ValidateTemplate"
+							],
+							"Resource": "*",
+							"Effect": "Allow"
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CodePipelineIAMRole"
+					}
+				]
+			}
+		},
+		"CodePipelineSNSPolicy"     : {
+            "Type" : "AWS::IAM::Policy",
+			"Condition" : "CreateSNS",
+            "Properties" : {
+				"PolicyName" : "SNS",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "sns:Publish"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Ref" : "SNSTopic"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "CodePipelineIAMRole"
+                    }
+                ]
+            }
+        },
+		
+		"CodeBuildIAMRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"Path": "/",
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Principal": {
+                                "Service": [
+                                    "codebuild.amazonaws.com"
+                                ]
+                            },
+                            "Effect": "Allow"
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                }
+			}
+		},
+		"CodeBuildCloudWatchLogsPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				"PolicyName" : "CloudWatchLogs",
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Resource": [
+								{
+									"Fn::Sub" : "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}"
+								},
+								{
+									"Fn::Sub" : "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}:*"
+								}
+							],
+							"Action": [
+								"logs:CreateLogGroup",
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							]
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CodeBuildIAMRole"
+					}
+				]
+			}
+		},
+		"CodeBuildCloudFormationPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				"PolicyName" : "CloudFormation",
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Resource": [
+								"*"
+							],
+							"Action": [
+								"cloudformation:ValidateTemplate"
+							]
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CodeBuildIAMRole"
+					}
+				]
+			}
+		},
+
+		"CloudFormationIAMRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"Path": "/",
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Principal": {
+                                "Service": [
+                                    "cloudformation.amazonaws.com"
+                                ]
+                            },
+                            "Effect": "Allow"
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                },
+				"Policies" : [
+					{
+						"PolicyName" : "IAM",
+						"PolicyDocument" : {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Effect": "Allow",
+									"Resource": [
+										"*"
+									],
+									"Action": [
+										"iam:AttachRolePolicy",
+										"iam:CreatePolicy",
+										"iam:CreateRole",
+										"iam:DeletePolicy",
+										"iam:DeleteRole",
+										"iam:DeleteRolePolicy",
+										"iam:DetachRolePolicy",
+										"iam:GetPolicy",
+										"iam:GetRole",
+										"iam:GetRolePolicy",
+										"iam:ListAttachedRolePolicies",
+										"iam:ListRolePolicies",
+										"iam:ListRoles",
+										"iam:PassRole",
+										"iam:PutRolePolicy"
+									]
+								}
+							]	
+						}
+					},
+					{
+						"PolicyName" : "S3",
+						"PolicyDocument" : {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Effect": "Allow",
+									"Resource": [
+										{
+											"Fn::GetAtt" : [ "ArtifactBucket", "Arn" ] 
+										},
+										{
+											"Fn::Sub" : "${ArtifactBucket.Arn}/*"
+										}
+									],
+									"Action": [
+										"s3:GetObjectVersion",
+										"s3:GetBucketVersioning"
+									]
+								},
+								{
+									"Effect": "Allow",
+									"Resource": [
+										"*"
+									],
+									"Action": [
+										"s3:*"
+									]
+								}
+							]	
+						}
+					},
+					{
+						"PolicyName" : "EverythingElse",
+						"PolicyDocument" : {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Effect": "Allow",
+									"Resource": [
+										"*"
+									],
+									"NotAction": [
+										"iam:*",
+										"sts:*",
+										"aws-portal:*",
+										"organizations:*",
+										"support:*"
+									]
+								}
+							]	
+						}
+					}
+				]
+			}
+		},
+				
+		"S3ArtifactBucketObjectPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				"PolicyName" : "S3Object",
+				"PolicyDocument" : {
+				"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Resource": [
+								{
+									"Fn::Sub" : "${ArtifactBucket.Arn}/*"
+								}
+							],
+							"Action": [
+								"s3:PutObject",
+								"s3:GetObject",
+								"s3:GetObjectVersion"
+							]
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CodeBuildIAMRole"
+					},
+					{
+						"Ref" : "CodePipelineIAMRole"
+					}
+				]
+			}
+		},
+		"S3ArtifactBucketBucketPolicy" : {
+			"Type" : "AWS::IAM::Policy",
+			"Properties" : {
+				"PolicyName" : "S3Bucket",
+				"PolicyDocument" : {
+				"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Resource": [
+								{
+									"Fn::Sub" : "${ArtifactBucket.Arn}"
+								}
+							],
+							"Action": [
+								"s3:GetBucketAcl",
+								"s3:GetBucketLocation"
+							]
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CodeBuildIAMRole"
+					},
+					{
+						"Ref" : "CodePipelineIAMRole"
+					}
+				]
+			}
+		},
+
+		"SNSTopic" : {
+            "Type" : "AWS::SNS::Topic",
+            "Condition" : "CreateSNS",
+            "Properties" : {
+                "DisplayName" : {
+					"Fn::Sub" : "CodePipline Notification For ${ProjectName}"
+				},
+                "Subscription" : [
+                    {
+                        "Protocol" : "email",
+                        "Endpoint" : {
+                            "Ref" : "NotificationEmail"
+                        }
+                    }
+                ]
+            }
+        },
+
+		"ArtifactBucket" : {
+			"Type" : "AWS::S3::Bucket",
+			"Properties" : {
+				"BucketName" : {
+					"Fn::Sub" : "codepipeline-${AWS::AccountId}-${AWS::StackName}-artifacts"
+				},
+				"BucketEncryption" : {
+					"ServerSideEncryptionConfiguration" : [
+						{
+							 "ServerSideEncryptionByDefault" : {
+								"SSEAlgorithm" : "aws:kms"
+							 }
+						}
+					] 
+				},
+				"VersioningConfiguration" : {
+					"Status" : "Enabled"
+				}
+			}
+		},
+		"CodePipelineArtifactStoreBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {    
+                "Bucket": {
+                    "Ref": "ArtifactBucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "DenyInsecureConnections",
+                            "Effect": "Deny",
+                            "Principal": "*",
+                            "Action": "s3:*",
+                            "Resource": {
+								"Fn::Sub" : "${ArtifactBucket.Arn}/*"                           
+                            },
+                            "Condition": {
+                                "Bool": {
+                                    "aws:SecureTransport": false
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+
+		"CodeCommitSourceStage" : {
+			"Type" : "AWS::CodeCommit::Repository",
+			"Condition" : "UseCodeCommitSource",
+			"Properties" : {
+				"RepositoryName" : {
+					"Ref" : "SourceConnection"
+				}
+			}
+		},
+
+		"S3SourceStageBucket" : {
+			"Type" : "AWS::S3::Bucket",
+			"Condition" : "UseS3Source",
+			"Properties" : {
+				"BucketName" : {
+					"Ref" : "SourceConnection"
+				},
+				"BucketEncryption" : {
+					"ServerSideEncryptionConfiguration" : [
+						{
+							 "ServerSideEncryptionByDefault" : {
+								"SSEAlgorithm" : "aws:kms"
+							 }
+						}
+					] 
+				},
+				"VersioningConfiguration" : {
+					"Status" : "Enabled"
+				}			 
+			}
+		},
+		"S3SourceStageBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+			"Condition" : "UseS3Source",
+            "Properties": {    
+                "Bucket": {
+                    "Ref": "S3SourceStageBucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "DenyUnEncryptedObjectUploads",
+                            "Effect": "Deny",
+                            "Principal": "*",
+                            "Action": "s3:PutObject",
+                            "Resource": {
+								"Fn::Sub" : "${S3SourceStageBucket.Arn}/*"                                
+                            },
+                            "Condition": {
+                                "StringNotEquals": {
+                                    "s3:x-amz-server-side-encryption": "aws:kms"
+                                }
+                            }
+                        },
+                        {
+                            "Sid": "DenyInsecureConnections",
+                            "Effect": "Deny",
+                            "Principal": "*",
+                            "Action": "s3:*",
+                            "Resource": {
+								"Fn::Sub" : "${S3SourceStageBucket.Arn}/*"                           
+                            },
+                            "Condition": {
+                                "Bool": {
+                                    "aws:SecureTransport": false
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+
+		"GithubWebhook" : {
+			"Type" : "AWS::CodePipeline::Webhook",
+			"Condition" : "UseGithubSource",
+			"Properties" : {
+				"Authentication" : "GITHUB_HMAC",
+				"AuthenticationConfiguration" : {
+					"SecretToken" : {
+						"Ref" : "GithubOAuthToken"
+					}
+				},
+				"RegisterWithThirdParty" : true,
+				"TargetPipeline" : {
+					"Ref" : "Pipeline"
+				},
+				"TargetAction" : "SourceAction",
+				"TargetPipelineVersion" : {
+					"Fn::GetAtt" : [ "Pipeline", "Version" ]
+				},
+				"Filters" : [
+					{
+						"JsonPath" : "$.ref",
+						"MatchEquals" : {
+							"Fn::Sub" : "refs/heads/${RepoBranchName}"
+						}
+					}
+				]
+			}			
+		},
+
+		"SourceBuildProject" : {
+			"Type" : "AWS::CodeBuild::Project",
+			"Properties" : {
+				"Artifacts" : {
+					"Type" : "CODEPIPELINE"					 
+				},			 
+				"Source" : {
+					"Type" : "CODEPIPELINE",
+					"BuildSpec" : {
+						"Ref" : "BuildSpecLocation"
+					}
+				},
+				"Description" : "Builds the lambda function.",
+				"Environment" : {
+					"ComputeType" : "BUILD_GENERAL1_SMALL",
+					"Type" : "LINUX_CONTAINER",
+					"Image" : "aws/codebuild/dot-net:core-2.1",
+					"ImagePullCredentialsType" :  "CODEBUILD",					
+					"PrivilegedMode" : false,
+					"EnvironmentVariables" : [
+						{
+							"Name" : "BUCKET",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "ArtifactBucket"
+							}
+						},
+						{
+							"Name" : "PROJECT_NAME",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "ProjectName"
+							}
+						}
+					]					 
+				},
+				"LogsConfig" : {
+					"CloudWatchLogs" : {
+						"GroupName" : { "Fn::Sub" : "/aws/codebuild/${ProjectName}" },
+						"StreamName" : { "Fn::Sub" : "build" },
+						"Status" : "ENABLED"
+					}
+				},
+				"ServiceRole" : {
+					"Fn::GetAtt" : [ "CodeBuildIAMRole", "Arn" ]
+				},
+				"TimeoutInMinutes" : 15
+			}
+		},
+		"TestBuildProject" : {
+			"Type" : "AWS::CodeBuild::Project",
+			"Properties" : {
+				"Artifacts" : {
+					"Type" : "CODEPIPELINE"
+				},
+				"Source" : {
+					"Type" : "CODEPIPELINE",
+					"BuildSpec" : {
+						"Ref" : "BuildSpecTestLocation"
+					}
+				},
+				"Description" : "Runs unit tests against the compiled lambda function",
+				"Environment" : {
+					"ComputeType" : "BUILD_GENERAL1_SMALL",
+					"Type" : "LINUX_CONTAINER",
+					"Image" : "aws/codebuild/dot-net:core-2.1",
+					"ImagePullCredentialsType" :  "CODEBUILD",
+					"PrivilegedMode" : false,
+					"EnvironmentVariables" : [
+						{
+							"Name" : "ACCOUNT_ID",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "AWS::AccountId"
+							}
+						},
+						{
+							"Name" : "REGION",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "AWS::Region"
+							}
+						},
+						{
+							"Name" : "PARTITION",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "AWS::Partition"
+							}
+						}
+					]
+				},
+				"LogsConfig" : {
+					"CloudWatchLogs" : {
+						"GroupName" : { "Fn::Sub" : "/aws/codebuild/${ProjectName}" },
+						"StreamName" : { "Fn::Sub" : "test" },
+						"Status" : "ENABLED"
+					}
+				},
+				"ServiceRole" : {
+					"Fn::GetAtt" : [ "CodeBuildIAMRole", "Arn" ]
+				},
+				"TimeoutInMinutes" : 15
+			}
+		},
+
+		"Pipeline" : {
+			"Type" : "AWS::CodePipeline::Pipeline",
+			"Properties" : {
+				"ArtifactStore" : {
+					"Location" : {
+						"Ref" : "ArtifactBucket"
+					},
+					"Type" : "S3"
+				},
+				"RoleArn" : {
+					"Fn::GetAtt" : [ "CodePipelineIAMRole", "Arn" ]
+				},
+				"Stages" : [
+					{
+						"Name" : "Source",
+						"Actions" : [
+							{
+								 "Name" : "SourceAction",
+								 "ActionTypeId" : {
+									"Category" : "Source",
+									"Owner" : {
+										"Fn::FindInMap" : [ "SourceMap", { "Ref" : "SourceStage" }, "Owner" ]
+									},
+									"Version" : "1",
+									"Provider" : {
+										"Fn::FindInMap" : [ "SourceMap", { "Ref" : "SourceStage" }, "ActionProvider" ]
+									}
+								},
+								"OutputArtifacts" : [
+									{
+										"Name" : "SourceOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									 "Fn::If" : [
+										"UseCodeCommitSource",
+										{
+											"RepositoryName" : {
+												"Ref" : "CodeCommitSourceStage"
+											},
+											"BranchName" : {
+												"Ref" : "RepoBranchName"
+											}
+										},
+										{
+											"Fn::If" : [
+												"UseS3Source",
+												{
+													"S3Bucket" : {
+														"Ref" : "S3SourceStageBucket"
+													},
+													"S3ObjectKey" : {
+														"Ref" : "S3SourceObjectKey"
+													},
+													"PollForSourceChanges" : false
+												},
+												{
+													"Owner" : {
+														"Ref" : "GithubOwner"
+													},
+													"Repo" : {
+														"Ref" : "SourceConnection"
+													},
+													"Branch" : {
+														"Ref" : "RepoBranchName"
+													},
+													"OAuthToken" : {
+														"Ref" : "GithubOAuthToken"
+													},
+													"PollForSourceChanges" : false
+												}
+											]
+										}
+									]									  							
+								}
+							}
+						]						 
+					},
+					{
+						"Name" : "Test",
+						"Actions" : [
+							{
+								"Name" : "TestAction",
+								"ActionTypeId" : {
+									"Category" : "Test",
+									"Owner" : "AWS",
+									"Provider" : "CodeBuild",
+									"Version" : "1"
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "SourceOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									"ProjectName" : {
+										"Ref" : "TestBuildProject"
+									}
+								}
+							}
+						]
+					},
+					{	
+						"Name" : "Build",
+						"Actions" : [
+							{
+								"Name" : "BuildAction",
+								"ActionTypeId" : {
+									"Category" : "Build",
+									"Owner" : "AWS",
+									"Provider" : "CodeBuild",
+									"Version" : "1"
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "SourceOutput"
+									}
+								],
+								"OutputArtifacts" : [
+									{
+										"Name" : "BuildOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									"ProjectName" : {
+										"Ref" : "SourceBuildProject"
+									}
+								}							
+							}							 
+						]						  
+					},
+					
+					{
+						"Name" : "Release",
+						"Actions" : [
+							{
+								"Name" : "CreateChangeSet",
+								"ActionTypeId" : {
+									"Category" : "Deploy",
+									"Owner" : "AWS",
+									"Provider" : "CloudFormation",
+									"Version" : "1"
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "BuildOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									"ActionMode" : "CHANGE_SET_REPLACE",
+									"ChangeSetName" : {
+										"Ref" : "ProjectName"
+									},
+									"Capabilities" : "CAPABILITY_IAM",
+									"StackName" : {
+										"Ref" : "ProjectName"
+									},
+									"ParameterOverrides" : {
+										"Ref" : "ProjectParameterOverrides"
+									},
+									"TemplatePath" : {
+										"Fn::Sub" : "BuildOutput::${ProjectName}.template"
+									},
+									"RoleArn" : {
+										"Fn::GetAtt" : [ "CloudFormationIAMRole", "Arn" ]
+									}
+								}
+							},
+							{
+								"Name" : "ApprovalForRelease",
+								"ActionTypeId" : {
+									"Category" : "Approval",
+									"Owner" : "AWS",
+									"Provider" : "Manual",
+									"Version" : "1"
+								},
+								"Configuration" : {
+									"NotificationArn" : {
+										"Fn::If" : [
+											"CreateSNS",
+											{
+												"Ref" : "SNSTopic"
+											},
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},
+									"CustomData" : {
+										"Fn::Sub" : "Please review a new release for ${ProjectName}."
+									}
+								},
+								"RunOrder" : 2
+							},
+							{
+								"Name" : "ExecuteChangeSet",
+								"ActionTypeId" : {
+									"Category" : "Deploy",
+									"Owner" : "AWS",
+									"Provider" : "CloudFormation",
+									"Version" : "1"
+								},
+								"Configuration" : {
+									"StackName" : {
+										"Ref" : "ProjectName"
+									},
+									"ActionMode" : "CHANGE_SET_EXECUTE",
+									"ChangeSetName" : {
+										"Ref" : "ProjectName"								
+									},
+									"RoleArn" : {
+										"Fn::GetAtt" : [ "CloudFormationIAMRole", "Arn" ]
+									}
+								},
+								"RunOrder" : 3
+							}
+						]
+					}
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}
