@@ -563,9 +563,34 @@
                             "Ref" : "NotificationEmail"
                         }
                     }
-                ]
+                ]		
             }
         },
+		"SNSTopicPolicy" : {
+			"Type" : "AWS::SNS::TopicPolicy",
+			"Properties" : {
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement" : [
+						{
+						  "Effect": "Allow",
+						  "Principal": {
+							"Service": "events.amazonaws.com"
+						  },
+						  "Action": "sns:Publish",
+						  "Resource": {
+							"Ref" : "SNSTopic"
+						  }
+						}
+					]
+				},
+				"Topics" : [
+					{
+						"Ref" : "SNSTopic"
+					}
+				]
+			}
+		},
 
 		"ArtifactBucket" : {
 			"Type" : "AWS::S3::Bucket",
@@ -1045,6 +1070,46 @@
 								"RunOrder" : 3
 							}
 						]
+					}
+				]
+			}
+		},
+
+		"FailureEvent" : {
+			"Type" : "AWS::Events::Rule",
+			"Properties" : {
+				"Description" : "Alerts when a CodePipeline stage fails.",
+				"EventPattern" : {				 
+					"source": [
+						"aws.codepipeline"
+					],
+					"detail-type" : [
+						"CodePipeline Pipeline Execution State Change"
+					],
+					"detail" : {
+						"state" : [
+							"FAILED"
+						],
+						"pipeline" : [
+							{
+								"Ref" : "Pipeline"
+							}
+						]
+					}
+				},
+				"State" : "ENABLED",
+				"Targets" : [
+					{
+						"Arn" : {
+							"Ref" : "SNSTopic"
+						},
+						"InputTransformer" : {
+							"InputPathsMap" : { 
+								"pipeline" : "$.detail.pipeline" 
+							},
+							"InputTemplate" : "\"The Pipeline <pipeline> has failed.\""
+						},
+						"Id" : "SNS123"	
 					}
 				]
 			}

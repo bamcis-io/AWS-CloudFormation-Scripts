@@ -12,6 +12,7 @@ directly from CloudFormation.
   * [Athena](#athena-demo)
   * [Active Directory](#active-directory)
   * [VPC Endpoints](#vpc-endpoints)
+  * [CI/CD](#CICD)
 
 ## Usage
 
@@ -35,3 +36,6 @@ A working project on deploying a new Active Directory forest, not quite ready ye
 
 ### VPC Endpoints
 Deploy VPC Interface and Gateway Endpoints inside a VPC. There is also a wrapper CF stack that deploys a dedicated VPC environment to host the PrivateLink and Gateway endpoints as well as Route53 Resolver endpoints for a complete private access solution.
+
+### CI/CD
+Deploy a pipeline for dotnet core Lambda SAM applications.

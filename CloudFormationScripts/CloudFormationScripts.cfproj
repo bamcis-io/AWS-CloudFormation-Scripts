@@ -49,6 +49,9 @@
     <Compile Include="AthenaDemo\README.md">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="CI-CD\AWSCURManagerDeploy.ps1">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="CI-CD\dotnet-core-lambda-pipeline.template">
       <SubType>Code</SubType>
     </Compile>
@@ -71,9 +74,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="FileShare\s2d.template">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="FileShare\sql-quickstart.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="m5dfailuredemo\test.template">
