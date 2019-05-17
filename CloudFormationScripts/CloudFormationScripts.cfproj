@@ -52,7 +52,13 @@
     <Compile Include="CI-CD\AWSCURManagerDeploy.ps1">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="CI-CD\BillingDataAnalyticsDeploy.ps1">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="CI-CD\dotnet-core-lambda-pipeline.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\PriceListReservedInstanceHelperDeploy.ps1">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="CloudEndure\cloudendure-infrastructure.template">

@@ -68,6 +68,38 @@
 			"Type" : "String",
 			"Description" : "The location of the buildspec.yml file that is used during the test stage.",
 			"Default" : "buildspec-test.yml"
+		},
+
+		"TestContainerSize" : {
+			"Type" : "String",
+			"Description" : "The size of the container to use to run unit tests.",
+			"AllowedValues": [
+				"BUILD_GENERAL1_SMALL",
+				"BUILD_GENERAL1_MEDIUM",
+				"BUILD_GENERAL1_LARGE"
+			],
+			"Default" : "BUILD_GENERAL1_SMALL"
+		},
+
+		"BuildContainerSize" : {
+			"Type" : "String",
+			"Description" : "The size of the container to use to run the build and package.",
+			"AllowedValues": [
+				"BUILD_GENERAL1_SMALL",
+				"BUILD_GENERAL1_MEDIUM",
+				"BUILD_GENERAL1_LARGE"
+			],
+			"Default" : "BUILD_GENERAL1_SMALL"
+		},
+
+		"AppProvidesCloudFormationConfig" : {
+			"Type" : "String",
+			"Description" : "Specify true to indicate that the build stage produces a CloudFormation config file named 'CloudFormationConfig.json'.",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "false"
 		}
 	},
 
@@ -107,7 +139,27 @@
                     ]
                 }
             ]
-        }
+        },
+		"HasCFNConfig" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "AppProvidesCloudFormationConfig"
+				},
+				"true"
+			]
+		},
+		"HasOverrides" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "ProjectParameterOverrides"
+						},
+						""
+					]
+				}
+			]
+		}
 	},
 
 	"Mappings" : {
@@ -596,7 +648,7 @@
 			"Type" : "AWS::S3::Bucket",
 			"Properties" : {
 				"BucketName" : {
-					"Fn::Sub" : "codepipeline-${AWS::AccountId}-${AWS::StackName}-artifacts"
+					"Fn::Sub" : "${AWS::StackName}-artifacts"
 				},
 				"BucketEncryption" : {
 					"ServerSideEncryptionConfiguration" : [
@@ -757,7 +809,9 @@
 				},
 				"Description" : "Builds the lambda function.",
 				"Environment" : {
-					"ComputeType" : "BUILD_GENERAL1_SMALL",
+					"ComputeType" : {
+						"Ref" : "BuildContainerSize"
+					},
 					"Type" : "LINUX_CONTAINER",
 					"Image" : "aws/codebuild/dot-net:core-2.1",
 					"ImagePullCredentialsType" :  "CODEBUILD",					
@@ -806,7 +860,9 @@
 				},
 				"Description" : "Runs unit tests against the compiled lambda function",
 				"Environment" : {
-					"ComputeType" : "BUILD_GENERAL1_SMALL",
+					"ComputeType" : {
+						"Ref" : "TestContainerSize"
+					},
 					"Type" : "LINUX_CONTAINER",
 					"Image" : "aws/codebuild/dot-net:core-2.1",
 					"ImagePullCredentialsType" :  "CODEBUILD",
@@ -1011,10 +1067,27 @@
 										"Ref" : "ProjectName"
 									},
 									"ParameterOverrides" : {
-										"Ref" : "ProjectParameterOverrides"
-									},
+										"Fn::If" : [
+											"HasOverrides",
+											{
+												"Ref" : "ProjectParameterOverrides"									
+											},
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},									
 									"TemplatePath" : {
 										"Fn::Sub" : "BuildOutput::${ProjectName}.template"
+									},
+									"TemplateConfiguration" : {
+										"Fn::If" : [
+											"HasCFNConfig",
+											"BuildOutput::CloudFormationConfig.json",
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
 									},
 									"RoleArn" : {
 										"Fn::GetAtt" : [ "CloudFormationIAMRole", "Arn" ]
