@@ -1,0 +1,262 @@
+﻿{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates the DynamoDB Table and API Gateway Endpoint to check the health status of a record.",
+
+	"Parameters" : {
+		"IAMRoleArn" : {
+			"Type" : "String",
+			"Description" : "The ARN of an existing IAM role that API Gateway will use to call DynamoDB. If you do not enter one, a new role will be created.",
+			"Default" : "",
+			"AllowedPattern" : "(?:^$|^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:iam::[0-9]{12}:role\/.*$)"
+		}
+	},
+
+	"Conditions" : {
+		"CreateRole" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "IAMRoleArn"
+				},
+				""
+			]
+		}
+	},
+
+	"Mappings" : {
+	},
+
+	"Resources" : {
+		"Table" : {
+			"Type" : "AWS::DynamoDB::Table",
+			"Properties" : {
+				"BillingMode" : "PAY_PER_REQUEST",
+				"PointInTimeRecoverySpecification" : { 
+					"PointInTimeRecoveryEnabled" : true
+				},
+				"SSESpecification" : { 
+					"SSEEnabled" : true
+				},
+				"KeySchema" : [
+					{
+						"AttributeName" : "Record",
+						"KeyType" : "HASH"
+					},
+					{
+						"AttributeName" : "Region",
+						"KeyType" : "RANGE"
+					}
+				],
+				"AttributeDefinitions" : [
+					{
+						"AttributeName" : "Record",
+						"AttributeType" : "S"
+					},
+					{
+						"AttributeName" : "Region",
+						"AttributeType" : "S"
+					}
+				]
+			}
+		},
+
+		"ApiGatewayIAMRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Condition" : "CreateRole",
+			"Properties" : {
+				"Path" : "/service-role/",
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "apigateway.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]				
+				}
+			}
+		},
+		"DynamoDBPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Condition" : "CreateRole",
+			"Properties" : {
+				"Description" : "Allows API Gateway to get items from DynamoDB",
+				"Path" : "/service-role/apigateway/",
+				"Roles" : [
+					{
+						"Ref" : "ApiGatewayIAMRole"
+					}
+				],
+				"PolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Effect" : "Allow",
+							"Action" : [
+								"dynamodb:GetItem"
+							],
+							"Resource" : [
+								{
+									"Fn::GetAtt" : ["Table", "Arn"]
+								}
+							]
+							
+						}
+					]
+				}
+			}
+		},
+
+		"HealthCheckApiEndpoint" : {
+			"Type" : "AWS::ApiGateway::RestApi",
+			"Properties" : {
+				"Name" : "Route53HealthCheckEndpoint",
+				"Description" : "Provides an endpoint Route53 uses for healthchecks to support manual failover.",
+				"EndpointConfiguration" : { 
+					"Types" : [ 
+						"REGIONAL" 
+					] 
+				},
+				"Policy" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Effect" : "Allow",
+							"Principal" : "*",
+							"Action" : "execute-api:Invoke",
+							"Resource" : {
+								"Fn::Sub" : "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:*"								
+							},
+							"Condition" : {
+								"IpAddress" : {
+									"aws:SourceIp" : [
+										"54.245.168.0/26",
+										"54.243.31.192/26",
+										"177.71.207.128/26",
+										"54.255.254.192/26",
+										"15.177.0.0/18",
+										"54.244.52.192/26",
+										"176.34.159.192/26",
+										"54.251.31.128/26",
+										"54.183.255.128/26",
+										"54.241.32.64/26",
+										"54.252.254.192/26",
+										"107.23.255.0/26",
+										"54.248.220.0/26",
+										"54.228.16.0/26",
+										"54.250.253.192/26",
+										"54.232.40.64/26",
+										"54.252.79.128/26"
+									]
+								}
+							}
+						}
+					]
+				},
+				"Body" : {
+					"openapi" : "3.0.1",
+					"info" : {
+                        "version" : "1.0",
+                        "title"   : "Route53HealthCheckEndpoint"
+                    },
+					"paths" : {
+						"/status/{Region}/{Record}" : {
+							"get" : {
+								"responses" : {
+									"200" : {
+										"description" : "200 response",
+										"content": {
+											"application/json" : {
+												"schema" : {
+													"$ref": "#/components/schemas/Empty"
+												}
+											}
+										}
+									}
+								},
+								"x-amazon-apigateway-integration": {
+									"credentials": {
+										"Fn::If" : [
+											"CreateRole",
+											{
+												"Fn::GetAtt" : [ "ApiGatewayIAMRole", "Arn" ]
+											},
+											{
+												"Ref" : "IAMRoleArn"
+											}
+										]
+									},
+									"uri": {
+										"Fn::Sub" : "arn:${AWS::Partition}:apigateway:${AWS::Region}:dynamodb:action/GetItem"
+									},
+									"responses": {
+										"default": {
+											"statusCode": "200",
+											"responseTemplates": {
+												"application/json": "#set($inputRoot = $input.path('$'))\n$input.json('$')\n#if ($inputRoot.Item.Healthy['BOOL'] == (false))\n    #set($context.responseOverride.status = 400)\n#end"
+											}
+										}
+									},
+									"requestTemplates": {
+										"application/json": {
+											"Fn::Sub" : "{\n\t\"TableName\" : \"r53-manual-failover-Table-1KKTG0X2M1W20\",\n\t\"Key\" : {\n\t\t\"Record\" : {\n\t\t\t\"S\" : \"$input.params('Record')\"\n\t\t},\n\t\t\"Region\" : {\n\t\t\t\"S\" : \"$input.params('Region')\"\n\t\t}\n\t},\n\t\"ConsistentRead\" : true\n}"
+										}
+									},
+									"passthroughBehavior": "never",
+									"httpMethod": "POST",
+									"type": "aws"
+								}
+							}
+						}
+					},
+					"components": {
+						"schemas": {
+							"Empty": {
+								"title": "Empty Schema",
+								"type": "object"
+							}
+						}
+					}
+				}
+			}
+		},
+		"ApiGatewayDeployment" : {
+            "Type" : "AWS::ApiGateway::Deployment",
+            "Properties" : {
+                "RestApiId" : {
+                    "Ref" : "HealthCheckApiEndpoint"
+                },
+                "Description" : "HealthCheckApiEndpoint Prod Deployment"
+            }
+        },
+		"ApiGatewayStage" : {
+			"Type" : "AWS::ApiGateway::Stage",
+			"Properties" : {
+				"Description" : "Production Stage",
+				"DeploymentId" : {
+					"Ref" : "ApiGatewayDeployment"
+				},
+				"StageName" : "prod",
+				"RestApiId" : {
+					"Ref" : "HealthCheckApiEndpoint"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+		"Url" : {
+			"Value" : {
+				"Fn::Sub" : "https://${HealthCheckApiEndpoint}.execute-api.${AWS::Region}.amazonaws.com/prod/status/{Region}/{Record}"
+			},
+			"Description" : "The API endpoint to call to check the health status of a record, you must provide the region (e.g. us-east-1) and the record (e.g. aws.amazon.com)."
+		}
+	}
+}

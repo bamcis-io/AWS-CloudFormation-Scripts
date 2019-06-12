@@ -1,0 +1,359 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates 3 health checks, one for each API Gateway Endpoint (which should all be in separate regions) and a calculated health check based on those 3. The set of health checks will monitor the status 1 DNS record in 1 region.",
+
+	"Parameters" : {
+		"HealthCheckUrl1" : {
+			"Type" : "String",
+			"Description" : "The first API Gateway Endpoint that provides health checks.",
+			"AllowedPattern" : "[hH][tT][tT][pP][sS]:\\/\\/[a-zA-Z0-9][a-zA-Z0-9-.]{0,244}[a-zA-Z0-9]\\.amazonaws\\.com\\/\\S+"
+		},
+		"HealthCheckUrl2" : {
+			"Type" : "String",
+			"Description" : "The second API Gateway Endpoint that provides health checks.",
+			"AllowedPattern" : "[hH][tT][tT][pP][sS]:\\/\\/[a-zA-Z0-9][a-zA-Z0-9-.]{0,244}[a-zA-Z0-9]\\.amazonaws\\.com\\/\\S+"
+		},
+		"HealthCheckUrl3" : {
+			"Type" : "String",
+			"Description" : "The third API Gateway Endpoint that provides health checks.",
+			"AllowedPattern" : "[hH][tT][tT][pP][sS]:\\/\\/[a-zA-Z0-9][a-zA-Z0-9-.]{0,244}[a-zA-Z0-9]\\.amazonaws\\.com\\/\\S+"
+		},
+		"RequestInterval" : {
+			"Type" : "Number",
+			"Description" : "Specifies how frequently in seconds the Health Checks are performed.",
+			"MinValue" : 10,
+			"MaxValue" : 30,
+			"Default" : 30
+		},
+		"FailureThreshold" : {
+			"Type" : "Number",
+			"Description" : "Specifies how many times health checkers need to get an unhealthy status. Recommend setting to 1 or 2 for fast failover.",
+			"MinValue" : 1,
+			"MaxValue" : 10,
+			"Default" : 1
+		},
+		"HealthCheckRegion1" : {
+			"Type" : "String",
+			"Description" : "The first region to use for health checks, attempt to match this to one of the regions in the health check url.",
+			"AllowedValues" : [
+				"ap-northeast-1",
+				"ap-southeast-1",
+				"ap-southeast-2",
+				"eu-west-1",
+				"sa-east-1",
+				"us-east-1",
+				"us-west-1",
+				"us-west-2"
+			],
+			"Default" : "us-east-1"
+		},
+		"HealthCheckRegion2" : {
+			"Type" : "String",
+			"Description" : "The second region to use for health checks, attempt to match this to one of the regions in the health check url.",
+			"AllowedValues" : [
+				"ap-northeast-1",
+				"ap-southeast-1",
+				"ap-southeast-2",
+				"eu-west-1",
+				"sa-east-1",
+				"us-east-1",
+				"us-west-1",
+				"us-west-2"
+			],
+			"Default" : "us-west-2"
+		},
+		"HealthCheckRegion3" : {
+			"Type" : "String",
+			"Description" : "The third region to use for health checks, attempt to match this to one of the regions in the health check url.",
+			"AllowedValues" : [
+				"ap-northeast-1",
+				"ap-southeast-1",
+				"ap-southeast-2",
+				"eu-west-1",
+				"sa-east-1",
+				"us-east-1",
+				"us-west-1",
+				"us-west-2"
+			],
+			"Default" : "eu-west-1"
+		}
+	},
+
+	"Mappings" : {
+		"RegionMap" : {
+            "us-east-1" : {
+                "HasHealthChecker" : "true"
+            },
+            "us-east-2" : {
+                "HasHealthChecker" : "false"
+            },
+            "us-west-2" : {
+                "HasHealthChecker" : "true"
+            },
+            "us-west-1" : {
+                "HasHealthChecker" : "true"
+            },
+            "ca-central-1" : {
+                "HasHealthChecker" : "false"
+            },
+            "eu-west-1"    : {
+                "HasHealthChecker" : "true"
+            },
+            "eu-west-2"    : {
+                "HasHealthChecker" : "false"
+            },
+			"eu-west-3"    : {
+                "HasHealthChecker" : "false"
+            },
+            "eu-central-1" : {
+                "HasHealthChecker" : "false"
+            },
+            "ap-northeast-1" : {
+                "HasHealthChecker" : "true"
+            },
+            "ap-northeast-2" : {
+               "HasHealthChecker" : "false"
+            },
+			"ap-northeast-3" : {
+               "HasHealthChecker" : "false"
+            },
+            "ap-southeast-1" : {
+                "HasHealthChecker" : "true"
+            },
+            "ap-southeast-2" : {
+                "HasHealthChecker" : "true"
+            },
+            "ap-south-1"     : {
+                "HasHealthChecker" : "false"
+            },
+            "sa-east-1"      : {
+                "HasHealthChecker" : "true"
+            },
+            "us-gov-west-1"  : {
+                "HasHealthChecker" : "false"
+            },
+            "us-gov-west-2"  : {
+                "HasHealthChecker" : "false"
+            },
+            "us-gov-east-1"  : {
+                "HasHealthChecker" : "false"
+            },
+            "us-gov-east-2"  : {
+                "HasHealthChecker" : "false"
+            },
+            "cn-north-1"     : {
+                "HasHealthChecker" : "false"
+            },
+			"cn-northwest-1" : {
+				"HasHealthChecker" : "false"
+			},
+			"us-iso-east-1" : {
+				"HasHealthChecker" : "false"
+			},
+			"us-isob-east-1" : {
+				"HasHealthChecker" : "false"
+			}
+        }
+	},
+
+	"Resources" : {
+		"HealthCheck1" : {
+			"Type" : "AWS::Route53::HealthCheck",
+			"Properties" : {
+				"HealthCheckConfig" : {
+					"FullyQualifiedDomainName" : {
+						"Fn::Select" : [
+							"2",
+							{
+								"Fn::Split" : [
+									"/",
+									{
+										"Ref" : "HealthCheckUrl1"
+									}
+								]
+							}
+						]
+					},
+					"ResourcePath" : {						
+						"Fn::Sub" : [ "/${RelativePath}",
+							{
+								"RelativePath" : {
+									"Fn::Select" : [
+										"1",
+										{
+											"Fn::Split" : [
+												"amazonaws.com/",											
+												{
+													"Ref" : "HealthCheckUrl1"
+												}
+											]
+										}
+									]	
+								}
+							}
+						]
+					},
+					"Port" : 443,
+					"Type" : "HTTPS",
+					"RequestInterval" : {
+						"Ref" : "RequestInterval"
+					},
+					"FailureThreshold" : {
+						"Ref" : "FailureThreshold"
+					},
+					"Regions" : [
+						{
+							"Ref" : "HealthCheckRegion1"
+						},
+						{
+							"Ref" : "HealthCheckRegion2"
+						},
+						{
+							"Ref" : "HealthCheckRegion3"
+						}				
+					]
+				}
+			}
+		},
+		"HealthCheck2" : {
+			"Type" : "AWS::Route53::HealthCheck",
+			"Properties" : {
+				"HealthCheckConfig" : {
+					"FullyQualifiedDomainName" : {
+						"Fn::Select" : [
+							"2",
+							{
+								"Fn::Split" : [
+									"/",
+									{
+										"Ref" : "HealthCheckUrl2"
+									}
+								]
+							}
+						]
+					},
+					"ResourcePath" : {						
+						"Fn::Sub" : [ "/${RelativePath}",
+							{
+								"RelativePath" : {
+									"Fn::Select" : [
+										"1",
+										{
+											"Fn::Split" : [
+												"amazonaws.com/",											
+												{
+													"Ref" : "HealthCheckUrl2"
+												}
+											]
+										}
+									]	
+								}
+							}
+						]
+					},
+					"Port" : 443,
+					"Type" : "HTTPS",
+					"RequestInterval" : {
+						"Ref" : "RequestInterval"
+					},
+					"FailureThreshold" : {
+						"Ref" : "FailureThreshold"
+					},
+					"Regions" : [
+						{
+							"Ref" : "HealthCheckRegion1"
+						},
+						{
+							"Ref" : "HealthCheckRegion2"
+						},
+						{
+							"Ref" : "HealthCheckRegion3"
+						}				
+					]
+				}
+			}
+		},
+		"HealthCheck3" : {
+			"Type" : "AWS::Route53::HealthCheck",
+			"Properties" : {
+				"HealthCheckConfig" : {
+					"FullyQualifiedDomainName" : {
+						"Fn::Select" : [
+							"2",
+							{
+								"Fn::Split" : [
+									"/",
+									{
+										"Ref" : "HealthCheckUrl3"
+									}
+								]
+							}
+						]
+					},
+					"ResourcePath" : {						
+						"Fn::Sub" : [ "/${RelativePath}",
+							{
+								"RelativePath" : {
+									"Fn::Select" : [
+										"1",
+										{
+											"Fn::Split" : [
+												"amazonaws.com/",											
+												{
+													"Ref" : "HealthCheckUrl3"
+												}
+											]
+										}
+									]	
+								}
+							}
+						]
+					},
+					"Port" : 443,
+					"Type" : "HTTPS",
+					"RequestInterval" : {
+						"Ref" : "RequestInterval"
+					},
+					"FailureThreshold" : {
+						"Ref" : "FailureThreshold"
+					},
+					"Regions" : [
+						{
+							"Ref" : "HealthCheckRegion1"
+						},
+						{
+							"Ref" : "HealthCheckRegion2"
+						},
+						{
+							"Ref" : "HealthCheckRegion3"
+						}				
+					]
+				}
+			}
+		},
+		"CalculatedHealthCheck" : {
+			"Type" : "AWS::Route53::HealthCheck",
+			"Properties" : {
+				"HealthCheckConfig" : {
+					"ChildHealthChecks" : [
+						{
+							 "Ref" : "HealthCheck1"
+						},
+						{
+							 "Ref" : "HealthCheck2"
+						},
+						{
+							 "Ref" : "HealthCheck3"
+						}
+					],
+					"HealthThreshold" : 2,
+					"Type" : "CALCULATED"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

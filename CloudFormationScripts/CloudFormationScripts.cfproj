@@ -28,6 +28,7 @@
     <Folder Include="FileShare" />
     <Folder Include="m5dfailuredemo" />
     <Folder Include="CI-CD" />
+    <Folder Include="Route53" />
     <Folder Include="VPCEndpoints" />
   </ItemGroup>
   <ItemGroup>
@@ -82,6 +83,15 @@
     <Compile Include="FileShare\s2d.template">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="m5dfailuredemo\appstream-iam.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="m5dfailuredemo\appstream-servicelinkedrole.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="m5dfailuredemo\route53-resolver-tagging-failure.template">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="m5dfailuredemo\test.template">
       <SubType>Code</SubType>
     </Compile>
@@ -95,6 +105,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Networking\transit-gateway-vpc.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Route53\failover-health-check.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Route53\manual-failover-infrastructure.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="VPCEndpoints\dedicated-endpoint-vpc.template">

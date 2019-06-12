@@ -1,0 +1,76 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "",
+
+	"Parameters" : {		
+	},
+
+	"Resources" : {
+		"AppStreamServiceLinkedRole" : {
+			"Type" : "AWS::IAM::ServiceLinkedRole",
+			"Properties" : {
+				"AWSServiceName" : "appstream.application-autoscaling.amazonaws.com",
+				"CustomSuffix" : "-test"
+			}
+		},
+
+		
+		"AWSServiceRoleForApplicationAutoScalingAppStreamFleetRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"RoleName" : "AWSServiceRoleForApplicationAutoScaling_AppStreamFleet",
+				"Path" : "/service-role/",
+				"AssumeRolePolicyDocument" : {
+					"Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Principal": {
+                                "Service": [
+                                    "application-autoscaling.amazonaws.com"
+                                ]
+                            },
+                            "Effect": "Allow"
+                        }
+                    ],
+                    "Version": "2012-10-17"
+				}
+			}
+		},
+		"AWSServiceRoleForApplicationAutoScalingAppStreamFleetPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+				"ManagedPolicyName" : "AWSServiceRoleForApplicationAutoScaling_AppStreamFleet",
+				"Path" : "/service-role/",
+				"PolicyDocument" : {
+				  "Version": "2012-10-17",
+				  "Statement": [
+					{
+					  "Effect": "Allow", 
+					  "Action": [
+						"appstream:DescribeFleets",
+						"appstream:UpdateFleet",
+						"cloudwatch:DeleteAlarms",
+						"cloudwatch:DescribeAlarms",
+						"cloudwatch:PutMetricAlarm"
+					  ],
+					  "Resource": [ 
+						"*"
+					  ]
+					}
+				  ]
+				},
+				"Roles" : [
+					{
+						"Ref" : "AWSServiceRoleForApplicationAutoScalingAppStreamFleetRole"
+					}
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

@@ -730,127 +730,106 @@
 	"Mappings" : {
 		"RegionMap" : {
             "us-east-1" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "127311923021",
 				"HostedZoneId" : "Z1UJRXOUMOOFQ8",
 				"S3DnsName" : "s3"
             },
             "us-east-2" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "033677994240",
 				"HostedZoneId" : "ZOJJZC49E0EPZ",
 				"S3DnsName" : "s3"
             },
             "us-west-2" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "797873946194",
 				"HostedZoneId" : "Z2OJLYMUO9EFXC",
 				"S3DnsName" : "s3"
             },
             "us-west-1" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "027434742980",
 				"HostedZoneId" : "Z2MUQ32089INYE",
 				"S3DnsName" : "s3"
             },
             "ca-central-1" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "985666609251",
 				"HostedZoneId" : "Z19DQILCV0OWEC",
 				"S3DnsName" : "s3"
             },
             "eu-west-1"    : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "156460612806",
 				"HostedZoneId" : "ZLY8HYME6SFDD",
 				"S3DnsName" : "s3"
             },
             "eu-west-2"    : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "652711504416",
 				"HostedZoneId" : "ZJ5UAJN8Y3Z2Q",
 				"S3DnsName" : "s3"
             },
 			"eu-west-3"    : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "009996457667",
 				"HostedZoneId" : "Z3KY65QIEKYHQQ",
 				"S3DnsName" : "s3"
             },
             "eu-central-1" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "054676820928",
 				"HostedZoneId" : "Z1U9ULNL0V5AJ3",
 				"S3DnsName" : "s3"
             },
             "ap-northeast-1" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "582318560864",
 				"HostedZoneId" : "Z1YSHQZHG15GKL",
 				"S3DnsName" : "s3"
             },
             "ap-northeast-2" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "600734575887",
 				"HostedZoneId" : "Z20JF4UZKIW1U8",
 				"S3DnsName" : "s3"
             },
 			"ap-northeast-3" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "383597477331",
 				"HostedZoneId" : "Z2YQB5RD63NC85",
 				"S3DnsName" : "s3"
             },
             "ap-southeast-1" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "114774131450",
 				"HostedZoneId" : "ZL327KTPIQFUL",
 				"S3DnsName" : "s3"
             },
             "ap-southeast-2" : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "783225319266",
 				"HostedZoneId" : "Z2RPCDW04V8134",
 				"S3DnsName" : "s3"
             },
             "ap-south-1"     : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "718504428378",
 				"HostedZoneId" : "Z3VO1THU9YC4UR",
 				"S3DnsName" : "s3"
             },
             "sa-east-1"      : {
-                "Partition" : "aws",
                 "ELBPrincipalId" : "507241528517",
 				"HostedZoneId" : "ZCMLWB8V5SYIT",
 				"S3DnsName" : "s3"
             },
             "us-gov-west-1"  : {
-                "Partition" : "aws-us-gov",
                 "ELBPrincipalId" : "048591011584",
 				"HostedZoneId" : "",
 				"S3DnsName" : "s3-us-gov-west-1"
             },
             "us-gov-west-2"  : {
-                "Partition" : "aws-us-gov",
                 "ELBPrincipalId" : "",
 				"HostedZoneId" : "",
 				"S3DnsName" : "s3-us-gov-west-2"
             },
             "us-gov-east-1"  : {
-                "Partition" : "aws-us-gov",
                 "ELBPrincipalId" : "",
 				"HostedZoneId" : "",
 				"S3DnsName" : "s3-us-gov-east-1"
             },
             "us-gov-east-2"  : {
-                "Partition" : "aws-us-gov",
                 "ELBPrincipalId" : "",
 				"HostedZoneId" : "",
 				"S3DnsName" : "s3-us-gov-east-2"
             },
             "cn-north-1"     : {
-                "Partition" : "aws-cn",
                 "ELBPrincipalId" : "638102146993",
 				"HostedZoneId" : "",
 				"S3DnsName" : "s3"
@@ -1301,20 +1280,7 @@
                             ],
                             "Resource" : [
 								{
-									"Fn::Sub" : [
-										"arn:${Partition}:s3:::${ConfigBucketName}/*",
-										{
-											"Partition" : {
-												"Fn::FindInMap" : [
-													"RegionMap",
-													{
-														"Ref" : "AWS::Region"
-													},
-													"Partition"
-												]
-											}
-										}
-									]
+									"Fn::Sub" : "arn:${AWS::Partition}:s3:::${ConfigBucketName}/*"
 								}                                
                             ]
                         }
@@ -1416,20 +1382,7 @@
                             ],
                             "Resource" : [
 								{
-									"Fn::Sub" : [
-										"arn:${Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*",
-										{
-											"Partition" : {
-												"Fn::FindInMap" : [
-													"RegionMap",
-													{
-														"Ref" : "AWS::Region"
-													},
-													"Partition"
-												]
-											}
-										}
-									]
+									"Fn::Sub" : "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"		
 								}
                             ]
                         }
@@ -1456,20 +1409,7 @@
                             ],
                             "Resource" : [
 								{
-									"Fn::Sub" : [
-										"arn:${Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DomainUserPasswordSSMParameterKey}",
-										{
-											"Partition" : {
-												"Fn::FindInMap" : [
-													"RegionMap",
-													{
-														"Ref" : "AWS::Region"
-													},
-													"Partition"
-												]
-											}
-										}
-									]
+									"Fn::Sub" : "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DomainUserPasswordSSMParameterKey}"
 								}
                             ]
                         }
