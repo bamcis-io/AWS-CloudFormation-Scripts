@@ -1,0 +1,190 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates the vault that will be used with a backup plan.",
+
+	"Parameters" : {
+		"VaultName" : {
+			"Type" : "String",
+			"Description" : "The name of the vault"
+		},
+		"NotificationEmail"  : {
+            "Description" : "The email address notifications will be sent to for vault events.",
+            "Type"        : "String"
+        }
+	},
+
+	"Resources" : {
+		"BackupVault" : {
+			"Type" : "AWS::Backup::BackupVault",
+			"Properties" : {
+				"BackupVaultName" : {
+					"Ref" : "VaultName"
+				},
+				"AccessPolicy" : {
+
+						"Version": "2012-10-17",
+						"Statement": [
+							{
+								"Effect": "Deny",
+								"NotPrincipal": {
+									"AWS" : [
+										{
+											"Fn::GetAtt" : [ "PCIBackupVaultManagerRole", "Arn" ]
+										}
+									]
+								},
+								"Action": "backup:DeleteRecoveryPoint",
+								"Resource": [
+									{
+										"Fn::Sub" : "arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:backup-vault:${VaultName}"
+									}
+								]
+							}
+						]
+				},
+				"Notifications" : {
+					"BackupVaultEvents" : [
+						"BACKUP_JOB_COMPLETED",
+						"RESTORE_JOB_COMPLETED",
+						"RECOVERY_POINT_MODIFIED"
+					],
+					"SNSTopicArn" : {
+						"Ref" : "VaultNotificationTopic"
+					}
+				}
+			}
+		},
+		"VaultNotificationTopic" : {
+			"Type" : "AWS::SNS::Topic",
+			"Properties" : {
+				"DisplayName" : "AWS Backup Vault",
+				"Subscription" : [
+					{
+						 "Endpoint" : {
+							"Ref" : "NotificationEmail"
+						 },
+						 "Protocol" : "email-json"
+					}
+				]
+			}
+		},
+		"SNSPermission" : {
+			"Type" : "AWS::SNS::TopicPolicy",
+			"Properties" : {
+				"PolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Principal" : {
+								"Service" : "backup.amazonaws.com"
+							},
+							"Action" : "sns:Publish",
+							"Effect" : "Allow",
+							"Resource" : {
+								"Ref" : "VaultNotificationTopic"
+							}
+						}
+					]
+				},
+				"Topics" : [
+					{
+						"Ref" : "VaultNotificationTopic"
+					}
+				]
+			}
+		},
+		"PCIBackupVaultManagerRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : {
+									"Ref" : "AWS::AccountId"
+								}
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+				},
+				"Path" : "/awsbackup/"
+			}
+		},
+		"PCIBackupVaultManagerPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+				"Description" : "Allows all actions on the PCI Backup Vault",
+				"Path" : "/awsbackup/",
+				"Roles" : [
+					{
+						"Ref" : "PCIBackupVaultManagerRole"
+					}
+				],
+				"PolicyDocument" : {
+					"Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action"    : [
+                                "backup:CreateBackupPlan",
+								"backup:DeleteBackupVault",
+								"backup:DeleteBackupVaultAccessPolicy",
+								"backup:DeleteBackupVaultNotifications",
+								"backup:DeleteRecoveryPoint",
+								"backup:DescribeBackupVault",
+								"backup:DescribeRecoveryPoint",
+								"backup:DescribeRestoreJob",
+								"backup:GetBackupSelection",
+								"backup:GetBackupVaultAccessPolicy",
+								"backup:GetBackupVaultNotifications",
+								"backup:GetRecoveryPointRestoreMetadata",
+								"backup:ListRecoveryPointsByBackupVault",
+								"backup:ListRestoreJobs",
+								"backup:PutBackupVaultAccessPolicy",
+								"backup:PutBackupVaultNotifications",
+								"backup:StartBackupJob",
+								"backup:StartRestoreJob",
+								"backup:StopBackupJob",
+								"backup:UpdateRecoveryPointLifecycle"
+                            ],
+							"Resource" : {
+								"Fn::GetAtt" : [ "BackupVault", "BackupVaultArn" ]
+							}
+                        },
+						{
+							"Effect" : "Allow",
+							"Action" : [
+								"backup:List*",
+								"backup:GetSupportedResourceTypes",
+								"backup:GetBackupPlan",
+								"backup:DescribeProtectedResource",
+								"backup:DescribeBackupJob",
+								"backup:ListRecoveryPointsByResource"
+							],
+							"Resource" : "*"
+						}
+                    ]
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+		"BackupVaultName" : {
+			"Value" : {
+				"Ref" : "BackupVault"
+			}
+		},
+		"BackupVaultManagerRoleName" : {
+			"Value" : {
+				"Ref" : "PCIBackupVaultManagerRole"
+			}
+		}
+	}
+}

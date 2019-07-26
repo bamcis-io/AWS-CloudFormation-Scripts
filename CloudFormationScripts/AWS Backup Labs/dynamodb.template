@@ -1,0 +1,105 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates the DyanmoDB AWS Backup Lab environment.",
+
+	"Parameters" : {
+		"BackupVault" : {
+			"Type" : "String",
+			"Description" : "The name of the backup vault the backup plan will store recovery points in.",
+			"Default" : "pci-vault"
+		}
+	},
+
+	"Resources" : {
+
+		"DynamoDBTable" : {
+			"Type" : "AWS::DynamoDB::Table",
+			"Properties" : {
+				"BillingMode" : "PAY_PER_REQUEST",
+				"PointInTimeRecoverySpecification" : {				  
+					"PointInTimeRecoveryEnabled" : true
+				},
+				"SSESpecification" : { 
+					"SSEEnabled" : true
+				},
+				"TableName" : "aws-backup-test",
+				"KeySchema" : [
+					{
+						"AttributeName" : "id",
+						"KeyType" : "HASH"
+					},
+					{
+						"AttributeName" : "region",
+						"KeyType" : "RANGE"
+					}
+				],
+				"AttributeDefinitions" : [
+					{
+						"AttributeName" : "id",
+						"AttributeType" : "N"
+					},
+					{
+						"AttributeName" : "region",
+						"AttributeType" : "S"
+					}
+				]
+			}
+		},
+
+		"BackupPlan" : {
+			"Type" : "AWS::Backup::BackupPlan",
+			"Properties" : {
+				"BackupPlan" : {
+					"BackupPlanName" : "DynamoDB Hourly Backups",
+					"BackupPlanRule" : [
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 120,
+								"MoveToColdStorageAfterDays" : 30
+							},
+							"RuleName" : "Hourly Backups",
+							"ScheduleExpression" : "cron(0 * * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "DynamoDB Hourly Backups"
+							}
+						}
+					]
+				},
+				"BackupPlanTags" : {
+					"backup-plan" : "DynamoDB Hourly Backups",
+					"backup-encrypted" : "true"
+				}
+			}
+		},
+
+		"BackupSelection" : {
+			"Type" : "AWS::Backup::BackupSelection",
+			"Properties" : {
+				"BackupPlanId" : {
+					"Ref" : "BackupPlan"
+				},
+				"BackupSelection" : {
+					"IamRoleArn" : {
+						"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
+					},
+					"Resources" : [
+						{
+							"Fn::GetAtt" : [ "DynamoDBTable", "Arn" ]
+						}
+					],
+					"SelectionName" : "PCI DynamoDB Databases"
+				}
+			}
+		}
+
+	},
+
+	"Outputs" : {
+	}
+}

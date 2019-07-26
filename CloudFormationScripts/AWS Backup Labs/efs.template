@@ -1,0 +1,248 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates the EFS lab environment.",
+
+	"Parameters" : {
+		"BackupVault" : {
+			"Type" : "String",
+			"Description" : "The name of the backup vault the backup plan will store recovery points in.",
+			"Default" : "pci-vault"
+		},
+
+		"KeyPairName": {
+            "Description": "Public/private key pairs allow you to securely connect to your EC2 instance after it launches",
+            "Type": "AWS::EC2::KeyPair::KeyName"
+        },
+
+		"VpcId" : {
+			"Description" : "The VPC to deploy the servers into",
+			"Type" : "AWS::EC2::VPC::Id"
+		},
+
+		"Subnet1"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The subnet to deploy the servers into"
+        },
+
+		"ManagementSourceIP"         : {
+            "Description" : "The IP in CIDR of the source for allowed management",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "0.0.0.0/0"
+        },
+
+		"LatestImageId" : {
+			"Type" : "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+			"Default" : "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+		}
+	},
+
+	"Resources" : {
+		"KMSKey" : {
+			"Type" : "AWS::KMS::Key",
+			"Properties" : {
+				 "Description" : "Key for EFS encryption.",
+				 "Enabled" : true,
+				 "EnableKeyRotation" : true,
+				 "KeyUsage" : "ENCRYPT_DECRYPT",
+				 "KeyPolicy" : {
+					"Version": "2012-10-17",
+					"Id": "key-default-1",
+					"Statement": 
+					[
+						{
+							"Sid": "Enable IAM User Permissions",
+							"Effect": "Allow",
+							"Principal": {
+								"AWS": {
+									"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+								}
+							},
+							"Action": "kms:*",
+							"Resource": "*"
+						}
+					]
+				}
+			}
+		},
+		"KeyAlias" : {
+			"Type" : "AWS::KMS::Alias",
+			"Properties" : {
+				"AliasName" : "alias/efs",
+				"TargetKeyId" : {
+					"Ref" : "KMSKey"
+				}
+			}
+		},
+
+		"EC2Instance" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"ImageId" : {
+					"Ref" : "LatestImageId"
+				},
+				"SubnetId" : {
+					"Ref" : "Subnet1"
+				},
+				"KeyName" : {
+					"Ref" : "KeyPairName"
+				},
+				"InstanceType" : "t2.micro",
+				"SecurityGroupIds" : [
+					{
+						"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+					}
+				],
+				"Tags" : [
+					{
+						 "Key" : "Name",
+						 "Value" : "aws-backup-efs-test"
+					}
+				]
+			}
+		},
+
+		"AllowSSHSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"GroupDescription" : "Allows SSH",
+				"SecurityGroupIngress" : [
+					{
+						"FromPort" : "22",
+						"ToPort" : "22",
+						"CidrIp" : {
+							"Ref" : "ManagementSourceIP"
+						},
+						"IpProtocol" : "tcp"						 
+					}
+				]
+			}
+		},
+
+		"AllowEFSSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"GroupDescription" : "Allows Connections To EFS",
+				"SecurityGroupIngress" : [
+					{
+						"FromPort" : "2049",
+						"ToPort" : "2049",
+						"SourceSecurityGroupId" : {
+							"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+						},
+						"IpProtocol" : "tcp"						 
+					}
+				]
+			}
+		},
+
+		"EFS" : {
+			"Type" : "AWS::EFS::FileSystem",
+			"Properties" : {
+				"Encrypted" : true,
+				"FileSystemTags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "platinum"
+					},
+					{
+						"Key" : "pci",
+						"Value" : "true"
+					},
+					{
+						"Key" : "environment",
+						"Value" : "prod"
+					}
+				],
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"PerformanceMode" : "generalPurpose",
+				"ThroughputMode" : "bursting"
+			}
+		},
+		"EFSMount" : {
+			"Type" : "AWS::EFS::MountTarget",
+			"Properties" : {
+				"FileSystemId" : {
+					"Ref" : "EFS"
+				},
+				"SubnetId" : {
+					"Ref" : "Subnet1"
+				},
+				"SecurityGroups" : [
+					{
+						"Fn::GetAtt" : [ "AllowEFSSecurityGroup", "GroupId" ]
+					}
+				]
+			}
+		},
+
+		"BackupPlan" : {
+			"Type" : "AWS::Backup::BackupPlan",
+			"Properties" : {
+				"BackupPlan" : {
+					"BackupPlanName" : "EFS Backups",
+					"BackupPlanRule" : [
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 7
+							},
+							"RuleName" : "Hourly Backups",
+							"ScheduleExpression" : "cron(0 * * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "EFS Backups",
+								"backup-rule" : "EFS Hourly Backups for 1 Week"
+							}
+						}
+					]
+				},
+				"BackupPlanTags" : {
+					"backup-plan" : "EFS Backups",
+					"backup-encrypted" : "true"
+				}
+			}
+		},
+
+		"BackupSelection" : {
+			"Type" : "AWS::Backup::BackupSelection",
+			"Properties" : {
+				"BackupPlanId" : {
+					"Ref" : "BackupPlan"
+				},
+				"BackupSelection" : {
+					"IamRoleArn" : {
+						"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
+					},
+					"Resources" : [
+						{
+							"Fn::Sub" : "arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${EFS}"
+						}
+					],
+					"SelectionName" : "PCI EFS Filesystems"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+		"MountIpAddress" : {
+			"Value" : {
+				"Fn::GetAtt" : [ "EFSMount", "IpAddress" ]
+			}
+		}
+	}
+}

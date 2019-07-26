@@ -1,0 +1,786 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "",
+
+	"Parameters" : {
+		"KeyPairName": {
+            "Description": "Public/private key pairs allow you to securely connect to your EC2 instance after it launches",
+            "Type": "AWS::EC2::KeyPair::KeyName"
+        },
+
+		"VpcId" : {
+			"Description" : "The VPC to deploy the servers into",
+			"Type" : "AWS::EC2::VPC::Id"
+		},
+
+		"Subnet1"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The subnet to deploy the servers into"
+        },
+
+		"ManagementSourceIP"         : {
+            "Description" : "The IP in CIDR of the source for allowed management",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "0.0.0.0/0"
+        },
+
+		"LatestImageId" : {
+			"Type" : "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+			"Default" : "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+		},
+
+		"BackupVault" : {
+			"Type" : "String",
+			"Description" : "The name of the backup vault the backup plan will store recovery points in.",
+			"Default" : "pci-vault"
+		}
+	},
+
+	"Resources" : {
+		"KMSKey" : {
+			"Type" : "AWS::KMS::Key",
+			"Properties" : {
+				 "Description" : "Key for EBS encryption.",
+				 "Enabled" : true,
+				 "EnableKeyRotation" : true,
+				 "KeyUsage" : "ENCRYPT_DECRYPT",
+				 "KeyPolicy" : {
+					"Version": "2012-10-17",
+					"Id": "key-default-1",
+					"Statement": 
+					[
+						{
+							"Sid": "Enable IAM User Permissions",
+							"Effect": "Allow",
+							"Principal": {
+								"AWS": {
+									"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+								}
+							},
+							"Action": "kms:*",
+							"Resource": "*"
+						}
+					]
+				}
+			}
+		},
+		"KeyAlias" : {
+			"Type" : "AWS::KMS::Alias",
+			"Properties" : {
+				"AliasName" : "alias/ebs",
+				"TargetKeyId" : {
+					"Ref" : "KMSKey"
+				}
+			}
+		},
+
+		"PlatinumVolume1" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "platinum"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance1",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"PlatinumVolume1EC2Instance1Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdf",
+				"InstanceId" : {
+					"Ref" : "EC2Instance1"
+				},
+				"VolumeId" : {
+					"Ref" : "PlatinumVolume1"
+				}				 
+			}
+		},
+
+		"GoldVolume1" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "gold"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance1",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"GoldVolume1EC2Instance1Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdg",
+				"InstanceId" : {
+					"Ref" : "EC2Instance1"
+				},
+				"VolumeId" : {
+					"Ref" : "GoldVolume1"
+				}				 
+			}
+		},
+
+		"SilverVolume1" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "silver"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance1",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"SilverVolume1EC2Instance1Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdh",
+				"InstanceId" : {
+					"Ref" : "EC2Instance1"
+				},
+				"VolumeId" : {
+					"Ref" : "SilverVolume1"
+				}				 
+			}
+		},
+
+		"PlatinumVolume2" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "platinum"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance2",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"PlatinumVolume2EC2Instance2Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdf",
+				"InstanceId" : {
+					"Ref" : "EC2Instance2"
+				},
+				"VolumeId" : {
+					"Ref" : "PlatinumVolume2"
+				}				 
+			}
+		},
+
+		"GoldVolume2" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "gold"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance2",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"GoldVolume2EC2Instance2Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdg",
+				"InstanceId" : {
+					"Ref" : "EC2Instance2"
+				},
+				"VolumeId" : {
+					"Ref" : "GoldVolume2"
+				}				 
+			}
+		},
+
+		"SilverVolume2" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "silver"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance2",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"SilverVolume2EC2Instance2Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdh",
+				"InstanceId" : {
+					"Ref" : "EC2Instance2"
+				},
+				"VolumeId" : {
+					"Ref" : "SilverVolume2"
+				}				 
+			}
+		},
+
+		"PlatinumVolume3" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "platinum"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance3",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"PlatinumVolume3EC2Instance3Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdf",
+				"InstanceId" : {
+					"Ref" : "EC2Instance3"
+				},
+				"VolumeId" : {
+					"Ref" : "PlatinumVolume3"
+				}				 
+			}
+		},
+
+		"GoldVolume3" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "gold"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance3",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"GoldVolume3EC2Instance3Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdg",
+				"InstanceId" : {
+					"Ref" : "EC2Instance3"
+				},
+				"VolumeId" : {
+					"Ref" : "GoldVolume3"
+				}				 
+			}
+		},
+
+		"SilverVolume3" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Encrypted" : true,
+				"KmsKeyId" : {
+					"Ref" : "KeyAlias"
+				},
+				"Size" : "5",
+				"VolumeType" : "gp2",
+				"Tags" : [
+					{
+						"Key" : "criticality",
+						"Value" : "silver"
+					}
+				],
+				"AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "EC2Instance3",
+                        "AvailabilityZone"
+                    ]
+                }
+			}
+		},
+		"SilverVolume3EC2Instance3Attachment" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"Device" : "/dev/sdh",
+				"InstanceId" : {
+					"Ref" : "EC2Instance3"
+				},
+				"VolumeId" : {
+					"Ref" : "SilverVolume3"
+				}				 
+			}
+		},
+
+		"EC2Instance1" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"ImageId" : {
+					"Ref" : "LatestImageId"
+				},
+				"SubnetId" : {
+					"Ref" : "Subnet1"
+				},
+				"KeyName" : {
+					"Ref" : "KeyPairName"
+				},
+				"InstanceType" : "t2.micro",
+				"SecurityGroupIds" : [
+					{
+						"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+					}
+				],
+				"Tags" : [
+					{
+						 "Key" : "Name",
+						 "Value" : "aws-backup-ebs-test-1"
+					}
+				],
+				"BlockDeviceMappings" : [
+					{
+						"DeviceName" : "/dev/xvda",
+						"Ebs" : {
+							"Encrypted" : true,
+							"VolumeSize" : "10",
+							"VolumeType" : "gp2"
+						}
+					}
+				]
+			}
+		},
+
+		"EC2Instance2" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"ImageId" : {
+					"Ref" : "LatestImageId"
+				},
+				"SubnetId" : {
+					"Ref" : "Subnet1"
+				},
+				"KeyName" : {
+					"Ref" : "KeyPairName"
+				},
+				"InstanceType" : "t2.micro",
+				"SecurityGroupIds" : [
+					{
+						"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+					}
+				],
+				"Tags" : [
+					{
+						 "Key" : "Name",
+						 "Value" : "aws-backup-ebs-test-2"
+					}
+				],
+				"BlockDeviceMappings" : [
+					{
+						"DeviceName" : "/dev/xvda",
+						"Ebs" : {
+							"Encrypted" : true,
+							"VolumeSize" : "10",
+							"VolumeType" : "gp2"
+						}
+					}
+				]
+			}
+		},
+
+		"EC2Instance3" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"ImageId" : {
+					"Ref" : "LatestImageId"
+				},
+				"SubnetId" : {
+					"Ref" : "Subnet1"
+				},
+				"KeyName" : {
+					"Ref" : "KeyPairName"
+				},
+				"InstanceType" : "t2.micro",
+				"SecurityGroupIds" : [
+					{
+						"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+					}
+				],
+				"Tags" : [
+					{
+						 "Key" : "Name",
+						 "Value" : "aws-backup-ebs-test-3"
+					}
+				],
+				"BlockDeviceMappings" : [
+					{
+						"DeviceName" : "/dev/xvda",
+						"Ebs" : {
+							"Encrypted" : true,
+							"VolumeSize" : "10",
+							"VolumeType" : "gp2"							 
+						}
+					}
+				]
+			}
+		},
+
+		"EC2Instance4" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"ImageId" : {
+					"Ref" : "LatestImageId"
+				},
+				"SubnetId" : {
+					"Ref" : "Subnet1"
+				},
+				"KeyName" : {
+					"Ref" : "KeyPairName"
+				},
+				"InstanceType" : "t2.micro",
+				"SecurityGroupIds" : [
+					{
+						"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+					}
+				],
+				"Tags" : [
+					{
+						 "Key" : "Name",
+						 "Value" : "aws-backup-ebs-test-4"
+					},
+					{
+						"Key" : "criticality",
+						"Value" : "platinum"
+					}
+				],
+				"BlockDeviceMappings" : [
+					{
+						"DeviceName" : "/dev/xvda",
+						"Ebs" : {
+							"Encrypted" : true,
+							"VolumeSize" : "10",
+							"VolumeType" : "gp2"							 
+						}
+					}
+				]			
+			}		 
+		},
+
+		"AllowSSHSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"GroupDescription" : "Allows SSH",
+				"SecurityGroupIngress" : [
+					{
+						"FromPort" : "22",
+						"ToPort" : "22",
+						"CidrIp" : {
+							"Ref" : "ManagementSourceIP"
+						},
+						"IpProtocol" : "tcp"						 
+					}
+				]
+			}
+		},
+
+		"PCIPlatinumBackupPlan" : {
+			"Type" : "AWS::Backup::BackupPlan",
+			"Properties" : {
+				"BackupPlan" : {
+					"BackupPlanName" : "PCI Platinum Backups",
+					"BackupPlanRule" : [
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 1
+							},
+							"RuleName" : "Hourly Backups For 1 Day",
+							"ScheduleExpression" : "cron(0 * * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "PCI Platinum Backups",
+								"backup-plan-rule" : "Hourly Backups For 1 Day"
+							}
+						},
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 7
+							},
+							"RuleName" : "Half Daily Backups For 1 Week",
+							"ScheduleExpression" : "cron(0 */12 * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "PCI Platinum Backups",
+								"backup-plan-rule" : "Half Daily Backups For 1 Week"
+							}
+						},
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 30
+							},
+							"RuleName" : "Daily Backups For 1 Month",
+							"ScheduleExpression" : "cron(0 4 * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "PCI Platinum Backups",
+								"backup-plan-rule" : "Daily Backups For 1 Month"
+							}
+						}
+					]
+				},
+				"BackupPlanTags" : {
+					"backup-plan" : "Platinum Backups",
+					"backup-encrypted" : "true"
+				}
+			}
+		},
+
+		"PCIGoldBackupPlan" : {
+			"Type" : "AWS::Backup::BackupPlan",
+			"Properties" : {
+				"BackupPlan" : {
+					"BackupPlanName" : "PCI Gold Backups",
+					"BackupPlanRule" : [
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 7
+							},
+							"RuleName" : "Half Daily Backups For 1 Week",
+							"ScheduleExpression" : "cron(0 */12 * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "PCI Gold Backups",
+								"backup-plan-rule" : "Half Daily Backups For 1 Week"
+							}
+						},
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 30
+							},
+							"RuleName" : "Daily Backups For 1 Month",
+							"ScheduleExpression" : "cron(0 4 * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "PCI Gold Backups",
+								"backup-plan-rule" : "Daily Backups For 1 Month"
+							}
+						}
+					]
+				},
+				"BackupPlanTags" : {
+					"backup-plan" : "Gold Backups",
+					"backup-encrypted" : "true"
+				}
+			}
+		},
+
+		"PCISilverBackupPlan" : {
+			"Type" : "AWS::Backup::BackupPlan",
+			"Properties" : {
+				"BackupPlan" : {
+					"BackupPlanName" : "PCI Silver Backups",
+					"BackupPlanRule" : [
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 30
+							},
+							"RuleName" : "Daily Backups For 1 Month",
+							"ScheduleExpression" : "cron(0 4 * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "PCI Silver Backups",
+								"backup-plan-rule" : "Daily Backups For 1 Month"
+							}
+						}
+					]
+				},
+				"BackupPlanTags" : {
+					"backup-plan" : "Silver Backups",
+					"backup-encrypted" : "true"
+				}
+			}
+		},
+
+		"PlatinumBackupSelection" : {
+			"Type" : "AWS::Backup::BackupSelection",
+			"Properties" : {
+				"BackupPlanId" : {
+					"Ref" : "PCIPlatinumBackupPlan"
+				},
+				"BackupSelection" : {
+					"IamRoleArn" : {
+						"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
+					},
+					"ListOfTags" : [
+						{
+							"ConditionKey" : "criticality",
+							"ConditionType" : "STRINGEQUALS",
+							"ConditionValue" : "platinum"
+						}
+					],
+					"SelectionName" : "Platinum"
+				}
+			}
+		},
+
+		"GoldBackupSelection" : {
+			"Type" : "AWS::Backup::BackupSelection",
+			"Properties" : {
+				"BackupPlanId" : {
+					"Ref" : "PCIGoldBackupPlan"
+				},
+				"BackupSelection" : {
+					"IamRoleArn" : {
+						"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
+					},
+					"ListOfTags" : [
+						{
+							"ConditionKey" : "ec2:ResourceTag/criticality",
+							"ConditionType" : "STRINGEQUALS",
+							"ConditionValue" : "gold"
+						}
+					],
+					"SelectionName" : "Gold"
+				}
+			}
+		},
+
+		"SilverBackupSelection" : {
+			"Type" : "AWS::Backup::BackupSelection",
+			"Properties" : {
+				"BackupPlanId" : {
+					"Ref" : "PCISilverBackupPlan"
+				},
+				"BackupSelection" : {
+					"IamRoleArn" : {
+						"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
+					},
+					"ListOfTags" : [
+						{
+							"ConditionKey" : "ec2:ResourceTag/criticality",
+							"ConditionType" : "STRINGEQUALS",
+							"ConditionValue" : "silver"
+						}
+					],
+					"SelectionName" : "Silver"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

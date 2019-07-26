@@ -1,0 +1,253 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Lab setup for AWS Backup with RDS",
+
+	"Parameters" : {
+		"KeyPairName": {
+            "Description": "Public/private key pairs allow you to securely connect to your EC2 instance after it launches",
+            "Type": "AWS::EC2::KeyPair::KeyName"
+        },
+
+		"VpcId" : {
+			"Description" : "The VPC to deploy the servers into",
+			"Type" : "AWS::EC2::VPC::Id"
+		},
+
+		"Subnet1"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The subnet to deploy the servers into"
+        },
+
+		"Subnet2"        : {
+            "Type" : "AWS::EC2::Subnet::Id",
+            "Description" : "The second subnet for the RDS subnet group"
+        },
+
+		"ManagementSourceIP"         : {
+            "Description" : "The IP in CIDR of the source for allowed management",
+            "Type"        : "String",
+            "AllowedPattern" : "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: [0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\/[0-9]{1,2}",
+            "Default"               : "0.0.0.0/0"
+        },
+
+		"LatestImageId" : {
+			"Type" : "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+			"Default" : "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+		},
+
+		"DBUserName" : {
+			"Type" : "String",
+			"Default" : "admin"
+		},
+
+		"DBPassword" : {
+			"Type" : "String",
+			"Default" : "password",
+			"NoEcho" : "true"
+		},
+
+		"BackupVault" : {
+			"Type" : "String",
+			"Description" : "The name of the backup vault the backup plan will store recovery points in.",
+			"Default" : "rds-pci-vault"
+		}
+	},
+
+	"Resources" : {
+
+		"EC2Instance" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"ImageId" : {
+					"Ref" : "LatestImageId"
+				},
+				"SubnetId" : {
+					"Ref" : "Subnet1"
+				},
+				"KeyName" : {
+					"Ref" : "KeyPairName"
+				},
+				"InstanceType" : "t2.micro",
+				"SecurityGroupIds" : [
+					{
+						"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+					}
+				],
+				"Tags" : [
+					{
+						 "Key" : "Name",
+						 "Value" : "aws-backup-rds-test"
+					}
+				],
+				"UserData" : {
+					"Fn::Base64" : {
+						"Fn::Join" : [
+							"\n",
+							[
+								"#!/bin/bash",
+								"yum -y update",
+								"yum -y install mysql"
+							]
+						]
+					}
+				}
+			}
+		},
+
+		"AllowSSHSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"GroupDescription" : "Allows SSH",
+				"SecurityGroupIngress" : [
+					{
+						"FromPort" : "22",
+						"ToPort" : "22",
+						"CidrIp" : {
+							"Ref" : "ManagementSourceIP"
+						},
+						"IpProtocol" : "tcp"						 
+					}
+				]
+			}
+		},
+
+		"AllowMySQLSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"VpcId" : {
+					"Ref" : "VpcId"
+				},
+				"GroupDescription" : "Allows the EC2 instance to connect to MySQL",
+				"SecurityGroupIngress" : [
+					{
+						"FromPort" : "3306",
+						"ToPort" : "3306",
+						"SourceSecurityGroupId" : {
+							"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+						},
+						"IpProtocol" : "tcp"						 
+					}
+				]
+			}
+		},
+
+		"RDSInstance" : {
+			"Type" : "AWS::RDS::DBInstance",
+			"Properties" : {
+				"AllocatedStorage" : "20",
+				"AllowMajorVersionUpgrade" : true,
+				"AutoMinorVersionUpgrade" : true,
+				"CopyTagsToSnapshot" : true,
+				"DBInstanceClass" : "db.t3.small",
+				"DBSubnetGroupName" : {
+					"Ref" : "SubnetGroup"
+				},
+				"Engine" : "MySQL",
+				"EngineVersion" : "5.7.22",
+				"StorageEncrypted" : true,
+				"MasterUsername" : {
+					"Ref" : "DBUserName"
+				},
+				"MasterUserPassword" : {
+					"Ref" : "DBPassword"
+				},
+				"PubliclyAccessible" : false,
+				"StorageType" : "gp2",
+				"VPCSecurityGroups" : [
+					{
+						"Fn::GetAtt" : [ "AllowMySQLSecurityGroup", "GroupId" ]
+					}
+				],
+				"Tags" : [
+					{
+						"Key" : "environment",
+						"Value" : "aws-backup-test"
+					},
+					{
+						"Key" : "criticality",
+						"Value" : "platinum"
+					},
+					{
+						"Key" : "classification",
+						"Value" : "pci"
+					}
+				]
+			},
+			"DeletionPolicy" : "Delete"
+		},
+
+		"SubnetGroup" : {
+			"Type" : "AWS::RDS::DBSubnetGroup",
+			"Properties" : {
+				"DBSubnetGroupDescription" : "AWS Backup Test",
+				"SubnetIds" : [
+					{
+						"Ref" : "Subnet1"
+					},
+					{
+						"Ref" : "Subnet2"
+					}
+				]
+			}
+		},
+
+		"BackupPlan" : {
+			"Type" : "AWS::Backup::BackupPlan",
+			"Properties" : {
+				"BackupPlan" : {
+					"BackupPlanName" : "RDS Hourly Backups",
+					"BackupPlanRule" : [
+						{
+							"CompletionWindowMinutes" : 480,
+							"StartWindowMinutes" : 60,
+							"Lifecycle" : {
+								"DeleteAfterDays" : 120,
+								"MoveToColdStorageAfterDays" : 30
+							},
+							"RuleName" : "Hourly Backups",
+							"ScheduleExpression" : "cron(0 * * * ? *)",
+							"TargetBackupVault" : {
+								"Ref" : "BackupVault"
+							},
+							"RecoveryPointTags" : {
+								"backup-plan" : "RDS Hourly Backups"
+							}
+						}
+					]
+				},
+				"BackupPlanTags" : {
+					"backup-plan" : "RDS Hourly Backups",
+					"backup-encrypted" : "true"
+				}
+			}
+		},
+
+		"BackupSelection" : {
+			"Type" : "AWS::Backup::BackupSelection",
+			"Properties" : {
+				"BackupPlanId" : {
+					"Ref" : "BackupPlan"
+				},
+				"BackupSelection" : {
+					"IamRoleArn" : {
+						"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
+					},
+					"Resources" : [
+						{
+							"Fn::Sub" : "arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:${RDSInstance}"
+						}
+					],
+					"SelectionName" : "PCI RDS Databases"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

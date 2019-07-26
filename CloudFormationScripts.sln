@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27703.2018
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28803.352
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{22325025-CDA3-4736-83CB-2D32D2FCC215}") = "CloudFormationScripts", "CloudFormationScripts\CloudFormationScripts.cfproj", "{99999999-9999-9999-9999-999999999999}"
 EndProject

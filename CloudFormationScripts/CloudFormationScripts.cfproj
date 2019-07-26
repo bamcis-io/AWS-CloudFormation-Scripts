@@ -28,6 +28,8 @@
     <Folder Include="FileShare" />
     <Folder Include="m5dfailuredemo" />
     <Folder Include="CI-CD" />
+    <Folder Include="AWS Backup Labs" />
+    <Folder Include="Athena" />
     <Folder Include="Route53" />
     <Folder Include="VPCEndpoints" />
   </ItemGroup>
@@ -48,6 +50,45 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="AthenaDemo\README.md">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Athena\cloudtrail-logs.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Athena\deploy.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\dynamodb-deploy.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\dynamodb.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\ebs.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\ebs2.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\efs-commands.sh">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\efs-deploy.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\efs.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\rds-mysql.sql">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\pci-vault-deploy.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\vault.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AWS Backup Labs\rds.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="CI-CD\AWSCURManagerDeploy.ps1">
@@ -137,6 +178,9 @@
       <SubType>Content</SubType>
     </Content>
     <Content Include="AthenaDemo\AmazonRDS.csv">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="AWS Backup Labs\rds-deploy.ps1">
       <SubType>Content</SubType>
     </Content>
     <Content Include="FileShare\Deploy-2-Node.ps1">
