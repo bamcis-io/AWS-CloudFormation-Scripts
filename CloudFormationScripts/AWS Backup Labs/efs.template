@@ -83,17 +83,23 @@
 				"ImageId" : {
 					"Ref" : "LatestImageId"
 				},
-				"SubnetId" : {
-					"Ref" : "Subnet1"
-				},
 				"KeyName" : {
 					"Ref" : "KeyPairName"
 				},
 				"InstanceType" : "t2.micro",
-				"SecurityGroupIds" : [
+				"NetworkInterfaces": [ 
 					{
-						"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
-					}
+						"AssociatePublicIpAddress": "true",
+						"DeviceIndex": "0",
+						"SubnetId" : {
+							"Ref" : "Subnet1"
+						},
+						"GroupSet" : [
+							{
+								"Fn::GetAtt" : [ "AllowSSHSecurityGroup", "GroupId" ]
+							}
+						]
+					} 
 				],
 				"Tags" : [
 					{
