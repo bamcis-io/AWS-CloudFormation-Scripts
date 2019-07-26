@@ -70,9 +70,6 @@
     <Compile Include="AWS Backup Labs\ebs2.template">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="AWS Backup Labs\efs-commands.sh">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="AWS Backup Labs\efs-deploy.ps1">
       <SubType>Code</SubType>
     </Compile>

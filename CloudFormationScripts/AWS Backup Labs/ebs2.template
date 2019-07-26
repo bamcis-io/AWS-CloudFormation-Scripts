@@ -680,7 +680,7 @@
 					},
 					"ListOfTags" : [
 						{
-							"ConditionKey" : "ec2:ResourceTag/criticality",
+							"ConditionKey" : "criticality",
 							"ConditionType" : "StringEquals",
 							"ConditionValue" : "platinum"
 						}
@@ -702,12 +702,12 @@
 					},
 					"ListOfTags" : [
 						{
-							"ConditionKey" : "ec2:ResourceTag/criticality",
+							"ConditionKey" : "criticality",
 							"ConditionType" : "StringEquals",
 							"ConditionValue" : "platinum"
 						},
 						{
-							"ConditionKey" : "ec2:ResourceTag/criticality",
+							"ConditionKey" : "criticality",
 							"ConditionType" : "StringEquals",
 							"ConditionValue" : "gold"
 						}
@@ -729,17 +729,17 @@
 					},
 					"ListOfTags" : [
 						{
-							"ConditionKey" : "ec2:ResourceTag/criticality",
+							"ConditionKey" : "criticality",
 							"ConditionType" : "StringEquals",
 							"ConditionValue" : "platinum"
 						},
 						{
-							"ConditionKey" : "ec2:ResourceTag/criticality",
+							"ConditionKey" : "criticality",
 							"ConditionType" : "StringEquals",
 							"ConditionValue" : "gold"
 						},
 						{
-							"ConditionKey" : "ec2:ResourceTag/criticality",
+							"ConditionKey" : "criticality",
 							"ConditionType" : "StringEquals",
 							"ConditionValue" : "silver"
 						}
