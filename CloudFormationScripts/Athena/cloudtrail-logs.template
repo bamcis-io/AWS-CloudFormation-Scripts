@@ -1,632 +1,1852 @@
 {
-	"AWSTemplateFormatVersion" : "2010-09-09",
+  "AWSTemplateFormatVersion": "2010-09-09",
 
-	"Description" : "Creates a database and table for CloudTrail Logs. The setup assumes multiple accounts are aggregated in a single bucket",
+  "Description": "Creates a database and table for CloudTrail Logs. The setup allows for multiple accounts to deliver CloudTrail logs to a single bucket.",
 
-	"Parameters" : {
-		"SourceS3Location" : {
-			"Type" : "String",
-			"Description" : "The S3 location that contains the CloudTrail log files.",
-			"Default" : "s3://<bucket>/<prefix>",
-			"AllowedPattern" : "[sS]3://.*"
-		},
-
-		"NewS3BucketName" : {
-			"Type" : "String",
-			"Description" : "The name of the bucket where the partitioned CloudTrail logs will be placed. This bucket will be created.",
-			"AllowedPattern" : "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
-            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"		
-		},
-
-		"ETLScriptLocation" : {
-			"Type" : "String",
-			"Description" : "Specify an s3 location where the python script for processing the CloudTrail logs exists in the s3://bucket/path/object.py format. If you leave this blank, the default s3 location for glue is used.",
-			"AllowedPattern" : "(?:^$|^s3://[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]/.*$)"
-		}
-	},
-
-	"Conditions"               : {
-		"SpecifiedScriptLocation" : {
-			"Fn::Not" : [
-				{
-					"Fn::Equals" : [
-						{
-							"Ref" : "ETLScriptLocation"
-						},
-						""
-					]
-				}
-			]
-		}
+  "Parameters": {
+    "SourceS3Location": {
+      "Type": "String",
+      "Description": "The S3 location that contains the CloudTrail log files.",
+      "Default": "s3://<bucket>/<prefix>/AWSLogs/",
+      "AllowedPattern": "^s3://.*?/AWSLogs/$",
+      "ConstraintDescription": "Member must satisfy regular expression pattern: ^s3://.*?/AWSLogs/$"
     },
 
-	"Resources" : {
-		"S3Bucket" : {
-			"Type" : "AWS::S3::Bucket",
-			"Properties" : {
-				"BucketName" : {
-					"Ref" : "NewS3BucketName"
-				}
-			}
-		},
-		"BucketPolicy" : {
-			"Type" : "AWS::S3::BucketPolicy",
-			"Properties" : {
-				"Bucket" : {
-					"Ref" : "S3Bucket"
-				},
-				"PolicyDocument" : {
-					"Version" : "2012-10-17",
-					"Id" : "1",
-					"Statement" : [
-						{
-							"Effect": "Deny",
-							"NotPrincipal" : {
-								"AWS" : [
-									{
-										"Fn::GetAtt" : [ "GlueServiceRole", "Arn" ]
-									}
-								]
-							},
-							"Action" : [
-								"s3:PutObject"
-							],
-							"Resource" : {
-								"Fn::Sub" : "arn:${AWS::Partition}:s3:::${S3Bucket}/*"
-							}
-						}
-					]
-				}
-			}
-		},
+    "NewS3BucketName": {
+      "Type": "String",
+      "Description": "The name of the bucket where the partitioned CloudTrail logs will be placed. This bucket will be created.",
+      "AllowedPattern": "^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$",
+      "ConstraintDescription": "Member must satisfy regular expression pattern: ^[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]$"
+    },
 
-		"GlueServiceRole" : {
-            "Type" : "AWS::IAM::Role",
-            "Properties" : {
-                "AssumeRolePolicyDocument" : {
-                    "Version" : "2012-10-17",
-                    "Statement" : [
+    "InitialLoadETLScriptLocation": {
+      "Type": "String",
+      "Description": "Specify an s3 location where the python script for performing the initial load of the CloudTrail logs exists in the s3://bucket/path/object.py format. If you leave this blank, the default s3 location for glue is used.",
+      "AllowedPattern": "(?:^$|^s3://[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]/.*$)"
+    },
+
+	"InitialLoadPartitionedETLScriptLocation": {
+      "Type": "String",
+      "Description": "Specify an s3 location where the python script for performing the initial load of the CloudTrail logs exists in the s3://bucket/path/object.py format. If you leave this blank, the default s3 location for glue is used.",
+      "AllowedPattern": "(?:^$|^s3://[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]/.*$)"
+    },
+
+    "RecurringLoadETLScriptLocation": {
+      "Type": "String",
+      "Description": "Specify an s3 location where the python script for processing the CloudTrail logs exists in the s3://bucket/path/object.py format. If you leave this blank, the default s3 location for glue is used.",
+      "AllowedPattern": "(?:^$|^s3://[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]/.*$)"
+    },
+
+	"RecurringLoadPartitionedETLScriptLocation": {
+      "Type": "String",
+      "Description": "Specify an s3 location where the python script for processing the CloudTrail logs exists in the s3://bucket/path/object.py format. If you leave this blank, the default s3 location for glue is used.",
+      "AllowedPattern": "(?:^$|^s3://[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]/.*$)"
+    },
+
+    "AddPartitionETLScriptLocation": {
+      "Type": "String",
+      "Description": "Specify an s3 location where the python script for loading existing partitions to the CloudTrail logs source table exists in the s3://bucket/path/object.py format. If you leave this blank, the default s3 location for glue is used.",
+      "AllowedPattern": "(?:^$|^s3://[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]/.*$)"
+    },
+
+	"RecurringAddPartitionETLScriptLocation": {
+      "Type": "String",
+      "Description": "Specify an s3 location where the python script for loading existing partitions to the CloudTrail logs source table exists in the s3://bucket/path/object.py format. If you leave this blank, the default s3 location for glue is used.",
+      "AllowedPattern": "(?:^$|^s3://[a-z](?:(?:\\.(?!\\.))|-|[a-zA-Z0-9]){1,61}[a-z]/.*$)"
+    }
+  },
+
+  "Conditions": {
+    "SpecifiedInitialLoadScriptLocation": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "InitialLoadETLScriptLocation"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+
+	"SpecifiedInitialLoadPartitionedScriptLocation": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "InitialLoadPartitionedETLScriptLocation"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+
+	"SpecifiedRecurringLoadPartitionedScriptLocation": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "RecurringLoadPartitionedETLScriptLocation"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+
+    "SpecifiedRecurringLoadScriptLocation": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "RecurringLoadETLScriptLocation"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+
+    "SpecifiedAddPartitionsScriptLocation": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "AddPartitionETLScriptLocation"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+
+	"SpecifiedRecurringAddPartitionsScriptLocation": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "RecurringAddPartitionETLScriptLocation"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+
+  "Resources": {
+    "S3Bucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": {
+          "Ref": "NewS3BucketName"
+        }
+      }
+    },
+
+    "GlueServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "sts:AssumeRole"
+              ],
+              "Principal": {
+                "Service": [
+                  "glue.amazonaws.com"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "GlueS3Policy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject"
+              ],
+              "Resource": [
+                {
+                  "Fn::If": [
+                    "SpecifiedInitialLoadScriptLocation",
+                    {
+                      "Fn::Sub": [
+                        "arn:${AWS::Partition}:s3:::${Bucket}/*",
                         {
-                            "Effect" : "Allow",
-                            "Action" : [
-                                "sts:AssumeRole"
-                            ],
-                            "Principal" : {
-                                "Service" : [
-                                    "glue.amazonaws.com"
+                          "Bucket": {
+                            "Fn::Select": [
+                              2,
+                              {
+                                "Fn::Split": [
+                                  "/",
+                                  {
+                                    "Ref": "InitialLoadETLScriptLocation"
+                                  }
                                 ]
-                            }
+                              }
+                            ]
+                          }
                         }
-                    ]
+                      ]
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition_initial_load.py"
+                    }
+                  ]
                 },
-                "ManagedPolicyArns"        : [
-                    "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
-                ]
-            }
-        },
-        "GlueS3Policy"    : {
-            "Type" : "AWS::IAM::ManagedPolicy",
-            "Properties" : {
-                "PolicyDocument" : {
-                    "Version" : "2012-10-17",
-                    "Statement" : [
+                {
+                  "Fn::If": [
+                    "SpecifiedRecurringLoadScriptLocation",
+                    {
+                      "Fn::Sub": [
+                        "arn:${AWS::Partition}:s3:::${Bucket}/*",
                         {
-                            "Effect" : "Allow",
-                            "Action" : [
-                                "s3:GetObject"
-                            ],
-                            "Resource" : [
-                                {
-									"Fn::If" : [
-										"SpecifiedScriptLocation",
-										{
-											"Fn::Sub" : [ "arn:${AWS::Partition}:s3:::${Bucket}/*",
-												{
-													"Bucket" : {
-														"Fn::Select" : [ 2, {
-																"Fn::Split" : [
-																	"/",
-																	{
-																		"Ref" : "ETLScriptLocation"
-																	}
-																]
-															}
-														]
-													}
-												}
-											]
-										},
-										{
-											"Fn::Sub" : "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition.py"
-										}
-									]								                                  
-                                }
+                          "Bucket": {
+                            "Fn::Select": [
+                              2,
+                              {
+                                "Fn::Split": [
+                                  "/",
+                                  {
+                                    "Ref": "RecurringLoadETLScriptLocation"
+                                  }
+                                ]
+                              }
                             ]
-                        },						
-						{
-                            "Effect" : "Allow",
-                            "Action" : [
-                                "s3:GetObject"
-                            ],
-                            "Resource" : [
-                                {
-									"Fn::Sub" :  "arn:aws:s3:::${SourceS3Location}/*"								                                  
-                                }
-                            ]
-                        },
-                        {
-                            "Effect" : "Allow",
-                            "Action" : [
-                                "s3:ListBucket"
-                            ],
-                            "Resource" : [
-                                {
-									"Fn::Sub" :  "arn:aws:s3:::${SourceS3Location}"								                                  
-                                }
-                            ]
-                        },
-						 {
-                            "Effect" : "Allow",
-                            "Action" : [
-								"s3:PutObject",
-								"s3:DeleteObject",
-								"s3:GetObject"
-                            ],
-                            "Resource" : [
-                                {
-									"Fn::Sub" :  "arn:aws:s3:::${S3Bucket}/*"								                                  
-                                }
-                            ]
-                        },
-                        {
-                            "Effect" : "Allow",
-                            "Action" : [
-                                "s3:ListBucket"
-                            ],
-                            "Resource" : [
-                                {
-									"Fn::Sub" :  "arn:aws:s3:::${S3Bucket}"								                                  
-                                }
-                            ]
+                          }
                         }
-                    ]
-                },
-                "Roles"          : [
+                      ]
+                    },
                     {
-                        "Ref" : "GlueServiceRole"
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition_recurring_load.py"
                     }
-                ]
-            }
-        },
-		"GlueKMSPolicy"    : {
-            "Type" : "AWS::IAM::ManagedPolicy",
-            "Properties" : {
-                "PolicyDocument" : {
-                    "Version" : "2012-10-17",
-                    "Statement" : [
-                        {  
-						 "Effect":"Allow",
-						 "Action":[  
-							"kms:Decrypt"
-						 ],
-						 "Resource":[  
-							{
-								"Fn::Sub" : "arn:aws:kms:*:${AWS::AccountId}:key/*"
-							}
-						 ]
-					  }
-                    ]
+                  ]
                 },
-                "Roles"          : [
+                {
+                  "Fn::If": [
+                    "SpecifiedAddPartitionsScriptLocation",
                     {
-                        "Ref" : "GlueServiceRole"
+                      "Fn::Sub": [
+                        "arn:${AWS::Partition}:s3:::${Bucket}/*",
+                        {
+                          "Bucket": {
+                            "Fn::Select": [
+                              2,
+                              {
+                                "Fn::Split": [
+                                  "/",
+                                  {
+                                    "Ref": "AddPartitionETLScriptLocation"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/add_partitions.py"
                     }
-                ]
-            }
-        },
-
-		"Database" : {
-			"Type" : "AWS::Glue::Database",
-			"Properties" : {
-				"CatalogId" : {
-					"Ref" : "AWS::AccountId"
-				},
-				"DatabaseInput" : {
-					"Name" : "cloudtrail",
-					"Description" : "Contains CloudTrail Logs"
-				}
-			}
-		},
-
-		"FlatTable" : {
-			"Type" : "AWS::Glue::Table",
-			"Properties" : {
-				"CatalogId" : {
-					"Ref" : "AWS::AccountId"
-				},
-				"DatabaseName" : {
-					"Ref" : "Database"
-				},
-				"TableInput" : {
-					"Description" : "Table containing CloudTrail Logs",
-					"Name" : "cloudtrail_logs",
-					"TableType" : "EXTERNAL_TABLE",
-					"Parameters" : {
-						"classification" : "cloudtrail"
-					},
-					"StorageDescriptor" : {
-						"InputFormat" : "com.amazon.emr.cloudtrail.CloudTrailInputFormat",
-						"OutputFormat" : "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
-						"SerdeInfo" : {
-							"Name" : "CloudTrail SerDe",
-							"SerializationLibrary" : "com.amazon.emr.hive.serde.CloudTrailSerde",
-							"Parameters" : {}
-						},
-						"Parameters" : {
-							"classification" : "cloudtrail"
-						},
-						"Location" : {
-							"Ref" : "SourceS3Location"
-						},
-						"Compressed" : true,
-						"Columns" : [
-							{
-								"Name" : "eventVersion",
-								"Type" : "string"
-							},
-							{
-								"Name" : "userIdentity",
-								"Type" : {
-									"Fn::Join" : [
-										"",
-										[
-											"struct<",
-											"type:string,",
-											"principalId:string,",
-											"arn:string,",
-											"accountId:string,",
-											"invokedBy:string,",
-											"accessKeyId:string,",
-											"userName:string,",
-											"sessionContext:struct<",
-												"attributes:struct<",
-													"mfaAuthenticated:string,",
-													"creationDate:string>,",
-												"sessionIssuer:struct<",
-													"type:string,",
-													"principalId:string,",
-													"arn:string,",
-													"accountId:string,",
-													"userName:string>>>"
-										]
-									]
-								}								
-							},
-							{
-								"Name" : "eventTime",
-								"Type" : "string"
-							},
-							{
-								"Name" : "eventSource",
-								"Type" : "string"
-							},
-							{
-								"Name" : "eventName",
-								"Type" : "string"
-							},
-							{
-								"Name" : "awsRegion",
-								"Type" : "string"
-							},
-							{
-								"Name" : "sourceIpAddress",
-								"Type" : "string"
-							},
-							{
-								"Name" : "userAgent",
-								"Type" : "string"
-							},
-							{
-								"Name" : "errorCode",
-								"Type" : "string"
-							},
-							{
-								"Name" : "errorMessage",
-								"Type" : "string"
-							},
-							{
-								"Name" : "requestParameters",
-								"Type" : "string"
-							},
-							{
-								"Name" : "responseElements",
-								"Type" : "string"
-							},
-							{
-								"Name" : "additionalEventData",
-								"Type" : "string"
-							},
-							{
-								"Name" : "requestId",
-								"Type" : "string"
-							},
-							{
-								"Name" : "eventId",
-								"Type" : "string"
-							},
-							{
-								"Name" : "resources",
-								"Type" : {
-									"Fn::Join" : [
-										"",
-										[
-											"array<",
-												"struct<",
-													"arn:string,",
-													"accoundId:string,",
-													"type:string",
-												">>"
-										]
-									]
-								}
-							},
-							{
-								"Name" : "eventType",
-								"Type" : "string"
-							},
-							{
-								"Name" : "apiVersion",
-								"Type" : "string"
-							},
-							{
-								"Name" : "readOnly",
-								"Type" : "string"
-							},
-							{
-								"Name" : "recipientAccountId",
-								"Type" : "string"
-							},
-							{
-								"Name" : "serviceEventDetails",
-								"Type" : "string"
-							},
-							{
-								"Name" : "sharedEventID",
-								"Type" : "string"
-							},
-							{
-								"Name" : "vpcEndpointId",
-								"Type" : "string"
-							}
-						]
-					}
-				}
-			}
-		},
-
-		"PartitionedTable" : {
-			"Type" : "AWS::Glue::Table",
-			"Properties" : {
-				"CatalogId" : {
-					"Ref" : "AWS::AccountId"
-				},
-				"DatabaseName" : {
-					"Ref" : "Database"
-				},
-				"TableInput" : {
-					"Description" : "Table containing CloudTrail Logs",
-					"Name" : "cloudtrail_logs_partitioned",
-					"TableType" : "EXTERNAL_TABLE",
-					"PartitionKeys" : [
-						{
-							"Name" : "accountId",
-							"Type" : "string"
-						},
-						{
-							"Name" : "region",
-							"Type" : "string"
-						},
-						{
-							"Name" : "year",
-							"Type" : "int"
-						},
-						{
-							"Name" : "month",
-							"Type" : "int"
-						},
-						{
-							"Name" : "day",
-							"Type" : "int"
-						}
-					],
-					"StorageDescriptor" : {
-						"InputFormat" : "com.amazon.emr.cloudtrail.CloudTrailInputFormat",
-						"OutputFormat" : "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
-						"Parameters" : {
-							"classification" : "cloudtrail"
-						},
-						"SerdeInfo" : {
-							"Name" : "CloudTrail SerDe",
-							"SerializationLibrary" : "com.amazon.emr.hive.serde.CloudTrailSerde"
-						},
-						"Location" : {
-							"Fn::Sub" : "s3://${S3Bucket}"
-						},
-						"Columns" : [
-							{
-								"Name" : "eventVersion",
-								"Type" : "string"
-							},
-							{
-								"Name" : "userIdentity",
-								"Type" : {
-									"Fn::Join" : [
-										"",
-										[
-											"struct<",
-												"type:string,",
-												"principalId:string,",
-												"arn:string,",
-												"accountId:string,",
-												"invokedBy:string,",
-												"accessKeyId:string,",
-												"userName:string,",
-												"sessionContext:struct<",
-													"attributes:struct<",
-														"mfaAuthenticated:string,",
-														"creationDate:string>,",
-													"sessionIssuer:struct<",
-														"type:string,",
-														"principalId:string,",
-														"arn:string,",
-														"accountId:string,",
-														"userName:string",
-													">",
-												">",
-											">"
-										]
-									]
-								}								
-							},
-							{
-								"Name" : "eventTime",
-								"Type" : "string"
-							},
-							{
-								"Name" : "eventSource",
-								"Type" : "string"
-							},
-							{
-								"Name" : "eventName",
-								"Type" : "string"
-							},
-							{
-								"Name" : "awsRegion",
-								"Type" : "string"
-							},
-							{
-								"Name" : "sourceIpAddress",
-								"Type" : "string"
-							},
-							{
-								"Name" : "userAgent",
-								"Type" : "string"
-							},
-							{
-								"Name" : "errorCode",
-								"Type" : "string"
-							},
-							{
-								"Name" : "errorMessage",
-								"Type" : "string"
-							},
-							{
-								"Name" : "requestParameters",
-								"Type" : "string"
-							},
-							{
-								"Name" : "responseElements",
-								"Type" : "string"
-							},
-							{
-								"Name" : "additionalEventData",
-								"Type" : "string"
-							},
-							{
-								"Name" : "requestId",
-								"Type" : "string"
-							},
-							{
-								"Name" : "eventId",
-								"Type" : "string"
-							},
-							{
-								"Name" : "resources",
-								"Type" : {
-									"Fn::Join" : [
-										"",
-										[
-											"array<",
-												"struct<",
-													"arn: string,",
-													"accoundId: string,",
-													"type: string",
-												">>"
-										]
-									]
-								}
-							},
-							{
-								"Name" : "eventType",
-								"Type" : "string"
-							},
-							{
-								"Name" : "apiVersion",
-								"Type" : "string"
-							},
-							{
-								"Name" : "readOnly",
-								"Type" : "string"
-							},
-							{
-								"Name" : "recipientAccountId",
-								"Type" : "string"
-							},
-							{
-								"Name" : "serviceEventDetails",
-								"Type" : "string"
-							},
-							{
-								"Name" : "sharedEventID",
-								"Type" : "string"
-							},
-							{
-								"Name" : "vpcEndpointId",
-								"Type" : "string"
-							}
-						]
-					}
-				}
-			}
-		},
-
-		"GlueJob" : {
-			"Type" : "AWS::Glue::Job",
-			"Properties" : {
-				"Name" : "CloudTrail Logs Partitioning",
-				"Role" : {
-                    "Ref" : "GlueServiceRole"
-                },
-                "DefaultArguments" : {
-                    "--job-bookmark-option" : "job-bookmark-enable",
-                    "--enable-metrics"      : "",
-                    "--TempDir"             : {
-                        "Fn::Sub" : "s3://aws-glue-temporary-${AWS::AccountId}-${AWS::Region}"
-                    }
-                },
-                "ExecutionProperty" : {
-                    "MaxConcurrentRuns" : 10
-                },
-                "MaxRetries"        : 0,
-                "Description"       : "Performs an ETL on the raw CloudTrail logs to partition them and converts them to parquet.",
-                "Command"           : {
-                    "Name" : "glueetl",
-                    "ScriptLocation" : {
-						"Fn::If" : [
-							"SpecifiedScriptLocation",
-							{
-								"Ref" : "ETLScriptLocation"
-							},
-							{
-								"Fn::Sub" : "s3://aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition.py"
-							}
-						]                 
-                    }
+                  ]
                 }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": [
+                    "arn:${AWS::Partition}:s3:::${Bucket}/*",
+                    {
+                      "Bucket": {
+                        "Fn::Select": [
+                          2,
+                          {
+                            "Fn::Split": [
+                              "/",
+                              { "Ref": "SourceS3Location" }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": [
+                    "arn:${AWS::Partition}:s3:::${Bucket}",
+                    {
+                      "Bucket": {
+                        "Fn::Select": [
+                          2,
+                          {
+                            "Fn::Split": [
+                              "/",
+                              { "Ref": "SourceS3Location" }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetObject"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:s3:::${S3Bucket}/*"
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:s3:::${S3Bucket}"
+                }
+              ]
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "GlueServiceRole"
+          }
+        ]
+      }
+    },
+    "GlueCloudWatchPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:*:*:/aws-glue/*"
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "cloudwatch:PutMetricData"
+              ],
+              "Resource": "*"
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "GlueServiceRole"
+          }
+        ]
+      }
+    },
+    "GlueKMSPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "kms:Decrypt"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:kms:*:${AWS::AccountId}:key/*"
+                }
+              ]
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "GlueServiceRole"
+          }
+        ]
+      }
+    },
+	"GlueScopedDownServiceRolePolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+			{
+				"Effect" : "Allow",
+				"Action" : [
+					"glue:*"
+				],
+				"Resource" : "*"
+			},
+			{
+				"Effect" : "Allow",
+				"Action" : [
+					"s3:GetBucketLocation",
+					"s3:GetBucketAcl"
+				],
+				"Resource" : "*"
+			},
+			{
+				"Effect" : "Allow",
+				"Action" : [
+					"iam:ListRolePolicies",
+					"iam:GetRole",
+					"iam:GetRolePolicy"
+				],
+				"Resource" : "*"
 			}
-		}
-	},
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "GlueServiceRole"
+          }
+        ]
+      }
+    },
 
-	"Outputs" : {
-	}
+    "Database": {
+      "Type": "AWS::Glue::Database",
+      "Properties": {
+        "CatalogId": {
+          "Ref": "AWS::AccountId"
+        },
+        "DatabaseInput": {
+          "Name": "cloudtrail",
+          "Description": "Contains CloudTrail Logs"
+        }
+      }
+    },
+
+    "AthenaFlatTable": {
+      "Type": "AWS::Glue::Table",
+      "Properties": {
+        "CatalogId": {
+          "Ref": "AWS::AccountId"
+        },
+        "DatabaseName": {
+          "Ref": "Database"
+        },
+        "TableInput": {
+          "Description": "Table containing CloudTrail Logs that can be queried with Athena, but has no partitions.",
+          "Name": "cloudtrail_logs_athena_flat",
+          "TableType": "EXTERNAL_TABLE",
+          "Parameters": {
+            "classification": "cloudtrail",
+            "exclusions": {
+              "Fn::Sub": "[\"${SourceS3Location}**/CloudTrail-Digest/**\"]"
+            },
+            "compressionType": "gzip",
+            "typeOfData": "file"
+          },
+          "StorageDescriptor": {
+            "InputFormat": "com.amazon.emr.cloudtrail.CloudTrailInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "SerdeInfo": {
+              "Name": "CloudTrail SerDe",
+              "SerializationLibrary": "com.amazon.emr.hive.serde.CloudTrailSerde",
+              "Parameters": {}
+            },
+            "Parameters": {
+              "classification": "cloudtrail"
+            },
+            "Location": {
+              "Ref": "SourceS3Location"
+            },
+            "StoredAsSubDirectories": true,
+            "Compressed": true,
+            "Columns": [
+              {
+                "Name": "eventVersion",
+                "Type": "string"
+              },
+              {
+                "Name": "userIdentity",
+                "Type": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "struct<",
+                      "type:string,",
+                      "principalId:string,",
+                      "arn:string,",
+                      "accountId:string,",
+                      "invokedBy:string,",
+                      "accessKeyId:string,",
+                      "userName:string,",
+                      "sessionContext:struct<",
+                      "attributes:struct<",
+                      "mfaAuthenticated:string,",
+                      "creationDate:string>,",
+                      "sessionIssuer:struct<",
+                      "type:string,",
+                      "principalId:string,",
+                      "arn:string,",
+                      "accountId:string,",
+                      "userName:string>>>"
+                    ]
+                  ]
+                }
+              },
+              {
+                "Name": "eventTime",
+                "Type": "string"
+              },
+              {
+                "Name": "eventSource",
+                "Type": "string"
+              },
+              {
+                "Name": "eventName",
+                "Type": "string"
+              },
+              {
+                "Name": "awsRegion",
+                "Type": "string"
+              },
+              {
+                "Name": "sourceIpAddress",
+                "Type": "string"
+              },
+              {
+                "Name": "userAgent",
+                "Type": "string"
+              },
+              {
+                "Name": "errorCode",
+                "Type": "string"
+              },
+              {
+                "Name": "errorMessage",
+                "Type": "string"
+              },
+              {
+                "Name": "requestParameters",
+                "Type": "string"
+              },
+              {
+                "Name": "responseElements",
+                "Type": "string"
+              },
+              {
+                "Name": "additionalEventData",
+                "Type": "string"
+              },
+              {
+                "Name": "requestId",
+                "Type": "string"
+              },
+              {
+                "Name": "eventId",
+                "Type": "string"
+              },
+              {
+                "Name": "resources",
+                "Type": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "array<",
+                      "struct<",
+                      "arn:string,",
+                      "accountId:string,",
+                      "type:string",
+                      ">>"
+                    ]
+                  ]
+                }
+              },
+              {
+                "Name": "eventType",
+                "Type": "string"
+              },
+              {
+                "Name": "apiVersion",
+                "Type": "string"
+              },
+              {
+                "Name": "readOnly",
+                "Type": "string"
+              },
+              {
+                "Name": "recipientAccountId",
+                "Type": "string"
+              },
+              {
+                "Name": "serviceEventDetails",
+                "Type": "string"
+              },
+              {
+                "Name": "sharedEventID",
+                "Type": "string"
+              },
+              {
+                "Name": "vpcEndpointId",
+                "Type": "string"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "AthenaPartitionedTable": {
+      "Type": "AWS::Glue::Table",
+      "Properties": {
+        "CatalogId": {
+          "Ref": "AWS::AccountId"
+        },
+        "DatabaseName": {
+          "Ref": "Database"
+        },
+        "TableInput": {
+          "Description": "Table containing CloudTrail Logs that can be queried with Athena with partitions.",
+          "Name": "cloudtrail_logs_athena_partitioned",
+          "TableType": "EXTERNAL_TABLE",
+          "Parameters": {
+            "classification": "cloudtrail",
+            "exclusions": {
+              "Fn::Sub": "[\"${SourceS3Location}**/CloudTrail-Digest/**\"]"
+            },
+            "compressionType": "gzip",
+            "typeOfData": "file"
+          },
+          "StorageDescriptor": {
+            "InputFormat": "com.amazon.emr.cloudtrail.CloudTrailInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "SerdeInfo": {
+              "Name": "CloudTrail SerDe",
+              "SerializationLibrary": "com.amazon.emr.hive.serde.CloudTrailSerde",
+              "Parameters": {}
+            },
+            "Parameters": {
+              "classification": "cloudtrail"
+            },
+            "Location": {
+              "Ref": "SourceS3Location"
+            },
+            "Compressed": true,
+            "StoredAsSubDirectories": false,
+            "Columns": [
+              {
+                "Name": "eventVersion",
+                "Type": "string"
+              },
+              {
+                "Name": "userIdentity",
+                "Type": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "struct<",
+                      "type:string,",
+                      "principalId:string,",
+                      "arn:string,",
+                      "accountId:string,",
+                      "invokedBy:string,",
+                      "accessKeyId:string,",
+                      "userName:string,",
+                      "sessionContext:struct<",
+                      "attributes:struct<",
+                      "mfaAuthenticated:string,",
+                      "creationDate:string>,",
+                      "sessionIssuer:struct<",
+                      "type:string,",
+                      "principalId:string,",
+                      "arn:string,",
+                      "accountId:string,",
+                      "userName:string>>>"
+                    ]
+                  ]
+                }
+              },
+              {
+                "Name": "eventTime",
+                "Type": "string"
+              },
+              {
+                "Name": "eventSource",
+                "Type": "string"
+              },
+              {
+                "Name": "eventName",
+                "Type": "string"
+              },
+              {
+                "Name": "awsRegion",
+                "Type": "string"
+              },
+              {
+                "Name": "sourceIpAddress",
+                "Type": "string"
+              },
+              {
+                "Name": "userAgent",
+                "Type": "string"
+              },
+              {
+                "Name": "errorCode",
+                "Type": "string"
+              },
+              {
+                "Name": "errorMessage",
+                "Type": "string"
+              },
+              {
+                "Name": "requestParameters",
+                "Type": "string"
+              },
+              {
+                "Name": "responseElements",
+                "Type": "string"
+              },
+              {
+                "Name": "additionalEventData",
+                "Type": "string"
+              },
+              {
+                "Name": "requestId",
+                "Type": "string"
+              },
+              {
+                "Name": "eventId",
+                "Type": "string"
+              },
+              {
+                "Name": "resources",
+                "Type": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "array<",
+                      "struct<",
+                      "arn:string,",
+                      "accountId:string,",
+                      "type:string",
+                      ">>"
+                    ]
+                  ]
+                }
+              },
+              {
+                "Name": "eventType",
+                "Type": "string"
+              },
+              {
+                "Name": "apiVersion",
+                "Type": "string"
+              },
+              {
+                "Name": "readOnly",
+                "Type": "string"
+              },
+              {
+                "Name": "recipientAccountId",
+                "Type": "string"
+              },
+              {
+                "Name": "serviceEventDetails",
+                "Type": "string"
+              },
+              {
+                "Name": "sharedEventID",
+                "Type": "string"
+              },
+              {
+                "Name": "vpcEndpointId",
+                "Type": "string"
+              }
+            ]
+          },
+          "PartitionKeys": [
+            {
+              "Name": "accountid",
+              "Type": "string",
+              "Comment": "accountid"
+            },
+            {
+              "Name": "type",
+              "Type": "string",
+              "Comment": "CloudTrail"
+            },
+            {
+              "Name": "region",
+              "Type": "string",
+              "Comment": "region"
+            },
+            {
+              "Name": "year",
+              "Type": "string",
+              "Comment": "year"
+            },
+            {
+              "Name": "month",
+              "Type": "string",
+              "Comment": "month"
+            },
+            {
+              "Name": "day",
+              "Type": "string",
+              "Comment": "day"
+            }
+          ]
+        }
+      }
+    },
+
+    "GlueETLPartitionedTable": {
+      "Type": "AWS::Glue::Table",
+      "Properties": {
+        "CatalogId": {
+          "Ref": "AWS::AccountId"
+        },
+        "DatabaseName": {
+          "Ref": "Database"
+        },
+        "TableInput": {
+          "Description": "Table containing CloudTrail Logs to be used with Glue ETL operations",
+          "Name": "cloudtrail_logs_glue_etl_source_partitioned",
+          "TableType": "EXTERNAL_TABLE",
+          "Parameters": {
+            "classification": "cloudtrail",
+            "exclusions": {
+              "Fn::Sub": "[\"${SourceS3Location}**/CloudTrail-Digest/**\"]"
+            },
+            "jsonPath": "$.Records[*]",
+            "compressionType": "gzip",
+            "typeOfData": "file"
+          },
+          "StorageDescriptor": {
+            "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "SerdeInfo": {
+              "Name": "JSON",
+              "SerializationLibrary": "org.openx.data.jsonserde.JsonSerDe",
+              "Parameters": {}
+            },
+            "Parameters": {
+              "classification": "cloudtrail"
+            },
+            "Location": {
+              "Ref": "SourceS3Location"
+            },
+            "Compressed": true,
+            "StoredAsSubDirectories": false,
+            "NumberOfBuckets": "-1",
+            "Columns": [
+              {
+                "Name": "eventVersion",
+                "Type": "string"
+              },
+              {
+                "Name": "userIdentity",
+                "Type": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "struct<",
+                      "type:string,",
+                      "principalId:string,",
+                      "arn:string,",
+                      "accountId:string,",
+                      "invokedBy:string,",
+                      "accessKeyId:string,",
+                      "userName:string,",
+                      "sessionContext:struct<",
+                      "attributes:struct<",
+                      "mfaAuthenticated:string,",
+                      "creationDate:string>,",
+                      "sessionIssuer:struct<",
+                      "type:string,",
+                      "principalId:string,",
+                      "arn:string,",
+                      "accountId:string,",
+                      "userName:string>>>"
+                    ]
+                  ]
+                }
+              },
+              {
+                "Name": "eventTime",
+                "Type": "string"
+              },
+              {
+                "Name": "eventSource",
+                "Type": "string"
+              },
+              {
+                "Name": "eventName",
+                "Type": "string"
+              },
+              {
+                "Name": "awsRegion",
+                "Type": "string"
+              },
+              {
+                "Name": "sourceIpAddress",
+                "Type": "string"
+              },
+              {
+                "Name": "userAgent",
+                "Type": "string"
+              },
+              {
+                "Name": "errorCode",
+                "Type": "string"
+              },
+              {
+                "Name": "errorMessage",
+                "Type": "string"
+              },
+              {
+                "Name": "requestParameters",
+                "Type": "string"
+              },
+              {
+                "Name": "responseElements",
+                "Type": "string"
+              },
+              {
+                "Name": "additionalEventData",
+                "Type": "string"
+              },
+              {
+                "Name": "requestId",
+                "Type": "string"
+              },
+              {
+                "Name": "eventId",
+                "Type": "string"
+              },
+              {
+                "Name": "resources",
+                "Type": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "array<",
+                      "struct<",
+                      "arn:string,",
+                      "accountId:string,",
+                      "type:string",
+                      ">>"
+                    ]
+                  ]
+                }
+              },
+              {
+                "Name": "eventType",
+                "Type": "string"
+              },
+              {
+                "Name": "apiVersion",
+                "Type": "string"
+              },
+              {
+                "Name": "readOnly",
+                "Type": "string"
+              },
+              {
+                "Name": "recipientAccountId",
+                "Type": "string"
+              },
+              {
+                "Name": "serviceEventDetails",
+                "Type": "string"
+              },
+              {
+                "Name": "sharedEventID",
+                "Type": "string"
+              },
+              {
+                "Name": "vpcEndpointId",
+                "Type": "string"
+              }
+            ]
+          },
+          "PartitionKeys": [
+            {
+              "Name": "accountid",
+              "Type": "string",
+              "Comment": "accountid"
+            },
+            {
+              "Name": "type",
+              "Type": "string",
+              "Comment": "CloudTrail"
+            },
+            {
+              "Name": "region",
+              "Type": "string",
+              "Comment": "region"
+            },
+            {
+              "Name": "year",
+              "Type": "string",
+              "Comment": "year"
+            },
+            {
+              "Name": "month",
+              "Type": "string",
+              "Comment": "month"
+            },
+            {
+              "Name": "day",
+              "Type": "string",
+              "Comment": "day"
+            }
+          ]
+        }
+      }
+    },
+
+    "GlueETLFlatTable": {
+      "Type": "AWS::Glue::Table",
+      "Properties": {
+        "CatalogId": {
+          "Ref": "AWS::AccountId"
+        },
+        "DatabaseName": {
+          "Ref": "Database"
+        },
+        "TableInput": {
+          "Description": "Table containing CloudTrail Logs to be used with Glue ETL operations",
+          "Name": "cloudtrail_logs_glue_etl_source_flat",
+          "TableType": "EXTERNAL_TABLE",
+          "Parameters": {
+            "classification": "cloudtrail",
+            "exclusions": {
+              "Fn::Sub": "[\"${SourceS3Location}**/CloudTrail-Digest/**\"]"
+            },
+            "jsonPath": "$.Records[*]",
+            "compressionType": "gzip",
+            "typeOfData": "file"
+          },
+          "StorageDescriptor": {
+            "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "SerdeInfo": {
+              "Name": "JSON",
+              "SerializationLibrary": "org.openx.data.jsonserde.JsonSerDe",
+              "Parameters": {}
+            },
+            "Parameters": {
+              "classification": "cloudtrail"
+            },
+            "Location": {
+              "Ref": "SourceS3Location"
+            },
+            "Compressed": true,
+            "StoredAsSubDirectories": true,
+            "NumberOfBuckets": "-1",
+            "Columns": [
+              {
+                "Name": "eventVersion",
+                "Type": "string"
+              },
+              {
+                "Name": "userIdentity",
+                "Type": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "struct<",
+                      "type:string,",
+                      "principalId:string,",
+                      "arn:string,",
+                      "accountId:string,",
+                      "invokedBy:string,",
+                      "accessKeyId:string,",
+                      "userName:string,",
+                      "sessionContext:struct<",
+                      "attributes:struct<",
+                      "mfaAuthenticated:string,",
+                      "creationDate:string>,",
+                      "sessionIssuer:struct<",
+                      "type:string,",
+                      "principalId:string,",
+                      "arn:string,",
+                      "accountId:string,",
+                      "userName:string>>>"
+                    ]
+                  ]
+                }
+              },
+              {
+                "Name": "eventTime",
+                "Type": "string"
+              },
+              {
+                "Name": "eventSource",
+                "Type": "string"
+              },
+              {
+                "Name": "eventName",
+                "Type": "string"
+              },
+              {
+                "Name": "awsRegion",
+                "Type": "string"
+              },
+              {
+                "Name": "sourceIpAddress",
+                "Type": "string"
+              },
+              {
+                "Name": "userAgent",
+                "Type": "string"
+              },
+              {
+                "Name": "errorCode",
+                "Type": "string"
+              },
+              {
+                "Name": "errorMessage",
+                "Type": "string"
+              },
+              {
+                "Name": "requestParameters",
+                "Type": "string"
+              },
+              {
+                "Name": "responseElements",
+                "Type": "string"
+              },
+              {
+                "Name": "additionalEventData",
+                "Type": "string"
+              },
+              {
+                "Name": "requestId",
+                "Type": "string"
+              },
+              {
+                "Name": "eventId",
+                "Type": "string"
+              },
+              {
+                "Name": "resources",
+                "Type": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "array<",
+                      "struct<",
+                      "arn:string,",
+                      "accountId:string,",
+                      "type:string",
+                      ">>"
+                    ]
+                  ]
+                }
+              },
+              {
+                "Name": "eventType",
+                "Type": "string"
+              },
+              {
+                "Name": "apiVersion",
+                "Type": "string"
+              },
+              {
+                "Name": "readOnly",
+                "Type": "string"
+              },
+              {
+                "Name": "recipientAccountId",
+                "Type": "string"
+              },
+              {
+                "Name": "serviceEventDetails",
+                "Type": "string"
+              },
+              {
+                "Name": "sharedEventID",
+                "Type": "string"
+              },
+              {
+                "Name": "vpcEndpointId",
+                "Type": "string"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "PartitionedTable": {
+      "Type": "AWS::Glue::Table",
+      "Properties": {
+        "CatalogId": {
+          "Ref": "AWS::AccountId"
+        },
+        "DatabaseName": {
+          "Ref": "Database"
+        },
+        "TableInput": {
+          "Description": "Table containing CloudTrail Logs in Parquet",
+          "Name": "cloudtrail_logs_parquet_partitioned",
+          "TableType": "EXTERNAL_TABLE",
+          "Parameters": {
+            "compressionType": "none",
+            "classification": "parquet",
+            "typeOfData": "file"
+          },
+          "PartitionKeys": [
+            {
+              "Name": "recipient_account_id",
+              "Type": "string"
+            },
+            {
+              "Name": "service",
+              "Type": "string"
+            },
+            {
+              "Name": "aws_region",
+              "Type": "string"
+            },
+            {
+              "Name": "year",
+              "Type": "int"
+            },
+            {
+              "Name": "month",
+              "Type": "int"
+            },
+            {
+              "Name": "day",
+              "Type": "int"
+            },
+            {
+              "Name": "hour",
+              "Type": "int"
+            }
+          ],
+          "StorageDescriptor": {
+            "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+            "Parameters": {
+              "classification": "parquet",
+              "compressionType": "none",
+              "typeOfData": "file"
+            },
+            "Compressed": false,
+            "SerdeInfo": {
+              "Name": "ParquetHiveSerDe",
+              "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+              "Parameters": {
+                "serialization.format": "1"
+              }
+            },
+            "StoredAsSubDirectories": false,
+            "Location": {
+              "Fn::Sub": "s3://${S3Bucket}/"
+            },
+            "Columns": [
+              {
+                "Name": "event_version",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_type",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_principal_id",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_arn",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_account_id",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_access_key_id",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_session_context_attributes_mfa_authenticated",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_session_context_attributes_creation_date",
+                "Type": "string",
+                "Comment": "Although most records have this as a timestamp, some are null and cause query errors."
+              },
+              {
+                "Name": "user_identity_session_context_session_issuer_type",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_session_context_session_issuer_principal_id",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_session_context_session_issuer_arn",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_session_context_session_issuer_account_id",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_session_context_session_issuer_user_name",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_session_context_session_issuer_web_id_federation_data",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_invoked_by",
+                "Type": "string"
+              },
+              {
+                "Name": "user_identity_user_name",
+                "Type": "string"
+              },
+              {
+                "Name": "event_time",
+                "Type": "timestamp"
+              },
+              {
+                "Name": "event_source",
+                "Type": "string"
+              },
+              {
+                "Name": "event_name",
+                "Type": "string"
+              },
+              {
+                "Name": "source_ip_address",
+                "Type": "string"
+              },
+              {
+                "Name": "user_agent",
+                "Type": "string"
+              },
+              {
+                "Name": "request_id",
+                "Type": "string"
+              },
+              {
+                "Name": "event_id",
+                "Type": "string"
+              },
+              {
+                "Name": "event_type",
+                "Type": "string"
+              },
+              {
+                "Name": "request_parameters",
+                "Type": "string"
+              },
+              {
+                "Name": "api_version",
+                "Type": "string"
+              },
+              {
+                "Name": "response_elements",
+                "Type": "string"
+              },
+              {
+                "Name": "error_code",
+                "Type": "string"
+              },
+              {
+                "Name": "error_message",
+                "Type": "string"
+              },
+              {
+                "Name": "read_only",
+                "Type": "boolean"
+              },
+              {
+                "Name": "vpc_endpoint_id",
+                "Type": "string"
+              },
+              {
+                "Name": "additional_event_data",
+                "Type": "string"
+              },
+              {
+                "Name": "service_event_details",
+                "Type": "string"
+              },
+              {
+                "Name": "management_event",
+                "Type": "boolean"
+              },
+              {
+                "Name": "shared_event_id",
+                "Type": "string"
+              },
+              {
+                "Name": "resources",
+                "Type": "string",
+                "Comment": "Actual type is array<struct<arn:string,accountId:string,type:string>>, but some logs do not have this field."
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "AddPartitionsGlueJob": {
+      "Type": "AWS::Glue::Job",
+      "Properties": {
+        "Name": "CloudTrail Logs - Initial Add Partitions to Table",
+        "GlueVersion": "1.0",
+        "Role": {
+          "Ref": "GlueServiceRole"
+        },
+        "DefaultArguments": {
+          "--enable-metrics": "",
+          "--database": {
+            "Ref": "Database"
+          },
+          "--table": "",
+		  "--s3_path": {
+			"Ref" : "SourceS3Location"
+		  }
+        },
+        "ExecutionProperty": {
+          "MaxConcurrentRuns": 10
+        },
+        "MaxRetries": 0,
+        "Description": "Adds new partitions to a specified table in the cloudtrail database. This is the initial load and will populate all existing S3 paths into the table as partitions.",
+        "Command": {
+          "Name": "pythonshell",
+          "PythonVersion": "3",
+          "ScriptLocation": {
+            "Fn::If": [
+              "SpecifiedAddPartitionsScriptLocation",
+              {
+                "Ref": "AddPartitionETLScriptLocation"
+              },
+              {
+                "Fn::Sub": "s3://aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/add_partitions.py"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+	"AddPartitionsRecurringGlueJob": {
+      "Type": "AWS::Glue::Job",
+      "Properties": {
+        "Name": "CloudTrail Logs - Recurring Add Partitions to Table",
+        "GlueVersion": "1.0",
+        "Role": {
+          "Ref": "GlueServiceRole"
+        },
+        "DefaultArguments": {
+          "--enable-metrics": "",
+          "--database": {
+            "Ref": "Database"
+          },
+          "--table": "",
+		  "--s3_path": {
+			"Ref" : "SourceS3Location"
+		  }
+        },
+        "ExecutionProperty": {
+          "MaxConcurrentRuns": 10
+        },
+        "MaxRetries": 0,
+        "Description": "Adds new partitions to a specified table in the cloudtrail database on a recurring basis. Evaluates S3 paths for the current and previous days for new partitions (in case files got loaded for the previous day but weren't seen on the last run, CloudTrail logs aren't more than 24 hours delayed).",
+        "Command": {
+          "Name": "pythonshell",
+          "PythonVersion": "3",
+          "ScriptLocation": {
+            "Fn::If": [
+              "SpecifiedRecurringAddPartitionsScriptLocation",
+              {
+                "Ref": "RecurringAddPartitionETLScriptLocation"
+              },
+              {
+                "Fn::Sub": "s3://aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/add_partitions_recurring.py"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "CloudTrailInitialLoadGlueJob": {
+      "Type": "AWS::Glue::Job",
+      "Properties": {
+        "Name": "CloudTrail Logs - Initial Load All At Once From Flat Table",
+        "GlueVersion": "1.0",
+        "Role": {
+          "Ref": "GlueServiceRole"
+        },
+        "DefaultArguments": {
+          "--job-bookmark-option": "job-bookmark-enable",
+          "--enable-metrics": "",
+          "--database": {
+            "Ref": "Database"
+          },
+          "--table": {
+            "Ref": "GlueETLFlatTable"
+          },
+          "--destination_bucket": {
+            "Ref": "S3Bucket"
+          }
+        },
+        "ExecutionProperty": {
+          "MaxConcurrentRuns": 1
+        },
+        "MaxRetries": 0,
+        "Description": "Evaluates the entire source S3 path to load CloudTrail logs as partitioned data into the new bucket and converts them to parquet. This query can take hours (10+) to run depending on the size of the source, but only takes a single run to load all existing data.",
+        "Command": {
+          "Name": "glueetl",
+          "ScriptLocation": {
+            "Fn::If": [
+              "SpecifiedInitialLoadScriptLocation",
+              {
+                "Ref": "InitialLoadETLScriptLocation"
+              },
+              {
+                "Fn::Sub": "s3://aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition_initial_load.py"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+	"CloudTrailInitialLoadPartitionedGlueJob": {
+      "Type": "AWS::Glue::Job",
+      "Properties": {
+        "Name": "CloudTrail Logs - Initial Load By Partition from Partitioned Table",
+        "GlueVersion": "1.0",
+        "Role": {
+          "Ref": "GlueServiceRole"
+        },
+        "DefaultArguments": {
+          "--job-bookmark-option": "job-bookmark-enable",
+          "--enable-metrics": "",
+          "--database": {
+            "Ref": "Database"
+          },
+          "--table": {
+            "Ref": "GlueETLPartitionedTable"
+          },
+          "--destination_bucket": {
+            "Ref": "S3Bucket"
+          },
+		  "--year" : "",
+		  "--month" : ""
+        },
+        "ExecutionProperty": {
+          "MaxConcurrentRuns": 100
+        },
+        "MaxRetries": 0,
+        "Description": "This job evaluates a specific year/month partition in the source CloudTrail location and loads just that data into the new S3 location as partitioned data and converts it to parquet. This job will need to be run for each year/month in the source.",
+        "Command": {
+          "Name": "glueetl",
+          "ScriptLocation": {
+            "Fn::If": [
+              "SpecifiedInitialLoadPartitionedScriptLocation",
+              {
+                "Ref": "InitialLoadPartitionedETLScriptLocation"
+              },
+              {
+                "Fn::Sub": "s3://aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition_initial_load_partitioned.py"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+	"CloudTrailRecurringLoadPartitionedGlueJob": {
+      "Type": "AWS::Glue::Job",
+      "Properties": {
+        "Name": "CloudTrail Logs - Recurring Load By Partition from Partitioned Table",
+        "GlueVersion": "1.0",
+        "Role": {
+          "Ref": "GlueServiceRole"
+        },
+        "DefaultArguments": {
+          "--job-bookmark-option": "job-bookmark-enable",
+          "--enable-metrics": "",
+          "--database": {
+            "Ref": "Database"
+          },
+          "--table": {
+            "Ref": "GlueETLPartitionedTable"
+          },
+          "--destination_bucket": {
+            "Ref": "S3Bucket"
+          },
+		  "--days_ago" : "7"
+        },
+        "ExecutionProperty": {
+          "MaxConcurrentRuns": 100
+        },
+        "MaxRetries": 0,
+        "Description": "Performs a recurring job to add CloudTrail logs to the new partitioned S3 location and converts them to Parquet. The job reads from a source partitioned table and looks, by default, at all partitions 7 days old and newer for new data.",
+        "Command": {
+          "Name": "glueetl",
+          "ScriptLocation": {
+            "Fn::If": [
+              "SpecifiedRecurringLoadPartitionedScriptLocation",
+              {
+                "Ref": "RecurringLoadPartitionedETLScriptLocation"
+              },
+              {
+                "Fn::Sub": "s3://aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition_recurring_load_from_partitions.py"
+              }
+            ]
+          }
+        }
+      }
+    },
+   
+    "CloudTrailRecurringLoadGlueJob": {
+      "Type": "AWS::Glue::Job",
+      "Properties": {
+        "Name": "CloudTrail Logs - Recurring Load By S3 Path From Flat Table",
+        "GlueVersion": "1.0",
+        "Role": {
+          "Ref": "GlueServiceRole"
+        },
+        "DefaultArguments": {
+          "--job-bookmark-option": "job-bookmark-enable",
+          "--enable-metrics": "",
+          "--s3-bucket": {
+            "Ref": "SourceS3Location"
+          },
+          "--destination_bucket": {
+            "Ref": "S3Bucket"
+          }
+        },
+        "ExecutionProperty": {
+          "MaxConcurrentRuns": 10
+        },
+        "MaxRetries": 0,
+        "Description": "This job evaluates S3 paths for today and yesterday and loads them into the new partitioned S3 location and converts them to parquet. It relies on job bookmarks to not process duplicate files.",
+        "Command": {
+          "Name": "glueetl",
+          "ScriptLocation": {
+            "Fn::If": [
+              "SpecifiedRecurringLoadScriptLocation",
+              {
+                "Ref": "RecurringLoadETLScriptLocation"
+              },
+              {
+                "Fn::Sub": "s3://aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition_recurring_load.py"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+	"InitialRunTrigger": {
+      "Type": "AWS::Glue::Trigger",
+      "Properties": {
+        "Type": "ON_DEMAND",
+        "Name": "cloudtrail_logs_initial_load",
+        "Description": "Kicks of the ETL job to do the initial load of CloudTrail logs.",
+        "Actions": [
+          {
+            "Arguments": {
+              "--table": {
+                "Ref": "GlueETLFlatTable"
+              }
+            },
+            "JobName": {
+              "Ref": "CloudTrailInitialLoadGlueJob"
+            }
+          }
+        ]
+      }
+    },
+
+    "RecurringLoadTrigger": {
+      "Type": "AWS::Glue::Trigger",
+      "Properties": {
+        "Type": "SCHEDULED",
+        "Name": "cloudtrail_logs_recurring_load",
+        "Description": "Kicks of the ETL job to do the recurring load of CloudTrail logs every hour.",
+        "Actions": [
+          {
+            "Arguments": {
+              "--table": {
+                "Ref": "GlueETLFlatTable"
+              }
+            },
+            "JobName": {
+              "Ref": "CloudTrailRecurringLoadGlueJob"
+            }
+          }
+        ],
+        "Schedule": "cron(0 * * * ? *)"
+      }
+    },
+
+	"RecurringLoadFromPartitionsTrigger": {
+      "Type": "AWS::Glue::Trigger",
+      "Properties": {
+        "Type": "SCHEDULED",
+        "Name": "cloudtrail_logs_recurring_load_from_partitions",
+        "Description": "Kicks of the ETL job to do the recurring load of CloudTrail logs every hour.",
+        "Actions": [
+          {
+            "Arguments": {
+              "--table": {
+                "Ref": "GlueETLPartitionedTable"
+              }
+            },
+            "JobName": {
+              "Ref": "CloudTrailRecurringLoadPartitionedGlueJob"
+            }
+          }
+        ],
+        "Schedule": "cron(0 * * * ? *)"
+      }
+    },
+
+	"AddPartitionsGlueETLTrigger": {
+      "Type": "AWS::Glue::Trigger",
+      "Properties": {
+        "Type": "ON_DEMAND",
+        "Name": "cloudtrail_logs_add_partitions_glue_etl",
+        "Description": "Adds partitions to the Glue Table being used as the source for ETL.",
+        "Actions": [
+          {
+            "Arguments": {
+              "--table": {
+                "Ref": "GlueETLPartitionedTable"
+              }
+            },
+            "JobName": {
+              "Ref": "AddPartitionsGlueJob"
+            }
+          }
+        ]
+      }
+    },
+
+	"AddPartitionsAthenaTrigger": {
+      "Type": "AWS::Glue::Trigger",
+      "Properties": {
+        "Type": "ON_DEMAND",
+        "Name": "cloudtrail_logs_add_partitions_athena",
+        "Description": "Adds partitions to the Glue Table being used by Athena.",
+        "Actions": [
+          {
+            "Arguments": {
+              "--table": {
+                "Ref": "AthenaPartitionedTable"
+              }
+            },
+            "JobName": {
+              "Ref": "AddPartitionsGlueJob"
+            }
+          }
+        ]
+      }
+    },
+
+	"RecurringAddPartitionsGlueETLTrigger": {
+      "Type": "AWS::Glue::Trigger",
+      "Properties": {
+        "Type": "SCHEDULED",
+        "Name": "cloudtrail_logs_add_partitions_glue_etl_recurring",
+        "Description": "Adds new partitions to the Glue Table being used as the source for ETL.",
+        "Actions": [
+          {
+            "Arguments": {
+              "--table": {
+                "Ref": "GlueETLPartitionedTable"
+              }
+            },
+            "JobName": {
+              "Ref": "AddPartitionsRecurringGlueJob"
+            }
+          }
+        ],
+		"Schedule": "cron(10 * * * ? *)"
+      }
+    },
+
+	"RecurringAddPartitionsAthenaTrigger": {
+      "Type": "AWS::Glue::Trigger",
+      "Properties": {
+        "Type": "SCHEDULED",
+        "Name": "cloudtrail_logs_add_partitions_athena_recurring",
+        "Description": "Adds new partitions to the Glue Table being used by Athena.",
+        "Actions": [
+          {
+            "Arguments": {
+              "--table": {
+                "Ref": "AthenaPartitionedTable"
+              }
+            },
+            "JobName": {
+              "Ref": "AddPartitionsRecurringGlueJob"
+            }
+          }
+        ],
+		"Schedule": "cron(10 * * * ? *)"
+      }
+    }
+  },
+
+  "Outputs": {
+  }
 }

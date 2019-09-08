@@ -52,7 +52,25 @@
     <Compile Include="AthenaDemo\README.md">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Athena\add_partitions.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Athena\add_partitions_recurring.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Athena\cloudtrail-logs.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Athena\cloudtrail_partition_initial_load.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Athena\cloudtrail_partition_initial_load_partitioned.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Athena\cloudtrail_partition_recurring_load.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Athena\cloudtrail_partition_recurring_load_from_partitions.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Athena\deploy.ps1">
