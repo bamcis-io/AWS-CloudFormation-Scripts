@@ -1772,7 +1772,7 @@
 		  "--month" : ""
         },
         "ExecutionProperty": {
-          "MaxConcurrentRuns": 100
+          "MaxConcurrentRuns": 1
         },
         "MaxRetries": 0,
         "Description": "This job evaluates a specific year/month partition in the source CloudTrail location and loads just that data into the new S3 location as partitioned data and converts it to parquet. This job will need to be run for each year/month in the source.",
@@ -1853,7 +1853,7 @@
 		  "--days_ago" : "7"
         },
         "ExecutionProperty": {
-          "MaxConcurrentRuns": 100
+          "MaxConcurrentRuns": 1
         },
         "MaxRetries": 0,
         "Description": "Performs a recurring job to add CloudTrail logs to the new partitioned S3 location and converts them to Parquet. The job reads from a source partitioned table and looks, by default, at all partitions 7 days old and newer for new data.",
@@ -1930,7 +1930,7 @@
           }
         },
         "ExecutionProperty": {
-          "MaxConcurrentRuns": 10
+          "MaxConcurrentRuns": 1
         },
         "MaxRetries": 0,
         "Description": "This job evaluates S3 paths for today and yesterday and loads them into the new partitioned S3 location and converts them to parquet. It relies on job bookmarks to not process duplicate files.",
