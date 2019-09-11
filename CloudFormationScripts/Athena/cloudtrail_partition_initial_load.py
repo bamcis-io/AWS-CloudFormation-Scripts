@@ -114,16 +114,24 @@ mapping2 = resolve1.apply_mapping(
 
 # Create a data frame
 df = mapping2.toDF()
-split_col = split(df['event_source'], '.')
+
+# Only add columns if there are rows in the dynamic frame
+# otherwise this will throw an error about not finding the columns
+if df.head() is None:
+    print("No rows found, exiting")
+    sys.exit(0)
 
 # Add columns that will be used as partitions
+# Use event time since CloudTrail source partitions are by delivery
+# time, not event time, so events from the prior day could be in
+# the next day's partition
 df = df.withColumn("year", year(col("event_time"))) \
     .withColumn("month", month(col("event_time"))) \
     .withColumn("day", dayofmonth(col("event_time"))) \
     .withColumn("hour", hour(col("event_time"))) \
     .withColumn("region", col("aws_region")) \
     .withColumn("account_id", col("recipient_account_id")) \
-    .withColumn("service", split(col("event_source"), '\.').getItem(0))
+    .withColumn("service", split(col("event_source"), "\.").getItem(0))
 
 # Convert data frame back to dynamic frame
 mapping3 = DynamicFrame.fromDF(df, glueContext, "mapping3")
@@ -137,11 +145,12 @@ datasink4 = glueContext.write_dynamic_frame.from_options(
         "partitionKeys": [
             "account_id",
             "service",
+            "event_name",
             "region",
             "year",
             "month",
             "day",
-            "hour",            
+            "hour"
         ]
     }, 
     format = "parquet", 
