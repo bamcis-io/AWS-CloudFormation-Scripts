@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
 
-  "Description": "Creates a database and table for CloudTrail Logs. The setup allows for multiple accounts to deliver CloudTrail logs to a single bucket.",
+  "Description": "Creates a database and tables for CloudTrail Logs. The setup allows for multiple accounts to deliver CloudTrail logs to a single bucket.",
 
   "Parameters": {
     "SourceS3Location": {
@@ -151,7 +151,7 @@
       }
     },
 
-	"SNSTopic" : {
+	"EventFailureAlertTopic" : {
 		"Type" : "AWS::SNS::Topic",
 		"Properties" : {
 			"Subscription" : [
@@ -164,8 +164,253 @@
 			]
 		}
 	},
+	"EventFailureAlertTopicPolicy" : {
+		"Type" : "AWS::SNS::TopicPolicy",
+		"Properties" : {
+			"Topics" : [
+				{
+					"Ref" : "EventFailureAlertTopic"
+				}
+			],
+			"PolicyDocument" : {
+				"Version": "2008-10-17",
+				"Id": "AllowCloudWatchAlarmsToPublish",
+				"Statement": [
+					{
+						"Sid": "AllowCloudWatchAlarmsToPublish",
+						"Effect": "Allow",
+						"Principal": "*",
+						"Action": [
+							"sns:Publish"
+						],
+						"Resource": {
+							"Ref" : "EventFailureAlertTopic"
+						},
+						"Condition": {
+							"ArnEquals": {
+								"AWS:SourceArn": [
+									{
+										"Fn::GetAtt" : [ "BrokenAddPartitionJobFailureEventAlarm", "Arn" ]
+									},
+									{
+										"Fn::GetAtt" : [ "BrokenAddPartitionRecurringJobFailureEventAlarm", "Arn" ]
+									},
+									{
+										"Fn::GetAtt" : [ "BrokenCloudTrailInitialLoadJobFailureEventAlarm", "Arn" ]
+									},
+									{
+										"Fn::GetAtt" : [ "BrokenCloudTrailInitialLoadPartitionedJobFailureEventAlarm", "Arn" ]
+									},
+									{
+										"Fn::GetAtt" : [ "BrokenCloudTrailRecurringLoadPartitionedJobFailureEventAlarm", "Arn" ]
+									},
+									{
+										"Fn::GetAtt" : [ "BrokenCloudTrailRecurringLoadJobFailureEventAlarm", "Arn" ]
+									}
+								]
+							}
+						}
+					}
+				]
+			}
+		}
+	},
 
-    "GlueServiceRole": {
+	"AddSourcePartitionJobFailuresQueue" : {
+		"Type" : "AWS::SQS::Queue",
+		"Properties" : {	 
+		}
+	},
+	"AddSourcePartitionJobFailuresQueuePolicy" : {
+		"Type" : "AWS::SQS::QueuePolicy",
+		"Properties" : {
+			"Queues" : [
+				{
+					"Ref" : "AddSourcePartitionJobFailuresQueue"
+				}
+			],
+			"PolicyDocument" : {
+				"Version": "2008-10-17",
+				"Id": "AllowSNSToPublish",
+				"Statement": [
+					{
+						"Sid": "AllowSNSToPublish",
+						"Effect": "Allow",
+						"Principal": {
+							"Service" : [
+								"sns.amazonaws.com"
+							]
+						},
+						"Action": [
+							"sqs:SendMessage"
+						],
+						"Resource": {
+							"Fn::GetAtt" : [ "AddSourcePartitionJobFailuresQueue", "Arn" ]
+						},
+						"Condition": {
+							"ArnEquals": {
+								"aws:SourceArn": [
+									{
+										"Ref" : "AddPartitionFailureAlertTopic"
+									}
+								]
+							}
+						}
+					}
+				]
+			}
+		}
+	},
+
+	"AddPartitionFailureAlertTopic" : {
+		"Type" : "AWS::SNS::Topic",
+		"Properties" : {
+			"Subscription" : [
+				{
+					 "Endpoint" : {
+						"Ref" : "NotificationEmail"
+					 },
+					 "Protocol" : "email-json"
+				},
+				{
+					"Endpoint" :  {
+						"Fn::GetAtt" : [ "AddSourcePartitionJobFailuresQueue", "Arn" ]
+					},
+					"Protocol" : "sqs"
+				}
+			]
+		}
+	},
+	"AddPartitionFailureAlertTopicPolicy" : {
+		"Type" : "AWS::SNS::TopicPolicy",
+		"Properties" : {
+			"Topics" : [
+				{
+					"Ref" : "AddPartitionFailureAlertTopic"
+				}
+			],
+			"PolicyDocument" : {
+				"Version": "2008-10-17",
+				"Id": "AllowCloudwatchEventsToPublish",
+				"Statement": [
+					{
+						"Sid": "AllowCloudwatchEventsToPublish",
+						"Effect": "Allow",
+						"Principal": {
+							"Service" : [
+								"events.amazonaws.com"
+							]
+						},
+						"Action": [
+							"sns:Publish"
+						],
+						"Resource": {
+							"Ref" : "AddPartitionFailureAlertTopic"
+						}
+					}
+				]
+			}
+		}
+	},
+
+	"LoadNewPartitionsJobFailuresQueue" : {
+		"Type" : "AWS::SQS::Queue",
+		"Properties" : {	 
+		}
+	},
+	"LoadNewPartitionsJobFailuresQueuePolicy" : {
+		"Type" : "AWS::SQS::QueuePolicy",
+		"Properties" : {
+			"Queues" : [
+				{
+					"Ref" : "LoadNewPartitionsJobFailuresQueue"
+				}
+			],
+			"PolicyDocument" : {
+				"Version": "2008-10-17",
+				"Id": "AllowSNSToPublish",
+				"Statement": [
+					{
+						"Sid": "AllowSNSToPublish",
+						"Effect": "Allow",
+						"Principal": {
+							"Service" : [
+								"sns.amazonaws.com"
+							]
+						},
+						"Action": [
+							"sqs:SendMessage"
+						],
+						"Resource": {
+							"Fn::GetAtt" : [ "LoadNewPartitionsJobFailuresQueue", "Arn" ]
+						},
+						"Condition": {
+							"ArnEquals": {
+								"AWS:SourceArn": [
+									{
+										"Ref" : "LoadNewPartitionsFailureAlertTopic"
+									}
+								]
+							}
+						}
+					}
+				]
+			}
+		}
+	},
+
+	"LoadNewPartitionsFailureAlertTopic" : {
+		"Type" : "AWS::SNS::Topic",
+		"Properties" : {
+			"Subscription" : [
+				{
+					 "Endpoint" : {
+						"Ref" : "NotificationEmail"
+					 },
+					 "Protocol" : "email-json"
+				},
+				{
+					"Endpoint" :  {
+						"Fn::GetAtt" : [ "LoadNewPartitionsJobFailuresQueue", "Arn" ]
+					},
+					"Protocol" : "sqs"
+				}
+			]
+		}
+	},
+	"LoadNewPartitionsFailureAlertTopicPolicy" : {
+		"Type" : "AWS::SNS::TopicPolicy",
+		"Properties" : {
+			"Topics" : [
+				{
+					"Ref" : "LoadNewPartitionsFailureAlertTopic"
+				}
+			],
+			"PolicyDocument" : {
+				"Version": "2008-10-17",
+				"Id": "AllowCloudwatchEventsToPublish",
+				"Statement": [
+					{
+						"Sid": "AllowCloudwatchEventsToPublish",
+						"Effect": "Allow",
+						"Principal": {
+							"Service" : [
+								"events.amazonaws.com"
+							]
+						},
+						"Action": [
+							"sns:Publish"
+						],
+						"Resource": {
+							"Ref" : "LoadNewPartitionsFailureAlertTopic"
+						}
+					}
+				]
+			}
+		}
+	},
+
+    "GlueLoadNewPartitionsJobRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -185,14 +430,15 @@
           ]
         }
       }
-    },
-    "GlueS3Policy": {
+    },	
+    "GlueLoadNewPartitionsS3Policy": {
       "Type": "AWS::IAM::ManagedPolicy",
       "Properties": {
         "PolicyDocument": {
           "Version": "2012-10-17",
-          "Statement": [
-            {
+          "Statement": [			
+			{
+			  "Sid" : "GetSourceScripts",
               "Effect": "Allow",
               "Action": [
                 "s3:GetObject"
@@ -203,14 +449,14 @@
                     "SpecifiedInitialLoadScriptLocation",
                     {
                       "Fn::Sub": [
-                        "arn:${AWS::Partition}:s3:::${Bucket}/*",
+                        "arn:${AWS::Partition}:s3:::${Path}",
                         {
-                          "Bucket": {
+                          "Path": {
                             "Fn::Select": [
-                              2,
+                              1,
                               {
                                 "Fn::Split": [
-                                  "/",
+                                  "s3://",
                                   {
                                     "Ref": "InitialLoadETLScriptLocation"
                                   }
@@ -226,19 +472,47 @@
                     }
                   ]
                 },
+				{
+                  "Fn::If": [
+                    "SpecifiedInitialLoadPartitionedScriptLocation",
+                    {
+                      "Fn::Sub": [
+                        "arn:${AWS::Partition}:s3:::${Path}",
+                        {
+                          "Path": {
+                            "Fn::Select": [
+                              1,
+                              {
+                                "Fn::Split": [
+                                  "s3://",
+                                  {
+                                    "Ref": "InitialLoadPartitionedETLScriptLocation"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition_initial_load_partitioned.py"
+                    }
+                  ]
+                },
                 {
                   "Fn::If": [
                     "SpecifiedRecurringLoadScriptLocation",
                     {
                       "Fn::Sub": [
-                        "arn:${AWS::Partition}:s3:::${Bucket}/*",
+                        "arn:${AWS::Partition}:s3:::${Path}",
                         {
-                          "Bucket": {
+                          "Path": {
                             "Fn::Select": [
-                              2,
+                              1,
                               {
                                 "Fn::Split": [
-                                  "/",
+                                  "s3://",
                                   {
                                     "Ref": "RecurringLoadETLScriptLocation"
                                   }
@@ -254,21 +528,21 @@
                     }
                   ]
                 },
-                {
+				{
                   "Fn::If": [
-                    "SpecifiedAddPartitionsScriptLocation",
+                    "SpecifiedRecurringLoadPartitionedScriptLocation",
                     {
                       "Fn::Sub": [
-                        "arn:${AWS::Partition}:s3:::${Bucket}/*",
+                        "arn:${AWS::Partition}:s3:::${Path}",
                         {
-                          "Bucket": {
+                          "Path": {
                             "Fn::Select": [
-                              2,
+                              1,
                               {
                                 "Fn::Split": [
-                                  "/",
+                                  "s3://",
                                   {
-                                    "Ref": "AddPartitionETLScriptLocation"
+                                    "Ref": "RecurringLoadPartitionedETLScriptLocation"
                                   }
                                 ]
                               }
@@ -278,19 +552,20 @@
                       ]
                     },
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/add_partitions.py"
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/cloudtrail_partition_recurring_load_from_partitions.py"
                     }
                   ]
                 }
               ]
             },
-            {
+			{
+			  "Sid" : "GetSourceData",
               "Effect": "Allow",
               "Action": [
                 "s3:GetObject"
               ],
               "Resource": [
-                {
+				{
                   "Fn::Sub": [
                     "arn:${AWS::Partition}:s3:::${Bucket}/*",
                     {
@@ -312,11 +587,31 @@
             },
             {
               "Effect": "Allow",
+			  "Sid" : "ModifyDestinationData",
               "Action": [
-                "s3:ListBucket"
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetObject"
               ],
               "Resource": [
                 {
+                  "Fn::Sub": "arn:${AWS::Partition}:s3:::${S3Bucket}/*"
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+			  "Sid" : "ListSourceAndDestination",
+              "Action": [
+                "s3:ListBucket",
+				"s3:GetBucketLocation",
+				"s3:GetBucketAcl"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:s3:::${S3Bucket}"
+                },
+				{
                   "Fn::Sub": [
                     "arn:${AWS::Partition}:s3:::${Bucket}",
                     {
@@ -335,28 +630,158 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "GlueLoadNewPartitionsJobRole"
+          }
+        ]
+      }
+    },
+	"GlueLoadNewPartitionsGluePolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+			
+			{
+				"Effect" : "Allow",
+				"Action" : [
+					"glue:*",
+					"glue:GetPartitions",
+					"glue:GetTable"
+				],
+				"Resource" : "*"
+			}
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "GlueLoadNewPartitionsJobRole"
+          }
+        ]
+      }
+    },
+
+	"GlueAddPartitionsToSourceJobRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
             {
               "Effect": "Allow",
               "Action": [
-                "s3:PutObject",
-                "s3:DeleteObject",
+                "sts:AssumeRole"
+              ],
+              "Principal": {
+                "Service": [
+                  "glue.amazonaws.com"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+	"GlueAddPartitionsToSourceS3Policy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+			  "Sid" : "GetSourceScripts",
+              "Effect": "Allow",
+              "Action": [
                 "s3:GetObject"
               ],
               "Resource": [
                 {
-                  "Fn::Sub": "arn:${AWS::Partition}:s3:::${S3Bucket}/*"
+                  "Fn::If": [
+                    "SpecifiedAddPartitionsScriptLocation",
+                    {
+                      "Fn::Sub": [
+                        "arn:${AWS::Partition}:s3:::${Path}",
+                        {
+                          "Path": {
+                            "Fn::Select": [
+                              1,
+                              {
+                                "Fn::Split": [
+                                  "s3://",
+                                  {
+                                    "Ref": "AddPartitionETLScriptLocation"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/add_partitions.py"
+                    }
+                  ]
+                },
+				{
+                  "Fn::If": [
+                    "SpecifiedRecurringAddPartitionsScriptLocation",
+                    {
+                      "Fn::Sub": [
+                        "arn:${AWS::Partition}:s3:::${Path}",
+                        {
+                          "Path": {
+                            "Fn::Select": [
+                              1,
+                              {
+                                "Fn::Split": [
+                                  "s3://",
+                                  {
+                                    "Ref": "RecurringAddPartitionETLScriptLocation"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-glue-scripts-${AWS::AccountId}-${AWS::Region}/admin/add_partitions_recurring.py"
+                    }
+                  ]
                 }
               ]
-            },
+            },      
             {
               "Effect": "Allow",
+			  "Sid" : "ListSource",
               "Action": [
                 "s3:ListBucket"
               ],
               "Resource": [
-                {
-                  "Fn::Sub": "arn:${AWS::Partition}:s3:::${S3Bucket}"
+				{
+                  "Fn::Sub": [
+                    "arn:${AWS::Partition}:s3:::${Bucket}",
+                    {
+                      "Bucket": {
+                        "Fn::Select": [
+                          2,
+                          {
+                            "Fn::Split": [
+                              "/",
+                              { "Ref": "SourceS3Location" }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
                 }
               ]
             }
@@ -364,11 +789,52 @@
         },
         "Roles": [
           {
-            "Ref": "GlueServiceRole"
+            "Ref": "GlueAddPartitionsToSourceJobRole"
           }
         ]
       }
     },
+	"GlueAddPartitionsToSourceGluePolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+			  "Sid" : "GetAndAddPartitions",
+              "Effect": "Allow",
+              "Action": [
+				"glue:GetPartition",
+                "glue:GetPartitions",
+				"glue:CreatePartition",
+				"glue:BatchCreatePartition",
+				"glue:GetTable"
+              ],
+              "Resource": [
+				{
+					"Fn::Sub" : "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+				},
+				{
+					"Fn::Sub" : "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${Database}"
+				},
+				{
+					"Fn::Sub" : "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${Database}/${AthenaPartitionedTable}"
+				},
+				{
+					"Fn::Sub" : "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${Database}/${GlueETLPartitionedTable}"
+				}
+              ]
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "GlueAddPartitionsToSourceJobRole"
+          }
+        ]
+      }
+    },
+
     "GlueCloudWatchPolicy": {
       "Type": "AWS::IAM::ManagedPolicy",
       "Properties": {
@@ -399,8 +865,11 @@
         },
         "Roles": [
           {
-            "Ref": "GlueServiceRole"
-          }
+            "Ref": "GlueLoadNewPartitionsJobRole"
+          },
+		  {
+			"Ref" : "GlueAddPartitionsToSourceJobRole"
+		  }
         ]
       }
     },
@@ -425,99 +894,12 @@
         },
         "Roles": [
           {
-            "Ref": "GlueServiceRole"
+            "Ref": "GlueLoadNewPartitionsJobRole"
           }
         ]
       }
     },
-	"GlueScopedDownServiceRolePolicy": {
-      "Type": "AWS::IAM::ManagedPolicy",
-      "Properties": {
-        "PolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-			{
-				"Effect" : "Allow",
-				"Action" : [
-					"glue:*"
-				],
-				"Resource" : "*"
-			},
-			{
-				"Effect" : "Allow",
-				"Action" : [
-					"s3:GetBucketLocation",
-					"s3:GetBucketAcl"
-				],
-				"Resource" : "*"
-			},
-			{
-				"Effect" : "Allow",
-				"Action" : [
-					"iam:ListRolePolicies",
-					"iam:GetRole",
-					"iam:GetRolePolicy"
-				],
-				"Resource" : "*"
-			}
-          ]
-        },
-        "Roles": [
-          {
-            "Ref": "GlueServiceRole"
-          }
-        ]
-      }
-    },
-
-	"EventBridgeRoleForGlueJobEvents": {
-      "Type": "AWS::IAM::Role",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": [
-                "sts:AssumeRole"
-              ],
-              "Principal": {
-                "Service": [
-                  "events.amazonaws.com"
-                ]
-              }
-            }
-          ]
-        }
-      }
-    },
-	"EventBridgeRoleForGlueJobEventsSnsPolicy": {
-      "Type": "AWS::IAM::ManagedPolicy",
-      "Properties": {
-        "PolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": [
-                "sns:Publish"
-              ],
-              "Resource": [
-				{
-					"Ref" : "SNSTopic"
-				}
-              ]
-            }
-          ]
-        },
-        "Roles": [
-          {
-            "Ref": "EventBridgeRoleForGlueJobEvents"
-          }
-        ]
-      }
-    },
-
+	
     "Database": {
       "Type": "AWS::Glue::Database",
       "Properties": {
@@ -1518,7 +1900,7 @@
         "Name": "CloudTrail Logs - Initial Add Partitions to Table",
         "GlueVersion": "1.0",
         "Role": {
-          "Ref": "GlueServiceRole"
+          "Ref": "GlueAddPartitionsToSourceJobRole"
         },
         "DefaultArguments": {
           "--enable-metrics": "",
@@ -1575,16 +1957,43 @@
 					]
 				}
 			},
-			"RoleArn" : {
-				"Fn::GetAtt" : [ "EventBridgeRoleForGlueJobEvents", "Arn" ]
-			},
 			"State" : "ENABLED",
 			"Targets" : [
 				{
 					"Arn" : {
-						"Ref" : "SNSTopic"
+						"Ref" : "AddPartitionFailureAlertTopic"
 					},
 					"Id" : "sns-email"
+				}
+			]
+		}
+	},
+
+	"BrokenAddPartitionJobFailureEventAlarm" : {
+		"Type" : "AWS::CloudWatch::Alarm",
+		"Properties" : {
+			"AlarmDescription" : {
+				"Fn::Sub" : "Indicates that the CloudWatch Event ${AddPartionJobFailureEvent} is failing to trigger its target at least once in a 5 minute window."
+			},
+			"MetricName" : "FailedInvocations",
+			"Namespace" : "AWS/Events",
+			"Dimensions" : [
+				{
+					"Name" : "RuleName",
+					"Value" : {
+						"Ref" : "AddPartionJobFailureEvent"
+					}
+				}
+			],
+			"Period" : "300",
+			"Statistic" : "Sum",
+			"Threshold" : "1",
+			"EvaluationPeriods" : "1",
+			"TreatMissingData" : "notBreaching",
+			"ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+			"AlarmActions" : [
+				{
+					"Ref" : "EventFailureAlertTopic"
 				}
 			]
 		}
@@ -1596,7 +2005,7 @@
         "Name": "CloudTrail Logs - Recurring Add Partitions to Table",
         "GlueVersion": "1.0",
         "Role": {
-          "Ref": "GlueServiceRole"
+          "Ref": "GlueAddPartitionsToSourceJobRole"
         },
         "DefaultArguments": {
           "--enable-metrics": "",
@@ -1653,16 +2062,43 @@
 					]
 				}
 			},
-			"RoleArn" : {
-				"Fn::GetAtt" : [ "EventBridgeRoleForGlueJobEvents", "Arn" ]
-			},
 			"State" : "ENABLED",
 			"Targets" : [
 				{
 					"Arn" : {
-						"Ref" : "SNSTopic"
+						"Ref" : "AddPartitionFailureAlertTopic"
 					},
 					"Id" : "sns-email"
+				}
+			]
+		}
+	},
+
+	"BrokenAddPartitionRecurringJobFailureEventAlarm" : {
+		"Type" : "AWS::CloudWatch::Alarm",
+		"Properties" : {
+			"AlarmDescription" : {
+				"Fn::Sub" : "Indicates that the CloudWatch Event ${AddPartionRecurringJobFailureEvent} is failing to trigger its target at least once in a 5 minute window."
+			},
+			"MetricName" : "FailedInvocations",
+			"Namespace" : "AWS/Events",
+			"Dimensions" : [
+				{
+					"Name" : "RuleName",
+					"Value" : {
+						"Ref" : "AddPartionRecurringJobFailureEvent"
+					}
+				}
+			],
+			"Period" : "300",
+			"Statistic" : "Sum",
+			"Threshold" : "1",
+			"EvaluationPeriods" : "1",
+			"TreatMissingData" : "notBreaching",
+			"ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+			"AlarmActions" : [
+				{
+					"Ref" : "EventFailureAlertTopic"
 				}
 			]
 		}
@@ -1674,7 +2110,7 @@
         "Name": "CloudTrail Logs - Initial Load All At Once From Flat Table",
         "GlueVersion": "1.0",
         "Role": {
-          "Ref": "GlueServiceRole"
+          "Ref": "GlueLoadNewPartitionsJobRole"
         },
         "DefaultArguments": {
           "--job-bookmark-option": "job-bookmark-enable",
@@ -1733,16 +2169,43 @@
 					]
 				}
 			},
-			"RoleArn" : {
-				"Fn::GetAtt" : [ "EventBridgeRoleForGlueJobEvents", "Arn" ]
-			},
 			"State" : "ENABLED",
 			"Targets" : [
 				{
 					"Arn" : {
-						"Ref" : "SNSTopic"
+						"Ref" : "LoadNewPartitionsFailureAlertTopic"
 					},
 					"Id" : "sns-email"
+				}
+			]
+		}
+	},
+
+	"BrokenCloudTrailInitialLoadJobFailureEventAlarm" : {
+		"Type" : "AWS::CloudWatch::Alarm",
+		"Properties" : {
+			"AlarmDescription" : {
+				"Fn::Sub" : "Indicates that the CloudWatch Event ${CloudTrailInitialLoadJobFailureEvent} is failing to trigger its target at least once in a 5 minute window."
+			},
+			"MetricName" : "FailedInvocations",
+			"Namespace" : "AWS/Events",
+			"Dimensions" : [
+				{
+					"Name" : "RuleName",
+					"Value" : {
+						"Ref" : "CloudTrailInitialLoadJobFailureEvent"
+					}
+				}
+			],
+			"Period" : "300",
+			"Statistic" : "Sum",
+			"Threshold" : "1",
+			"EvaluationPeriods" : "1",
+			"TreatMissingData" : "notBreaching",
+			"ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+			"AlarmActions" : [
+				{
+					"Ref" : "EventFailureAlertTopic"
 				}
 			]
 		}
@@ -1754,7 +2217,7 @@
         "Name": "CloudTrail Logs - Initial Load By Partition from Partitioned Table",
         "GlueVersion": "1.0",
         "Role": {
-          "Ref": "GlueServiceRole"
+          "Ref": "GlueLoadNewPartitionsJobRole"
         },
         "DefaultArguments": {
           "--job-bookmark-option": "job-bookmark-enable",
@@ -1815,16 +2278,43 @@
 					]
 				}
 			},
-			"RoleArn" : {
-				"Fn::GetAtt" : [ "EventBridgeRoleForGlueJobEvents", "Arn" ]
-			},
 			"State" : "ENABLED",
 			"Targets" : [
 				{
 					"Arn" : {
-						"Ref" : "SNSTopic"
+						"Ref" : "LoadNewPartitionsFailureAlertTopic"
 					},
 					"Id" : "sns-email"
+				}
+			]
+		}
+	},
+
+	"BrokenCloudTrailInitialLoadPartitionedJobFailureEventAlarm" : {
+		"Type" : "AWS::CloudWatch::Alarm",
+		"Properties" : {
+			"AlarmDescription" : {
+				"Fn::Sub" : "Indicates that the CloudWatch Event ${CloudTrailInitialLoadPartitionedJobFailureEvent} is failing to trigger its target at least once in a 5 minute window."
+			},
+			"MetricName" : "FailedInvocations",
+			"Namespace" : "AWS/Events",
+			"Dimensions" : [
+				{
+					"Name" : "RuleName",
+					"Value" : {
+						"Ref" : "CloudTrailInitialLoadPartitionedJobFailureEvent"
+					}
+				}
+			],
+			"Period" : "300",
+			"Statistic" : "Sum",
+			"Threshold" : "1",
+			"EvaluationPeriods" : "1",
+			"TreatMissingData" : "notBreaching",
+			"ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+			"AlarmActions" : [
+				{
+					"Ref" : "EventFailureAlertTopic"
 				}
 			]
 		}
@@ -1836,7 +2326,7 @@
         "Name": "CloudTrail Logs - Recurring Load By Partition from Partitioned Table",
         "GlueVersion": "1.0",
         "Role": {
-          "Ref": "GlueServiceRole"
+          "Ref": "GlueLoadNewPartitionsJobRole"
         },
         "DefaultArguments": {
           "--job-bookmark-option": "job-bookmark-enable",
@@ -1896,16 +2386,43 @@
 					]
 				}
 			},
-			"RoleArn" : {
-				"Fn::GetAtt" : [ "EventBridgeRoleForGlueJobEvents", "Arn" ]
-			},
 			"State" : "ENABLED",
 			"Targets" : [
 				{
 					"Arn" : {
-						"Ref" : "SNSTopic"
+						"Ref" : "LoadNewPartitionsFailureAlertTopic"
 					},
 					"Id" : "sns-email"
+				}
+			]
+		}
+	},
+
+	"BrokenCloudTrailRecurringLoadPartitionedJobFailureEventAlarm" : {
+		"Type" : "AWS::CloudWatch::Alarm",
+		"Properties" : {
+			"AlarmDescription" : {
+				"Fn::Sub" : "Indicates that the CloudWatch Event ${CloudTrailRecurringlLoadPartitionedJobFailureEvent} is failing to trigger its target at least once in a 5 minute window."
+			},
+			"MetricName" : "FailedInvocations",
+			"Namespace" : "AWS/Events",
+			"Dimensions" : [
+				{
+					"Name" : "RuleName",
+					"Value" : {
+						"Ref" : "CloudTrailRecurringlLoadPartitionedJobFailureEvent"
+					}
+				}
+			],
+			"Period" : "300",
+			"Statistic" : "Sum",
+			"Threshold" : "1",
+			"EvaluationPeriods" : "1",
+			"TreatMissingData" : "notBreaching",
+			"ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+			"AlarmActions" : [
+				{
+					"Ref" : "EventFailureAlertTopic"
 				}
 			]
 		}
@@ -1917,7 +2434,7 @@
         "Name": "CloudTrail Logs - Recurring Load By S3 Path From Flat Table",
         "GlueVersion": "1.0",
         "Role": {
-          "Ref": "GlueServiceRole"
+          "Ref": "GlueLoadNewPartitionsJobRole"
         },
         "DefaultArguments": {
           "--job-bookmark-option": "job-bookmark-enable",
@@ -1973,16 +2490,43 @@
 					]
 				}
 			},
-			"RoleArn" : {
-				"Fn::GetAtt" : [ "EventBridgeRoleForGlueJobEvents", "Arn" ]
-			},
 			"State" : "ENABLED",
 			"Targets" : [
 				{
 					"Arn" : {
-						"Ref" : "SNSTopic"
+						"Ref" : "LoadNewPartitionsFailureAlertTopic"
 					},
 					"Id" : "sns-email"
+				}
+			]
+		}
+	},
+
+	"BrokenCloudTrailRecurringLoadJobFailureEventAlarm" : {
+		"Type" : "AWS::CloudWatch::Alarm",
+		"Properties" : {
+			"AlarmDescription" : {
+				"Fn::Sub" : "Indicates that the CloudWatch Event ${CloudTrailRecurringlLoadJobFailureEvent} is failing to trigger its target at least once in a 5 minute window."
+			},
+			"MetricName" : "FailedInvocations",
+			"Namespace" : "AWS/Events",
+			"Dimensions" : [
+				{
+					"Name" : "RuleName",
+					"Value" : {
+						"Ref" : "CloudTrailRecurringlLoadJobFailureEvent"
+					}
+				}
+			],
+			"Period" : "300",
+			"Statistic" : "Sum",
+			"Threshold" : "1",
+			"EvaluationPeriods" : "1",
+			"TreatMissingData" : "notBreaching",
+			"ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+			"AlarmActions" : [
+				{
+					"Ref" : "EventFailureAlertTopic"
 				}
 			]
 		}
