@@ -1,0 +1,210 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates a new endpoint for the cell router.",
+
+	"Parameters" : {
+		"NetworkingStackName" : {
+			"Type" : "String",
+			"Description" : "The name of the networking stack",
+			"Default" : "private-networking"
+		},
+		"HostedZoneName" : {
+			"Type" : "String",
+			"Description" : "The DNS hosted zone name to add the alias record to.",
+			"Default" : "proxy.local."
+		},
+		"ServiceName" : {
+			"Type" : "String",
+			"Description" : "The name of the service to add an endpoint for.",
+			"MinLength" : 1
+		},
+		"ProxyPort" : {
+			"Type" : "Number",
+			"Description" : "The port number being used by the proxy.",
+			"MinValue" : 1,
+			"MaxValue" : 65535,
+			"Default" : 3128
+		},
+
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "regional_proxy"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "prod"
+        }
+	},
+
+	"Resources" : {
+		"InterfaceEndpointSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+                "VpcId" : {
+					"Fn::ImportValue" : {
+						"Fn::Sub" : "${NetworkingStackName}-VpcId"
+					}
+				},
+                "GroupDescription" : "Security group for the interface endpoints",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : {
+							"Ref" : "ProxyPort"
+						},
+                        "ToPort"     : {
+							"Ref" : "ProxyPort"
+						},
+                        "CidrIp"     : {
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${NetworkingStackName}-CidrBlock"
+							}
+						}
+                    }
+                ],
+                "Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-${ServiceName}-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+		},
+
+		"Endpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Properties" : {
+				"PrivateDnsEnabled" : false,
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Fn::ImportValue" : {
+						"Fn::Sub" : "${NetworkingStackName}-VpcId"
+					}
+				},
+				"SecurityGroupIds" : [
+					{
+						"Fn::GetAtt" : [ "InterfaceEndpointSecurityGroup", "GroupId" ]
+					}
+				],
+				"SubnetIds" : {
+					"Fn::Split" : [ 						
+						",",
+						{
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+							}
+						}
+					]
+				},
+				"ServiceName" : {
+					"Ref" : "ServiceName"
+				}
+			}
+		},
+		
+		"Route53AliasRecord" : {
+			"Type" : "AWS::Route53::RecordSet",
+			"Properties" : {
+				"AliasTarget" : {
+					"HostedZoneId" : {
+						"Fn::Select" : [
+							0,
+							{
+								"Fn::Split" : [
+									":",
+									{
+										"Fn::Select" : [
+											0
+											,
+											{
+												"Fn::GetAtt" : [ "Endpoint", "DnsEntries" ]
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					"DNSName" : {
+						"Fn::Select" : [
+							1,
+							{
+								"Fn::Split" : [
+									":",
+									{
+										"Fn::Select" : [
+											0
+											,
+											{
+												"Fn::GetAtt" : [ "Endpoint", "DnsEntries" ]
+											}
+										]
+									}
+								]
+							}
+						]
+					}					 
+				},
+				"HostedZoneName" : {
+					"Ref" : "HostedZoneName"
+				},
+				"Name" : {
+					"Fn::Sub" : "${AWS::Region}.${HostedZoneName}"
+				},
+				"Type" : "A"
+			}
+		}
+	},
+
+	"Outputs" : {
+		"InterfaceIds" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-NetworkInterfaceIds"
+				}
+			},
+			"Value" : {
+				"Fn::Join" : [
+					",",
+					{
+						"Fn::GetAtt" : [ "Endpoint", "NetworkInterfaceIds" ]
+					}
+				]
+			}
+		}
+	}
+}

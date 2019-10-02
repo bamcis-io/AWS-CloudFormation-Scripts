@@ -1,0 +1,120 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Deploys the squid config SSM parameter",
+
+	"Parameters" : {
+		"ParameterName" : {
+			"Type" : "String",
+			"Default" : "squid-config"
+		},
+
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "regional_proxy"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "prod"
+        }
+	},
+
+	"Resources" : {
+		"SquidConfigParameter" : {
+			"Type" : "AWS::SSM::Parameter",
+			"Properties" : {
+				"Name" : {
+					"Ref" : "ParameterName"
+				},
+				"Tags" : {
+					"Name" : {
+						"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-SquidConfig-${EnvironmentTag}"
+                    },
+                    "Environment" : {
+						"Ref" : "EnvironmentTag"
+                    },
+                    "Application" : {
+						"Ref" : "ApplicationTag"
+                    },
+                    "Organization" : {
+						"Ref" : "OrganizationTag"
+                    }
+				},
+				"Type" : "String",
+				"Value" : {
+					"Fn::Join" : [
+						"\n",
+						[
+"cache_effective_user squid",
+
+"## Define an ACL for the source local proxies that are",
+"## forwarding here",
+"acl source_proxy src all",
+
+"## Define acls for amazonaws.com",
+"acl aws_domain dstdomain .amazonaws.com",
+
+"## Additional ACLs",
+"acl ssl_ports port 443",
+"acl CONNECT method CONNECT",
+
+"## Deny access to anything other than SSL",
+"http_access deny !ssl_ports",
+"http_access deny CONNECT !ssl_ports",
+
+"## Allow access from the source proxies and ensuring",
+"## the traffic is going to amazonaws.com",
+"http_access allow source_proxy aws_domain",
+
+"## Finally deny all other access to the proxy",
+"http_access deny all",
+
+"## Listen on 3128",
+"http_port 3128",
+
+"## Logging",
+"access_log /var/log/squid/access.log",
+"strip_query_terms off",
+"logfile_rotate 7",
+
+"## Turn off caching",
+"cache deny all",
+
+"## Enable the X-Forwarded-For header",
+"forwarded_for on",
+
+"## Suppress sending squid version information",
+"httpd_suppress_version_string on",
+
+"## How long to wait when shutting down squid",
+"shutdown_lifetime 30 seconds",
+
+"## Hostname",
+"visible_hostname aws_proxy",
+
+"## Prefer ipv4 over v6",
+"dns_v4_first on"
+						]
+
+					]
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

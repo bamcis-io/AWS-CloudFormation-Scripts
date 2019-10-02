@@ -1,0 +1,600 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Deploys a region specific proxy fleet and vpc endpoints. Request a connection to this endpoint service from each local proxy fleet.",
+
+	"Parameters" : {
+		"NetworkingStackName" : {
+			"Type" : "String",
+			"Description" : "The name of the networking stack to reference.",
+			"Default" : "public-networking"
+		},
+		"ProxyPort" : {
+			"Type" : "Number",
+			"Description" : "The port number being used by the proxy.",
+			"MinValue" : 1,
+			"MaxValue" : 65535,
+			"Default" : 3128
+		},
+		"CellRouterRoleArn" : {
+			"Type" : "String",			
+			"Description" : "The arn of the cell router role that can create endpoints.",
+			"Default" : "arn:aws:iam::123456789012:role/cell-router/CellRouterRole"
+		},
+
+		"LogRetentionInDays" : {
+            "Type" : "Number",
+            "Description" : "The number of days to retain the CloudWatch Logs for the function. If this is set to 0, it will be infinite retention.",
+            "MinValue"    : 0,
+            "Default"     : 7
+        },
+
+		"SquidConfigParameter" : {
+			"Type" : "AWS::SSM::Parameter::Name",
+			"Description" : "The parameter name that contains the squid proxy config.",
+			"Default" : "squid-config"
+		},
+
+		"ECRImage" : {
+			"Type" : "String",
+			"Description" : "The ECR image for the container, specify reponame:version like aws-regional-proxy:latest."
+		},
+
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "regional_proxy"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "prod"
+        }
+	},
+
+	"Conditions" : {
+		"InfiniteRetention" : {
+            "Fn::Equals" : [
+                {
+                    "Ref" : "LogRetentionInDays"
+                },
+                0
+            ]
+        }
+	},
+
+	"Resources" : {		
+		"NLB" : {
+			"Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer",
+			"Properties" : {
+				"IpAddressType" : "ipv4",
+				 "LoadBalancerAttributes" : [					
+					{
+						"Key" : "load_balancing.cross_zone.enabled",
+						"Value" : "true"
+					}
+				 ],
+				 "Scheme" : "internal",
+				 "Subnets" : {
+					"Fn::Split" : [
+						",",
+						{
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+							}
+						}
+					]
+				 },
+				 "Type" : "network"
+			}
+		},
+		"Listener" : {
+			"Type" : "AWS::ElasticLoadBalancingV2::Listener",
+			"Properties" : {
+				"DefaultActions" : [
+					{
+						 "Order" : 1,
+						 "Type" : "forward",
+						 "TargetGroupArn" : {
+							"Ref" : "TargetGroup"
+						 }
+					}
+				],
+				"Port" : {
+					"Ref" : "ProxyPort"
+				},
+				"Protocol" : "TCP",
+				"LoadBalancerArn" : {
+					"Ref" : "NLB"
+				}
+			}
+		},
+		"TargetGroup" : {
+			"Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+			"Properties" : {
+				"HealthCheckEnabled" :  true,
+				"HealthCheckPort" : "traffic-port",
+				"Port" : {
+					"Ref" : "ProxyPort"
+				},
+				"Protocol" : "TCP",
+				"TargetType" : "ip",
+				"VpcId" : {
+					"Fn::ImportValue" : {
+						"Fn::Sub" : "${NetworkingStackName}-VpcId"
+					}
+				},
+				"TargetGroupAttributes" : [
+					{
+						"Key" : "proxy_protocol_v2.enabled",
+						"Value" : "true"
+					}
+				],
+				"Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-TargetGroup-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		},
+		"EndpointService" : {
+			"Type" : "AWS::EC2::VPCEndpointService",
+			"Properties" : {
+				"AcceptanceRequired" : false,
+				"NetworkLoadBalancerArns" : [ 
+					{
+						"Ref" : "NLB"
+					}
+				]
+			}
+		},
+		"CellRouterPermissions" : {
+			"Type" : "AWS::EC2::VPCEndpointServicePermissions",
+			"Properties" : {
+				"AllowedPrincipals" : [
+					{
+						"Ref" : "CellRouterRoleArn"
+					}
+				],
+				"ServiceId" : {
+					"Ref" : "EndpointService"
+				}
+			}
+		},
+
+		"ProxyContainerSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+                "VpcId" : {
+					"Fn::ImportValue" : {
+						"Fn::Sub" : "${NetworkingStackName}-VpcId"
+					}
+				},
+                "GroupDescription" : "Security group for the regional proxy containers",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : {
+							"Ref" : "ProxyPort"
+						},
+                        "ToPort"     : {
+							"Ref" : "ProxyPort"
+						},
+                        "CidrIp"     : {
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${NetworkingStackName}-CidrBlock"
+							}
+						}
+                    }
+                ],
+                "Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-ProxyContainers-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+		},
+
+		"ECSCloudWatchLogGroup"  : {
+            "Type" : "AWS::Logs::LogGroup",
+            "Properties" : {
+                "LogGroupName" : {
+					"Fn::Sub" : "/aws/ecs/${Cluster}"
+				},
+				"RetentionInDays" : {
+                    "Fn::If" : [
+                        "InfiniteRetention",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        {
+                            "Ref" : "LogRetentionInDays"
+                        }
+                    ]
+                }
+            }
+        },
+
+		"ECSServiceLinkedRole" : {
+			"Type" : "AWS::IAM::ServiceLinkedRole",
+			"Properties" : {
+				"AWSServiceName" : "ecs.amazonaws.com",
+				"Description" : "Role to enable Amazon ECS to manage your cluster."
+			}
+		},
+		
+		"ECSExecutionRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"Path" : "/ecs/",
+				"AssumeRolePolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+						  "Sid": "",
+						  "Effect": "Allow",
+						  "Principal": {
+							"Service": "ecs-tasks.amazonaws.com"
+						  },
+						  "Action": "sts:AssumeRole"
+						}
+					]
+				}
+			}
+		},
+		"ECSExecutionECRPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+				"Description" : "Allows ECS to pull from ECR",
+				"Path" : "/ecs/",
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+						  "Effect": "Allow",
+						  "Action": [
+							"ecr:GetAuthorizationToken"
+						  ],
+						  "Resource": "*"
+						},
+						{
+						  "Effect": "Allow",
+						  "Action": [
+							"ecr:BatchCheckLayerAvailability",
+							"ecr:GetDownloadUrlForLayer",
+							"ecr:BatchGetImage"
+						  ],
+						  "Resource": "*"					  
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "ECSExecutionRole"
+					}
+				]
+			}
+		},
+		"ECSExecutionLogsPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+				"Description" : "Allows ECS to write logs to CloudWatch",
+				"Path" : "/ecs/",
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Action": [
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource": [
+								{
+									"Fn::GetAtt" : [ "ECSCloudWatchLogGroup", "Arn" ]
+								}
+							],
+							"Condition" : {
+								"StringEquals" : {
+									"aws:sourceVpc" : {
+										"Fn::ImportValue" : {
+											"Fn::Sub" : "${NetworkingStackName}-VpcId"
+										}
+									}
+								}
+							}
+						}							
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "ECSExecutionRole"
+					}
+				]
+			}
+		},
+		"ECSExecutionSSMPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+				"Path" : "/ecs/",
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect" : "Allow",
+							"Action" : [
+								"ssm:GetParameter",
+								"ssm:GetParameters"
+							],
+							"Resource" : [
+								{
+									"Fn::Sub" : "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SquidConfigParameter}"
+								}
+							]
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "ECSExecutionRole"
+					}
+				]
+			}
+		},
+
+		"Cluster" : {
+			"Type" : "AWS::ECS::Cluster",
+			"Properties" : {
+				 "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-ECSCluster-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		},
+		"RegionalProxyService" : {
+			"Type" : "AWS::ECS::Service",
+			"Properties" : {
+				"Cluster" : {
+					"Ref" : "Cluster"
+				},
+				"DeploymentConfiguration" : {
+					 "MaximumPercent" : 300,
+					 "MinimumHealthyPercent" : 100
+				},
+				"DesiredCount" : 3,
+				"LaunchType" : "FARGATE",
+				"EnableECSManagedTags" : true,
+				"LoadBalancers" : [
+					{
+						"ContainerPort" : {
+							"Ref" : "ProxyPort"
+						},
+						"TargetGroupArn" : {
+							"Ref" : "TargetGroup"							
+						},
+						"ContainerName" : "regional_proxy"
+					}
+				],
+				"HealthCheckGracePeriodSeconds" : 15,
+				"NetworkConfiguration" : {
+					"AwsvpcConfiguration" : {
+						"AssignPublicIp" : "DISABLED",
+						"Subnets" : {
+							"Fn::Split" : [
+								",",
+								{
+									"Fn::ImportValue" : {
+										"Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+									}
+								}
+							]
+						},
+						"SecurityGroups" : [
+							{
+								"Fn::GetAtt" : [ "ProxyContainerSecurityGroup", "GroupId" ]
+							}
+						]						 
+					}
+				},
+				"PlatformVersion" : "LATEST",
+				"PropagateTags" : "TASK_DEFINITION",
+				"SchedulingStrategy" : "REPLICA",
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-RegionalProxyService-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				],
+				"TaskDefinition" : {
+					"Ref" : "RegionalProxyTaskDefinition"
+				}
+			},
+			"DependsOn" : [
+				"Listener",			
+				"ECSExecutionECRPolicy",
+				"ECSExecutionLogsPolicy",
+				"ECSExecutionSSMPolicy"
+			]
+		},
+		"RegionalProxyTaskDefinition" : {
+			"Type" : "AWS::ECS::TaskDefinition",
+			"Properties" : {
+				"ContainerDefinitions" : [
+					{
+						"Name" : "regional_proxy",
+						"Image" : {
+							"Fn::Sub" : "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRImage}"
+						},
+						"LogConfiguration" : {
+							"LogDriver" : "awslogs",
+							"Options" : {
+								"awslogs-region" : {
+									"Ref" : "AWS::Region"
+								},
+								"awslogs-group" : {
+									"Ref" : "ECSCloudWatchLogGroup"
+								},
+								"awslogs-stream-prefix" : "regional-proxy-service"
+							}
+						},
+						"PortMappings" : [
+							{
+								"ContainerPort" : {
+									"Ref" : "ProxyPort"
+								},
+								"Protocol" : "tcp"
+							}
+						],
+						"Secrets" : [
+							{
+								"Name" : "SQUID_CONFIG",
+								"ValueFrom" : {
+									"Fn::Sub" : "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SquidConfigParameter}"
+								}
+							}
+						]
+					}
+				],
+				"Cpu" : "2048",
+				"ExecutionRoleArn" : {
+					"Fn::GetAtt" : [ "ECSExecutionRole", "Arn" ]
+				},
+				"Family" : "regional_proxy",
+				"Memory" : "6144",
+				"NetworkMode" : "awsvpc",
+				"RequiresCompatibilities" : [
+					"FARGATE"
+				],
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-RegionalProxyTaskDefinition-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+		"VpcEndpointServiceName" : {
+			"Value" : {
+				"Fn::Sub" : "com.amazonaws.vpce.${AWS::Region}.${EndpointService}"
+			}
+		}
+	}
+}

@@ -1,0 +1,121 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates a peering connection from an empty VPC to the local cell router.",
+
+	"Parameters" : {
+		"NetworkingStackName" : {
+			"Type" : "String",
+			"Description" : "The name of the networking stack to reference.",
+			"Default" : "private-networking"
+		},
+
+		"MainVpcId" : {
+			"Type" : "String",
+			"Description" : "The VPC id of the VPC this one will be peered to.",
+			"AllowedPattern" : "^vpc-(?:[0-9a-f]{8}|[0-9a-f]{17})$"
+		},
+		"MainVpcRegion" : {
+			"Type" : "String",
+			"AllowedValues" : [
+				"ap-east-1",
+				"ap-northeast-1",
+				"ap-northeast-2",
+				"ap-northeast-3",
+				"ap-south-1",
+				"ap-southeast-1",
+				"ap-southeast-2",
+				"ca-central-1",
+				"eu-central-1",
+				"eu-north-1",
+				"eu-west-1",
+				"eu-west-2",
+				"eu-west-3",
+				"me-south-1",
+				"sa-east-1",
+				"us-east-1",
+				"us-east-2",
+				"us-west-1",
+				"us-west-2",
+				"us-gov-west-1",
+				"us-gov-east-1",
+				"us-iso-east-1",
+				"us-isob-east-1"
+			],
+			"Description" : "The region of the VPC to peer to."
+		},
+
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "local_proxy"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "prod"
+        }
+	},
+
+	"Resources" : {
+		"PeeringConnection" : {
+			"Type" : "AWS::EC2::VPCPeeringConnection",
+			"Properties" : {
+				"PeerOwnerId" : {
+					"Ref" : "AWS::AccountId"
+				},
+				"PeerRegion" : {
+					"Ref" : "MainVpcRegion"
+				},
+				"PeerVpcId" : {
+					"Ref" : "MainVpcId"
+				},
+				"VpcId" : {
+					"Fn::ImportValue" : {
+						"Fn::Sub" : "${NetworkingStackName}-VpcId"
+					}
+				},
+				"Tags"               : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-to-${MainVpcRegion}-VPCPeering-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

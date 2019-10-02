@@ -1,0 +1,3333 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Creates all available VPC Interface Endpoints in the provided VPC for the current region.",
+
+    "Parameters"               : {
+        "NetworkingStackName" : {
+            "Type" : "String",
+            "Description" : "The name of the networking stack to reference.",
+            "Default"     : "public-networking"
+        },
+        "IsPrivateDnsEnabled" : {
+            "Type" : "String",
+            "Description" : "Specifies whether private DNS is enabled in the VPC and will set the default DNS name to use the endpoint as well.",
+            "AllowedValues" : [
+                "true",
+                "false"
+            ],
+            "Default"       : "true"
+        }
+    },
+
+    "Mappings"                 : {
+        "EndpointsByRegion" : {
+            "ap-east-1" : {
+                "appmeshenvoymanagement" : false,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : false,
+                "awsconnector"           : false,
+                "cloudformation"         : false,
+                "cloudtrail"             : false,
+                "codebuild"              : false,
+                "codebuildfips"          : false,
+                "codecommit"             : false,
+                "codecommitfips"         : false,
+                "codepipeline"           : false,
+                "config"                 : false,
+                "datasync"               : false,
+                "dynamodb"               : false,
+                "ec2"                    : false,
+                "ec2messages"            : false,
+                "ecrapi"                 : false,
+                "ecrdkr"                 : false,
+                "ecs"                    : false,
+                "ecsagent"               : false,
+                "ecstelemetry"           : false,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : false,
+                "events"                  : false,
+                "executeapi"              : false,
+                "gitcodecommit"           : false,
+                "gitcodecommitfips"       : false,
+                "glue"                    : false,
+                "kinesisfirehose"         : false,
+                "kinesisstreams"          : false,
+                "kms"                     : false,
+                "logs"                    : false,
+                "magnolioalphamal"        : false,
+                "monitoring"              : false,
+                "notebook"                : false,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : false,
+                "rekognitionfips"         : false,
+                "s3"                      : false,
+                "sagemakerapi"            : false,
+                "sagemakerruntime"        : false,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : false,
+                "servicecatalog"          : false,
+                "sms"                     : false,
+                "sns"                     : false,
+                "sqs"                     : false,
+                "ssm"                     : false,
+                "ssmmessages"             : false,
+                "storagegateway"          : false,
+                "sts"                     : false,
+                "transfer"                : false,
+                "transferserver"          : false
+            },
+            "ap-northeast-1" : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : true,
+                "appstreamstreaming"     : true,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : false,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : true,
+                "rekognition"             : true,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : false,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : false,
+                "transferserver"          : false
+            },
+            "ap-northeast-2" : {
+                "appmeshenvoymanagement" : false,
+                "appstreamapi"           : true,
+                "appstreamstreaming"     : true,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : false,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : false,
+                "config"                 : false,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : false,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : false,
+                "ecsagent"               : false,
+                "ecstelemetry"           : false,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : false,
+                "events"                  : false,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : false,
+                "kinesisfirehose"         : false,
+                "kinesisstreams"          : false,
+                "kms"                     : false,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : false,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : false,
+                "sagemakerruntime"        : false,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : false,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : false,
+                "sqs"                     : false,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : false,
+                "transfer"                : false,
+                "transferserver"          : false
+            },
+            "ap-south-1"     : {
+                "appmeshenvoymanagement" : false,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : false,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : false,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : false,
+                "datasync"               : false,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : false,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : false,
+                "ecs"                    : false,
+                "ecsagent"               : false,
+                "ecstelemetry"           : false,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : false,
+                "events"                  : false,
+                "executeapi"              : false,
+                "gitcodecommit"           : false,
+                "gitcodecommitfips"       : false,
+                "glue"                    : false,
+                "kinesisfirehose"         : false,
+                "kinesisstreams"          : false,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : false,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : false,
+                "sagemakerruntime"        : false,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : false,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : false,
+                "sqs"                     : false,
+                "ssm"                     : false,
+                "ssmmessages"             : false,
+                "storagegateway"          : true,
+                "sts"                     : false,
+                "transfer"                : false,
+                "transferserver"          : false
+            },
+            "ap-southeast-1" : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : true,
+                "appstreamstreaming"     : true,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : false,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : false,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : true,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "ap-southeast-2" : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : true,
+                "appstreamstreaming"     : true,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "ca-central-1"   : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : true,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : false,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : true,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : false,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : false,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "eu-central-1"   : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : true,
+                "appstreamstreaming"     : true,
+                "athena"                 : true,
+                "awsconnector"           : true,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "eu-north-1"     : {
+                "appmeshenvoymanagement" : false,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : false,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : false,
+                "config"                 : true,
+                "datasync"               : false,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : false,
+                "events"                  : false,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : false,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : false,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : false,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : true,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : false,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "eu-west-1"      : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : true,
+                "appstreamstreaming"     : true,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : true,
+                "rekognition"             : true,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "eu-west-2"      : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : false,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "eu-west-3"      : {
+                "appmeshenvoymanagement" : false,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : false,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : false,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : false,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : false,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "sa-east-1"      : {
+                "appmeshenvoymanagement" : false,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : false,
+                "awsconnector"           : true,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : false,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : false,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : false,
+                "glue"                    : false,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : false,
+                "rekognitionfips"         : false,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "us-east-1"      : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : true,
+                "appstreamstreaming"     : true,
+                "athena"                 : true,
+                "awsconnector"           : true,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : true,
+                "codecommit"             : true,
+                "codecommitfips"         : true,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : true,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : true,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : true,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : true,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : false,
+                "transferserver"          : false
+            },
+            "us-east-2"      : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : true,
+                "codecommit"             : true,
+                "codecommitfips"         : true,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : true,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : true,
+                "rekognition"             : true,
+                "rekognitionfips"         : true,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : true,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "us-west-1"      : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : false,
+                "appstreamstreaming"     : false,
+                "athena"                 : false,
+                "awsconnector"           : false,
+                "cloudformation"         : true,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : true,
+                "codecommit"             : true,
+                "codecommitfips"         : true,
+                "codepipeline"           : true,
+                "config"                 : true,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : true,
+                "ec2messages"            : true,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : true,
+                "ecsagent"               : true,
+                "ecstelemetry"           : true,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : true,
+                "events"                  : true,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : true,
+                "glue"                    : true,
+                "kinesisfirehose"         : true,
+                "kinesisstreams"          : true,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : true,
+                "notebook"                : true,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : true,
+                "s3"                      : true,
+                "sagemakerapi"            : true,
+                "sagemakerruntime"        : true,
+                "sagemakerruntimefips"    : true,
+                "secretsmanager"          : true,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : true,
+                "sqs"                     : true,
+                "ssm"                     : true,
+                "ssmmessages"             : true,
+                "storagegateway"          : true,
+                "sts"                     : true,
+                "transfer"                : true,
+                "transferserver"          : true
+            },
+            "us-west-2"      : {
+                "appmeshenvoymanagement" : true,
+                "appstreamapi"           : true,
+                "appstreamstreaming"     : true,
+                "athena"                 : true,
+                "awsconnector"           : false,
+                "cloudformation"         : false,
+                "cloudtrail"             : true,
+                "codebuild"              : true,
+                "codebuildfips"          : false,
+                "codecommit"             : true,
+                "codecommitfips"         : true,
+                "codepipeline"           : true,
+                "config"                 : false,
+                "datasync"               : true,
+                "dynamodb"               : true,
+                "ec2"                    : false,
+                "ec2messages"            : false,
+                "ecrapi"                 : true,
+                "ecrdkr"                 : true,
+                "ecs"                    : false,
+                "ecsagent"               : false,
+                "ecstelemetry"           : false,
+                "elasticinferenceruntime" : false,
+                "elasticloadbalancing"    : false,
+                "events"                  : false,
+                "executeapi"              : true,
+                "gitcodecommit"           : true,
+                "gitcodecommitfips"       : true,
+                "glue"                    : true,
+                "kinesisfirehose"         : false,
+                "kinesisstreams"          : false,
+                "kms"                     : true,
+                "logs"                    : true,
+                "magnolioalphamal"        : false,
+                "monitoring"              : false,
+                "notebook"                : false,
+                "perfgammakinesis"        : false,
+                "qldbsession"             : false,
+                "rekognition"             : true,
+                "rekognitionfips"         : true,
+                "s3"                      : true,
+                "sagemakerapi"            : false,
+                "sagemakerruntime"        : false,
+                "sagemakerruntimefips"    : false,
+                "secretsmanager"          : false,
+                "servicecatalog"          : true,
+                "sms"                     : false,
+                "sns"                     : false,
+                "sqs"                     : false,
+                "ssm"                     : false,
+                "ssmmessages"             : false,
+                "storagegateway"          : true,
+                "sts"                     : false,
+                "transfer"                : false,
+                "transferserver"          : false
+            }
+        }
+    },
+
+    "Conditions"               : {
+        "Use_Appmeshenvoymanagement" : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "appmeshenvoymanagement"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Appstreamapi"           : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "appstreamapi"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Appstreamstreaming"     : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "appstreamstreaming"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Athena"                 : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "athena"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Awsconnector"           : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "awsconnector"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Cloudformation"         : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "cloudformation"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Cloudtrail"             : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "cloudtrail"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Codebuild"              : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "codebuild"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Codebuildfips"          : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "codebuildfips"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Codecommit"             : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "codecommit"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Codecommitfips"         : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "codecommitfips"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Codepipeline"           : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "codepipeline"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Config"                 : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "config"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Datasync"               : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "datasync"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Dynamodb"               : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "dynamodb"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ec2"                    : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ec2"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ec2messages"            : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ec2messages"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ecrapi"                 : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ecrapi"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ecrdkr"                 : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ecrdkr"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ecs"                    : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ecs"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ecsagent"               : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ecsagent"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ecstelemetry"           : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ecstelemetry"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Elasticinferenceruntime" : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "elasticinferenceruntime"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Elasticloadbalancing"    : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "elasticloadbalancing"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Events"                  : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "events"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Executeapi"              : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "executeapi"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Gitcodecommit"           : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "gitcodecommit"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Gitcodecommitfips"       : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "gitcodecommitfips"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Glue"                    : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "glue"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Kinesisfirehose"         : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "kinesisfirehose"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Kinesisstreams"          : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "kinesisstreams"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Kms"                     : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "kms"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Logs"                    : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "logs"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Magnolioalphamal"        : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "magnolioalphamal"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Monitoring"              : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "monitoring"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Notebook"                : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "notebook"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Perfgammakinesis"        : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "perfgammakinesis"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Qldbsession"             : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "qldbsession"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Rekognition"             : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "rekognition"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Rekognitionfips"         : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "rekognitionfips"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_S3"                      : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "s3"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Sagemakerapi"            : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "sagemakerapi"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Sagemakerruntime"        : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "sagemakerruntime"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Sagemakerruntimefips"    : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "sagemakerruntimefips"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Secretsmanager"          : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "secretsmanager"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Servicecatalog"          : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "servicecatalog"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Sms"                     : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "sms"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Sns"                     : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "sns"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Sqs"                     : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "sqs"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ssm"                     : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ssm"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Ssmmessages"             : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "ssmmessages"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Storagegateway"          : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "storagegateway"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Sts"                     : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "sts"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Transfer"                : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "transfer"
+                    ]
+                },
+                "true"
+            ]
+        },
+        "Use_Transferserver"          : {
+            "Fn::Equals" : [
+                {
+                    "Fn::FindInMap" : [
+                        "EndpointsByRegion",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        "transferserver"
+                    ]
+                },
+                "true"
+            ]
+        }
+    },
+
+    "Resources"                : {
+        "SecurityGroupAllowAnyHTTPS" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Allows 0.0.0.0/0 access to the endpoint.",
+                "VpcId"            : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStack}-VpcId"
+                    }
+                },
+                "SecurityGroupIngress" : [
+                    {
+                        "FromPort" : "443",
+                        "ToPort"   : "443",
+                        "Description" : "Allow all HTTPS.",
+                        "IpProtocol"  : "TCP",
+                        "CidrIp"      : "0.0.0.0/0"
+                    }
+                ]
+            }
+        },
+        "CodecommitfipsInterfaceEndpoint" : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Codecommitfips",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.codecommit-fips"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SecretsmanagerInterfaceEndpoint" : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Secretsmanager",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.secretsmanager"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "AppstreamapiInterfaceEndpoint"   : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Appstreamapi",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.appstream.api"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "MagnolioalphamalInterfaceEndpoint" : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Magnolioalphamal",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.magnolio-alpha-mal"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "GitcodecommitInterfaceEndpoint"    : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Gitcodecommit",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.git-codecommit"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "DynamodbInterfaceEndpoint"         : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Dynamodb",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.dynamodb"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "AthenaInterfaceEndpoint"           : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Athena",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.athena"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SagemakerapiInterfaceEndpoint"     : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Sagemakerapi",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.sagemaker.api"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "CodepipelineInterfaceEndpoint"     : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Codepipeline",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.codepipeline"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "ConfigInterfaceEndpoint"           : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Config",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.config"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SsmmessagesInterfaceEndpoint"      : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ssmmessages",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ssmmessages"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "Resources"                         : {
+        },
+        "MonitoringInterfaceEndpoint"       : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Monitoring",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.monitoring"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "RekognitionInterfaceEndpoint"      : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Rekognition",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.rekognition"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SmsInterfaceEndpoint"              : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Sms",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.sms"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "AppmeshenvoymanagementInterfaceEndpoint" : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Appmeshenvoymanagement",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.appmesh-envoy-management"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "Ec2InterfaceEndpoint"                    : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ec2",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ec2"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "EventsInterfaceEndpoint"                 : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Events",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.events"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "KinesisstreamsInterfaceEndpoint"         : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Kinesisstreams",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.kinesis-streams"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "CodebuildInterfaceEndpoint"              : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Codebuild",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.codebuild"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "NotebookInterfaceEndpoint"               : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Notebook",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "aws.sagemaker.${AWS::Region}.notebook"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "EcstelemetryInterfaceEndpoint"           : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ecstelemetry",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ecs-telemetry"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "ElasticinferenceruntimeInterfaceEndpoint" : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Elasticinferenceruntime",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.elastic-inference.runtime"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "CloudformationInterfaceEndpoint"          : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Cloudformation",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.cloudformation"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "CodecommitInterfaceEndpoint"              : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Codecommit",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.codecommit"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "TransferserverInterfaceEndpoint"          : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Transferserver",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.transfer.server"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "AppstreamstreamingInterfaceEndpoint"      : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Appstreamstreaming",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.appstream.streaming"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "GlueInterfaceEndpoint"                    : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Glue",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.glue"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SqsInterfaceEndpoint"                     : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Sqs",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.sqs"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "KinesisfirehoseInterfaceEndpoint"         : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Kinesisfirehose",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.kinesis-firehose"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "EcsagentInterfaceEndpoint"                : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ecsagent",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ecs-agent"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "KmsInterfaceEndpoint"                     : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Kms",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.kms"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SnsInterfaceEndpoint"                     : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Sns",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.sns"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "Ec2messagesInterfaceEndpoint"             : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ec2messages",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ec2messages"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "QldbsessionInterfaceEndpoint"             : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Qldbsession",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.qldb.session"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "PerfgammakinesisInterfaceEndpoint"        : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Perfgammakinesis",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.perfgamma.kinesis"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "RekognitionfipsInterfaceEndpoint"         : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Rekognitionfips",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.rekognition-fips"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "DatasyncInterfaceEndpoint"                : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Datasync",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.datasync"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "EcsInterfaceEndpoint"                     : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ecs",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ecs"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "ElasticloadbalancingInterfaceEndpoint"    : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Elasticloadbalancing",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.elasticloadbalancing"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SagemakerruntimeInterfaceEndpoint"        : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Sagemakerruntime",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.sagemaker.runtime"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "TransferInterfaceEndpoint"                : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Transfer",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.transfer"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "StsInterfaceEndpoint"                     : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Sts",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.sts"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "EcrapiInterfaceEndpoint"                  : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ecrapi",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ecr.api"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "LogsInterfaceEndpoint"                    : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Logs",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.logs"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "AwsconnectorInterfaceEndpoint"            : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Awsconnector",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.awsconnector"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SagemakerruntimefipsInterfaceEndpoint"    : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Sagemakerruntimefips",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.sagemaker.runtime-fips"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "ServicecatalogInterfaceEndpoint"          : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Servicecatalog",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.servicecatalog"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "ExecuteapiInterfaceEndpoint"              : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Executeapi",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.execute-api"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "SsmInterfaceEndpoint"                     : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ssm",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ssm"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "GitcodecommitfipsInterfaceEndpoint"       : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Gitcodecommitfips",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.git-codecommit-fips"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "EcrdkrInterfaceEndpoint"                  : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Ecrdkr",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.ecr.dkr"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "StoragegatewayInterfaceEndpoint"          : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Storagegateway",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.storagegateway"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "CodebuildfipsInterfaceEndpoint"           : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Codebuildfips",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.codebuild-fips"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "CloudtrailInterfaceEndpoint"              : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_Cloudtrail",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.cloudtrail"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        },
+        "S3InterfaceEndpoint"                      : {
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Condition" : "Use_S3",
+            "Properties" : {
+                "PrivateDnsEnabled" : {
+                    "Ref" : "IsPrivateDnsEnabled"
+                },
+                "SubnetIds"         : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+                    }
+                },
+                "ServiceName"       : {
+                    "Fn::Sub" : "com.amazonaws.${AWS::Region}.s3"
+                },
+                "VpcEndpointType"   : "Interface",
+                "SecurityGroupIds"  : [
+                    {
+                        "Ref" : "SecurityGroupAllowAnyHTTPS"
+                    }
+                ],
+                "VpcId"             : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackName}-VpcId"
+                    }
+                }
+            }
+        }
+    }
+}

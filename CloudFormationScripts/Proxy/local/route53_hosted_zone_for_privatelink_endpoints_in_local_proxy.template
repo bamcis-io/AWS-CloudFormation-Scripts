@@ -1,0 +1,95 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates the Route53 hosted zone that will hold the Alias records for the added PrivateLink endpoints in the local proxy network.",
+
+	"Parameters" : {
+		"NetworkingStackName" : {
+			"Type" : "String",
+			"Description" : "The name of the networking stack",
+			"Default" : "public-networking"
+		},
+		
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "regional_proxy"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "prod"
+        }
+	},
+
+	"Resources" : {
+		"Zone" : {
+			"Type" : "AWS::Route53::HostedZone",
+			"Properties" : {
+				"Name" : "proxy.local",
+				"VPCs" : [
+					{
+						 "VPCId" : {
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${NetworkingStackName}-VpcId"
+							}
+						},
+						"VPCRegion" : {
+							"Ref" : "AWS::Region"
+						}
+					}
+				],
+				"HostedZoneTags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "R53-${ApplicationTag}-${AWS::Region}-proxy.local-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+		"ZoneId" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-ZoneId"
+				}
+			},
+			"Value" : {
+				"Ref" : "Zone"
+			}
+		}
+	}
+}

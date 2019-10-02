@@ -1,0 +1,1176 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Deploys a region specific network setup with a private subnet in each AZ of the region.",
+
+	"Parameters" : {
+		"CidrBlock" : {
+			"Type" : "String",
+			"Description" : "The cidr block to use for this VPC, should be a /16.",
+			"Default" : "192.168.0.0/16"
+		},
+		"NumberOfAZsInRegion" : {
+			"Description" : "The number of AZs in the region you are deploying to.",
+			"Type" : "Number",
+			"MinValue" : 2,
+			"MaxValue" : 6,
+			"Default" : 3
+		},
+
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "local_proxy"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "prod"
+        }
+	},
+
+	"Conditions" : {
+		"Create3AZs" : {
+			"Fn::Or" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						3
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						4
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						5
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						6
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						7
+					]
+				}
+			]
+		},
+		"Create4AZs" : {
+			"Fn::Or" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						4
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						5
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						6
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						7
+					]
+				}
+			]
+		},
+		"Create5AZs" : {
+			"Fn::Or" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						5
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						6
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						7
+					]
+				}
+			]
+		},
+		"Create6AZs" : {
+			"Fn::Or" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						6
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						7
+					]
+				}
+			]
+		}
+	},
+
+	"Mappings" : {
+		"AZCidrQuantityMap" : {
+			"2" : {
+				"Quantity" : "2"
+			},
+			"3" : {
+				"Quantity" : "3"
+			},
+			"4" : {
+				"Quantity" : "4"
+			},
+			"5" : {
+				"Quantity" : "5"
+			},
+			"6" : {
+				"Quantity" : "6"
+			},
+			"7" : {
+				"Quantity" : "7"
+			}
+		}
+	},
+
+	"Resources" : {
+		"VPC" : {
+			"Type" : "AWS::EC2::VPC",
+			"Properties" : {
+				"CidrBlock" : {
+					"Ref" : "CidrBlock"
+				},
+				"EnableDnsHostnames" : true,
+				"EnableDnsSupport" : true,
+				"Tags"               : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-VPC-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+			}
+		},
+
+		"AZ1PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : {
+					"Fn::Select" : [
+						0,
+						{
+							"Fn::GetAZs" : ""
+						}
+					]
+				},
+                "CidrBlock"        : {
+					"Fn::Select" : [
+						0,
+						{
+							"Fn::Cidr" : [ { "Ref" : "CidrBlock" }, { "Fn::FindInMap" : [ "AZCidrQuantityMap", { "Ref" : "NumberOfAZsInRegion" }, "Quantity" ] }, 8 ]
+						}
+					]
+				},
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : false,
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : [
+								"${ApplicationTag}-${AZ}-PrivateSubnet1-${EnvironmentTag}",
+								{
+									"AZ" : {
+										"Fn::Select" : [
+											0,
+											{
+												"Fn::GetAZs" : ""
+											}
+										]
+									}
+								}
+							]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "AZ2PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : {
+					"Fn::Select" : [
+						1,
+						{
+							"Fn::GetAZs" : ""
+						}
+					]
+				},
+                "CidrBlock"        : {
+					"Fn::Select" : [
+						1,
+						{
+							"Fn::Cidr" : [ { "Ref" : "CidrBlock" }, { "Fn::FindInMap" : [ "AZCidrQuantityMap", { "Ref" : "NumberOfAZsInRegion" }, "Quantity" ] }, 8 ]
+						}
+					]
+				},
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : false,
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : [
+								"${ApplicationTag}-${AZ}-PrivateSubnet1-${EnvironmentTag}",
+								{
+									"AZ" : {
+										"Fn::Select" : [
+											1,
+											{
+												"Fn::GetAZs" : ""
+											}
+										]
+									}
+								}
+							]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "AZ3PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+			"Condition" : "Create3AZs",
+            "Properties" : {
+                "AvailabilityZone" : {
+					"Fn::Select" : [
+						2,
+						{
+							"Fn::GetAZs" : ""
+						}
+					]
+				},
+                "CidrBlock"        : {
+					"Fn::Select" : [
+						2,
+						{
+							"Fn::Cidr" : [ { "Ref" : "CidrBlock" }, { "Fn::FindInMap" : [ "AZCidrQuantityMap", { "Ref" : "NumberOfAZsInRegion" }, "Quantity" ] }, 8 ]
+						}
+					]
+				},
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : false,
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : [
+								"${ApplicationTag}-${AZ}-PrivateSubnet1-${EnvironmentTag}",
+								{
+									"AZ" : {
+										"Fn::Select" : [
+											2,
+											{
+												"Fn::GetAZs" : ""
+											}
+										]
+									}
+								}
+							]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"AZ4PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+			"Condition" : "Create4AZs",
+            "Properties" : {
+                "AvailabilityZone" : {
+					"Fn::Select" : [
+						3,
+						{
+							"Fn::GetAZs" : ""
+						}
+					]
+				},
+                "CidrBlock"        : {
+					"Fn::Select" : [
+						3,
+						{
+							"Fn::Cidr" : [ { "Ref" : "CidrBlock" }, { "Fn::FindInMap" : [ "AZCidrQuantityMap", { "Ref" : "NumberOfAZsInRegion" }, "Quantity" ] }, 8 ]
+						}
+					]
+				},
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : false,
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : [
+								"${ApplicationTag}-${AZ}-PrivateSubnet1-${EnvironmentTag}",
+								{
+									"AZ" : {
+										"Fn::Select" : [
+											3,
+											{
+												"Fn::GetAZs" : ""
+											}
+										]
+									}
+								}
+							]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"AZ5PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+			"Condition" : "Create5AZs",
+            "Properties" : {
+                "AvailabilityZone" : {
+					"Fn::Select" : [
+						4,
+						{
+							"Fn::GetAZs" : ""
+						}
+					]
+				},
+                "CidrBlock"        : {
+					"Fn::Select" : [
+						4,
+						{
+							"Fn::Cidr" : [ { "Ref" : "CidrBlock" }, { "Fn::FindInMap" : [ "AZCidrQuantityMap", { "Ref" : "NumberOfAZsInRegion" }, "Quantity" ] }, 8 ]
+						}
+					]
+				},
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : false,
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : [
+								"${ApplicationTag}-${AZ}-PrivateSubnet1-${EnvironmentTag}",
+								{
+									"AZ" : {
+										"Fn::Select" : [
+											4,
+											{
+												"Fn::GetAZs" : ""
+											}
+										]
+									}
+								}
+							]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"AZ6PrivateSubnet1" : {
+            "Type" : "AWS::EC2::Subnet",
+			"Condition" : "Create6AZs",
+            "Properties" : {
+                "AvailabilityZone" : {
+					"Fn::Select" : [
+						5,
+						{
+							"Fn::GetAZs" : ""
+						}
+					]
+				},
+                "CidrBlock"        : {
+					"Fn::Select" : [
+						5,
+						{
+							"Fn::Cidr" : [ { "Ref" : "CidrBlock" }, { "Fn::FindInMap" : [ "AZCidrQuantityMap", { "Ref" : "NumberOfAZsInRegion" }, "Quantity" ] }, 8 ]
+						}
+					]
+				},
+                "VpcId"            : {
+                    "Ref" : "VPC"
+                },
+                "MapPublicIpOnLaunch" : false,
+                "Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : [
+								"${ApplicationTag}-${AZ}-PrivateSubnet1-${EnvironmentTag}",
+								{
+									"AZ" : {
+										"Fn::Select" : [
+											5,
+											{
+												"Fn::GetAZs" : ""
+											}
+										]
+									}
+								}
+							]
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+
+		"PrivateRouteTable1" : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AZ1PrivateSubnet1.AvailabilityZone}-PrivateRouteTable-${EnvironmentTag}"							
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "PrivateRouteTable2" : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AZ2PrivateSubnet1.AvailabilityZone}-PrivateRouteTable-${EnvironmentTag}"							
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "PrivateRouteTable3" : {
+            "Type" : "AWS::EC2::RouteTable",
+			"Condition" : "Create3AZs",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AZ3PrivateSubnet1.AvailabilityZone}-PrivateRouteTable-${EnvironmentTag}"							
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"PrivateRouteTable4" : {
+            "Type" : "AWS::EC2::RouteTable",
+			"Condition" : "Create4AZs",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AZ4PrivateSubnet1.AvailabilityZone}-PrivateRouteTable-${EnvironmentTag}"							
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"PrivateRouteTable5" : {
+            "Type" : "AWS::EC2::RouteTable",
+			"Condition" : "Create5AZs",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AZ5PrivateSubnet1.AvailabilityZone}-PrivateRouteTable-${EnvironmentTag}"							
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"PrivateRouteTable6" : {
+            "Type" : "AWS::EC2::RouteTable",
+			"Condition" : "Create6AZs",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "VPC"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AZ6PrivateSubnet1.AvailabilityZone}-PrivateRouteTable-${EnvironmentTag}"							
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },
+		"AZ1PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ1PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable1"
+                }
+            }
+        },
+        "AZ2PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ2PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable2"
+                }
+            }
+        },
+        "AZ3PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Condition" : "Create3AZs",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ3PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable3"
+                }
+            }
+        },
+		"AZ4PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Condition" : "Create4AZs",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ4PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable4"
+                }
+            }
+        },
+		"AZ5PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Condition" : "Create5AZs",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ5PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable5"
+                }
+            }
+        },
+		"AZ6PrivateSubnet1RouteTableAssociation" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Condition" : "Create6AZs",
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "AZ6PrivateSubnet1"
+                },
+                "RouteTableId" : {
+                    "Ref" : "PrivateRouteTable6"
+                }
+            }
+        }
+	},
+
+	"Outputs" : {
+		"VpcId" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-VpcId"
+				}				 
+			},
+			"Value" : {
+				"Ref" : "VPC"
+			}
+		},
+		"CidrBlock" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-CidrBlock"
+				}				 
+			},
+			"Value" : {
+				"Fn::GetAtt" : [ "VPC", "CidrBlock" ]
+			}
+		},
+		"RouteTableIds" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-RouteTableIds"
+				}
+			},
+			"Value" : {
+				"Fn::Join" : [
+					",",
+					[
+						{
+							"Ref" : "PrivateRouteTable1"
+						},
+						{
+							"Ref" : "PrivateRouteTable2"
+						},
+						{
+							"Fn::If" : [
+								"Create3AZs",
+								{
+									"Ref" : "PrivateRouteTable3"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create4AZs",
+								{
+									"Ref" : "PrivateRouteTable4"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create5AZs",
+								{
+									"Ref" : "PrivateRouteTable5"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create6AZs",
+								{
+									"Ref" : "PrivateRouteTable6"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						}
+					]
+				]
+			}
+		},
+		"PrivateRouteTableIds" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-PrivateRouteTableIds"
+				}
+			},
+			"Value" : {
+				"Fn::Join" : [
+					",",
+					[
+						{
+							"Ref" : "PrivateRouteTable1"
+						},
+						{
+							"Ref" : "PrivateRouteTable2"
+						},
+						{
+							"Fn::If" : [
+								"Create3AZs",
+								{
+									"Ref" : "PrivateRouteTable3"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create4AZs",
+								{
+									"Ref" : "PrivateRouteTable4"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create5AZs",
+								{
+									"Ref" : "PrivateRouteTable5"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create6AZs",
+								{
+									"Ref" : "PrivateRouteTable6"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						}
+					]
+				]
+			}
+		},
+		"SubnetIds" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-SubnetIds"
+				}
+			},
+			"Value" : {
+				"Fn::Join" : [
+					",",
+					[
+						{
+							"Ref" : "AZ1PrivateSubnet1"
+						},
+						{
+							"Ref" : "AZ2PrivateSubnet1"
+						},
+						{
+							"Fn::If" : [
+								"Create3AZs",
+								{
+									"Ref" : "AZ3PrivateSubnet1"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create4AZs",
+								{
+									"Ref" : "AZ4PrivateSubnet1"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create5AZs",
+								{
+									"Ref" : "AZ5PrivateSubnet1"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create6AZs",
+								{
+									"Ref" : "AZ6PrivateSubnet1"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						}
+					]
+				]
+			}
+		},
+		"PrivateSubnetIds" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-PrivateSubnetIds"
+				}
+			},
+			"Value" : {
+				"Fn::Join" : [
+					",",
+					[
+						{
+							"Ref" : "AZ1PrivateSubnet1"
+						},
+						{
+							"Ref" : "AZ2PrivateSubnet1"
+						},
+						{
+							"Fn::If" : [
+								"Create3AZs",
+								{
+									"Ref" : "AZ3PrivateSubnet1"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create4AZs",
+								{
+									"Ref" : "AZ4PrivateSubnet1"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create5AZs",
+								{
+									"Ref" : "AZ5PrivateSubnet1"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						},
+						{
+							"Fn::If" : [
+								"Create6AZs",
+								{
+									"Ref" : "AZ6PrivateSubnet1"
+								},
+								{
+									"Ref" : "AWS::NoValue"
+								}
+							]					
+						}
+					]
+				]
+			}
+		}
+	}
+}

@@ -1,0 +1,79 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates a new endpoint for the cell router.",
+
+	"Parameters" : {
+		"CellRouterStackName" : {
+			"Type" : "String",
+			"Description" : "The name of the master cell router stack that created the security group the endpoint will use.",
+			"Default" : "regional-proxy-cell-router"
+		},
+		"NetworkingStackName" : {
+			"Type" : "String",
+			"Description" : "The name of the networking stack",
+			"Default" : "private-networking"
+		},
+		"ServiceName" : {
+			"Type" : "String",
+			"Description" : "The name of the service to add an endpoint for.",
+			"MinLength" : 1
+		}
+	},
+
+	"Resources" : {
+		"Endpoint" : {
+			"Type" : "AWS::EC2::VPCEndpoint",
+			"Properties" : {
+				"PrivateDnsEnabled" : false,
+				"VpcEndpointType" : "Interface",
+				"VpcId" : {
+					"Fn::ImportValue" : {
+						"Fn::Sub" : "${NetworkingStackName}-VpcId"
+					}
+				},
+				"SecurityGroupIds" : {
+					"Fn::Split" : [ 						
+						",",
+						{
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${CellRouterStackName}-SecurityGroupIds"
+							}
+						}
+					]
+				},
+				"SubnetIds" : {
+					"Fn::Split" : [ 						
+						",",
+						{
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+							}
+						}
+					]
+				},
+				"ServiceName" : {
+					"Ref" : "ServiceName"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+		"InterfaceIds" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-NetworkInterfaceIds"
+				}
+			},
+			"Value" : {
+				"Fn::Join" : [
+					",",
+					{
+						"Fn::GetAtt" : [ "Endpoint", "NetworkInterfaceIds" ]
+					}
+				]
+			}
+		}
+	}
+}

@@ -30,6 +30,11 @@
     <Folder Include="CI-CD" />
     <Folder Include="AWS Backup Labs" />
     <Folder Include="Athena" />
+    <Folder Include="Organizations" />
+    <Folder Include="Proxy" />
+    <Folder Include="Proxy\local" />
+    <Folder Include="Proxy\common" />
+    <Folder Include="Proxy\regional" />
     <Folder Include="Route53" />
     <Folder Include="VPCEndpoints" />
   </ItemGroup>
@@ -163,10 +168,88 @@
     <Compile Include="Networking\transit-gateway-vpc.template">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Organizations\org-admins.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\commands.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\create_cf_bucket.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\CreateSubnetsPerAZ.yaml">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\ecr_repository.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\gateway_endpoints.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\get_ip_from_eni.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\interface_endpoints.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\interface_endpoints_all.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\private_networking.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\public_networking.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\local\add_endpoint_to_regional_cell_router.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\local\empty_region_peering_connection.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\local\proxy_local.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\local\route53_hosted_zone_for_privatelink_endpoints_in_local_proxy.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\local\squid_config_parameter_local.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\local\update_vpc_route_table.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\README.md">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\regional\add_cell_router_endpoint.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\regional\cell_router.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\regional\cell_router_add_endpoint.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\regional\deploy_cell_router.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\regional\proxy_regional.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\regional\squid_config_parameter_regional.template">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Route53\failover-health-check.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Route53\manual-failover-infrastructure.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VPCEndpoints\create_endpoint_conditions.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VPCEndpoints\create_endpoint_resources.ps1">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="VPCEndpoints\dedicated-endpoint-vpc.template">
@@ -208,6 +291,48 @@
       <SubType>Content</SubType>
     </Content>
     <Content Include="Networking\README.md">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\common\deploy_ecr_repo.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\common\deploy_gateway_endpoints.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\common\deploy_interface_endpoints.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\common\deploy_networking.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\common\push_docker_image.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\common\set_ecs_defaults.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\local\deploy_local_endpoint_to_regional_router.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\local\deploy_local_proxy.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\local\deploy_peering_connection.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\local\deploy_route53_zone.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\local\deploy_ssm_parameter_local.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\local\deploy_updated_peering_routes.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\regional\deploy_regional_proxy.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\regional\deploy_ssm_parameter_regional.ps1">
       <SubType>Content</SubType>
     </Content>
     <Content Include="VPCEndpoints\deploy.ps1">

@@ -1,0 +1,53 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates the organizations child account administrator setup.",
+
+	"Parameters" : {
+		"OrgsAdminRoleName" : {
+			"Type" : "String",
+			"Description" : "The name of the admin role created in each child account.",
+			"Default" : "OrganizationsAdminRole",
+			"MinLength" : 1
+		}
+	},
+
+	"Resources" : {
+		"OrgAccountAdminsGroup" : {
+			"Type" : "AWS::IAM::Group",
+			"Properties" : {
+				"Path" : "/org-account-admins/"
+			}
+		},
+		"OrgAccountAdminsPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+				"Path" : "/org-account-admins/",
+				"PolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Effect" : "Allow",
+							"Action" : [
+								"sts:AssumeRole"
+							],
+							"Resource" : [
+								{
+									"Fn::Sub" : "arn:aws:iam::*:role/${OrgsAdminRoleName}"
+								}
+							]
+						}
+					]
+				},
+				"Groups" : [
+					{
+						"Ref" : "OrgAccountAdminsGroup"
+					}
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

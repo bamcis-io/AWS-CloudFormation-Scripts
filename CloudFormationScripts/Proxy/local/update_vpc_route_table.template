@@ -1,0 +1,326 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "This needs to be deployed in each VPC peering pair to update the route tables.",
+
+	"Parameters" : {
+		"VpcPeeringConnectionId" : {
+			"Type" : "String",
+			"Description" : "The peering connection to add to the private subnet route tables",
+			"AllowedPattern" : "^pcx-[0-9a-f]{17}"
+		},
+		"NumberOfAZsInRegion" : {
+			"Description" : "The number of AZs in the region you are deploying to.",
+			"Type" : "Number",
+			"MinValue" : 2,
+			"MaxValue" : 6,
+			"Default" : 3
+		},
+		"NetworkingStackName" : {
+			"Type" : "String",
+			"Description" : "The name of the networking stack to reference.",
+			"Default" : "public-networking"
+		},
+		"DestinationCidrBlock" : {
+			"Type" : "String",
+			"Description" : "The Cidr block of the peered VPC."
+		}
+	},
+
+	"Conditions" : {
+		"Create3AZs" : {
+			"Fn::Or" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						3
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						4
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						5
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						6
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						7
+					]
+				}
+			]
+		},
+		"Create4AZs" : {
+			"Fn::Or" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						4
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						5
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						6
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						7
+					]
+				}
+			]
+		},
+		"Create5AZs" : {
+			"Fn::Or" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						5
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						6
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						7
+					]
+				}
+			]
+		},
+		"Create6AZs" : {
+			"Fn::Or" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						6
+					]
+				},
+					{
+					"Fn::Equals" : [
+						{
+							"Ref" : "NumberOfAZsInRegion"
+						},
+						7
+					]
+				}
+			]
+		}
+	},
+
+	"Resources" : {
+		"PrivateRoute1"      : {
+            "Type" : "AWS::EC2::Route",
+            "Properties" : {
+                "DestinationCidrBlock" : {
+					"Ref" : "DestinationCidrBlock"
+				},
+                "VpcPeeringConnectionId"         : {
+                    "Ref" : "VpcPeeringConnectionId"
+                },
+                "RouteTableId"         : {
+                    "Fn::Select" : [
+						0,
+						{
+							"Fn::Split" : [
+								",",
+								{
+									"Fn::ImportValue" : {
+										"Fn::Sub" : "${NetworkingStackName}-PrivateRouteTableIds"
+									}
+								}
+							]
+						}
+					]
+                }
+            }
+        },
+		"PrivateRoute2"      : {
+            "Type" : "AWS::EC2::Route",
+            "Properties" : {
+                "DestinationCidrBlock" : {
+					"Ref" : "DestinationCidrBlock"
+				},
+                "VpcPeeringConnectionId"         : {
+                    "Ref" : "VpcPeeringConnectionId"
+                },
+                "RouteTableId"         : {
+                    "Fn::Select" : [
+						1,
+						{
+							"Fn::Split" : [
+								",",
+								{
+									"Fn::ImportValue" : {
+										"Fn::Sub" : "${NetworkingStackName}-PrivateRouteTableIds"
+									}
+								}
+							]
+						}
+					]
+                }
+            }
+        },
+		"PrivateRoute3"      : {
+            "Type" : "AWS::EC2::Route",
+			"Condition" : "Create3AZs",
+            "Properties" : {
+                "DestinationCidrBlock" : {
+					"Ref" : "DestinationCidrBlock"
+				},
+                "VpcPeeringConnectionId"         : {
+                    "Ref" : "VpcPeeringConnectionId"
+                },
+                "RouteTableId"         : {
+                    "Fn::Select" : [
+						2,
+						{
+							"Fn::Split" : [
+								",",
+								{
+									"Fn::ImportValue" : {
+										"Fn::Sub" : "${NetworkingStackName}-PrivateRouteTableIds"
+									}
+								}
+							]
+						}
+					]
+                }
+            }
+        },
+		"PrivateRoute4"      : {
+            "Type" : "AWS::EC2::Route",
+			"Condition" : "Create4AZs",
+            "Properties" : {
+                "DestinationCidrBlock" : {
+					"Ref" : "DestinationCidrBlock"
+				},
+                "VpcPeeringConnectionId"         : {
+                    "Ref" : "VpcPeeringConnectionId"
+                },
+                "RouteTableId"         : {
+                    "Fn::Select" : [
+						3,
+						{
+							"Fn::Split" : [
+								",",
+								{
+									"Fn::ImportValue" : {
+										"Fn::Sub" : "${NetworkingStackName}-PrivateRouteTableIds"
+									}
+								}
+							]
+						}
+					]
+                }
+            }
+        },
+		"PrivateRoute5"      : {
+            "Type" : "AWS::EC2::Route",
+			"Condition" : "Create5AZs",
+            "Properties" : {
+                "DestinationCidrBlock" : {
+					"Ref" : "DestinationCidrBlock"
+				},
+                "VpcPeeringConnectionId"         : {
+                    "Ref" : "VpcPeeringConnectionId"
+                },
+                "RouteTableId"         : {
+                    "Fn::Select" : [
+						4,
+						{
+							"Fn::Split" : [
+								",",
+								{
+									"Fn::ImportValue" : {
+										"Fn::Sub" : "${NetworkingStackName}-PrivateRouteTableIds"
+									}
+								}
+							]
+						}
+					]
+                }
+            }
+        },
+		"PrivateRoute6"      : {
+            "Type" : "AWS::EC2::Route",
+			"Condition" : "Create6AZs",
+            "Properties" : {
+                "DestinationCidrBlock" : {
+					"Ref" : "DestinationCidrBlock"
+				},
+                "VpcPeeringConnectionId"         : {
+                    "Ref" : "VpcPeeringConnectionId"
+                },
+                "RouteTableId"         : {
+                    "Fn::Select" : [
+						5,
+						{
+							"Fn::Split" : [
+								",",
+								{
+									"Fn::ImportValue" : {
+										"Fn::Sub" : "${NetworkingStackName}-PrivateRouteTableIds"
+									}
+								}
+							]
+						}
+					]
+                }
+            }
+        }
+	},
+
+	"Outputs" : {
+	}
+}

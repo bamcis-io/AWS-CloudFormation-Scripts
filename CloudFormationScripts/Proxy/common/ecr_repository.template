@@ -1,0 +1,75 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates the ECR repo for the proxy container image",
+
+	"Parameters" : {
+		"RepoName" : {
+			"Type" : "String",
+			"Description" : "The name for the repo.",
+			"Default" : "aws-regional-proxy",
+			"MinLength" : 1
+		},
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "regional_proxy"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "prod"
+        }
+	},
+
+	"Resources" : {
+		"ProxyContainerRepo" : {
+			"Type" : "AWS::ECR::Repository",
+			"Properties" : {
+				"RepositoryName" : {
+					"Ref" : "RepoName"
+				},
+				"Tags" : [
+					{
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-RegionalProxyContainerRepo-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

@@ -1,0 +1,288 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "This is the cell router for the regional proxy cells.",
+
+	"Parameters" : {
+		"NetworkingStackName" : {
+			"Type" : "String",
+			"Description" : "The name of the networking stack to reference.",
+			"Default" : "private-networking"
+		},
+		"ProxyPort" : {
+			"Type" : "Number",
+			"MinValue" : 1,
+			"MaxValue" : 65535,
+			"Default" : 3128
+		},
+
+		"OrganizationTag"            : {
+            "Description" : "The organization this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "bamcis.io"
+        },
+        "ApplicationTag"             : {
+            "Description" : "The application this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+			"Default" : "local_proxy"
+        },
+        "EnvironmentTag"             : {
+            "Description" : "The environment this account is associated with",
+            "Type"        : "String",
+            "AllowedPattern" : "^\\S{2,}$",
+            "ConstraintDescription" : "Member must satisfy regular expression pattern: ^\\S{2,}$",
+            "Default"               : "prod"
+        }
+	},
+
+	"Resources" : {
+		"NLB" : {
+			"Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer",
+			"Properties" : {
+				"IpAddressType" : "ipv4",
+				 "Scheme" : "internal",
+				 "Subnets" : {
+					"Fn::Split" : [
+						",",
+						{
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${NetworkingStackName}-PrivateSubnetIds"
+							}
+						}
+					]
+				 },
+				 "Type" : "network"
+			}
+		},
+		"Listener" : {
+			"Type" : "AWS::ElasticLoadBalancingV2::Listener",
+			"Properties" : {
+				"DefaultActions" : [
+					{
+						 "Order" : 1,
+						 "Type" : "forward",
+						 "TargetGroupArn" : {
+							"Ref" : "TargetGroup"
+						 }
+					}
+				],
+				"Port" : {
+					"Ref" : "ProxyPort"
+				},
+				"Protocol" : "TCP",
+				"LoadBalancerArn" : {
+					"Ref" : "NLB"
+				}
+			}
+		},
+		"TargetGroup" : {
+			"Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+			"Properties" : {
+				"HealthCheckEnabled" :  true,
+				"HealthCheckPort" : "traffic-port",
+				"Port" : {
+					"Ref" : "ProxyPort"
+				},
+				"Protocol" : "TCP",
+				"TargetType" : "ip",
+				"VpcId" : {
+					"Fn::ImportValue" : {
+						"Fn::Sub" : "${NetworkingStackName}-VpcId"
+					}
+				},
+				"Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-TargetGroup-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+				]
+			}
+		},
+
+		"EndpointService" : {
+			"Type" : "AWS::EC2::VPCEndpointService",
+			"Properties" : {
+				"AcceptanceRequired" : true,
+				"NetworkLoadBalancerArns" : [
+					{
+						"Ref" : "NLB"
+					}
+				]
+			}
+		},
+		"LocalProxyPermissions" : {
+			"Type" : "AWS::EC2::VPCEndpointServicePermissions",
+			"Properties" : {
+				"AllowedPrincipals" : [
+					"*"
+				],
+				"ServiceId" : {
+					"Ref" : "EndpointService"
+				}
+			}
+		},
+
+		"CellRouterEndpointRequestorRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"Path" : "/",
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"Service": [
+									"cloudformation.amazonaws.com"
+								]
+							},
+							"Action": "sts:AssumeRole"
+						}
+					]
+				}
+			}
+		},
+		"CellRouterEndpointRequestorPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+				"Description" : "Allows the role to create VPC endpoint for the cells it routes to.",
+				"Path" : "/cell-router/",
+				"PolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Effect" : "Allow",
+							"Action" : [
+								"ec2:CreateVpcEndpoint",
+								"ec2:DescribeVpcEndpoints",
+								"ec2:DeleteVpcEndpoints"
+							],
+							"Resource" : "*"
+						}
+					]
+				},
+				"Roles" : [
+					{
+						"Ref" : "CellRouterEndpointRequestorRole"
+					}
+				]
+			}
+		},
+
+		"InterfaceEndpointSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+                "VpcId" : {
+					"Fn::ImportValue" : {
+						"Fn::Sub" : "${NetworkingStackName}-VpcId"
+					}
+				},
+                "GroupDescription" : "Security group for the interface endpoints",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : {
+							"Ref" : "ProxyPort"
+						},
+                        "ToPort"     : {
+							"Ref" : "ProxyPort"
+						},
+                        "CidrIp"     : {
+							"Fn::ImportValue" : {
+								"Fn::Sub" : "${NetworkingStackName}-CidrBlock"
+							}
+						}
+                    }
+                ],
+                "Tags"                 : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "SG-${ApplicationTag}-${AWS::Region}-InterfaceEndpoint-${EnvironmentTag}"
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+		}
+	},
+
+	"Outputs" : {
+		"CellRouterRoleArn" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-CellRouterRoleArn"
+				}
+			},
+			"Value" : {
+				"Fn::GetAtt" : [ "CellRouterEndpointRequestorRole", "Arn" ]
+			}
+		},
+		"SecurityGroupIds" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-SecurityGroupIds"
+				}
+			},
+			"Value" : {
+				"Fn::GetAtt" : [ "InterfaceEndpointSecurityGroup", "GroupId" ]
+			}
+		},
+		"VpcEndpointServiceName" : {
+			"Value" : {
+				"Fn::Sub" : "com.amazonaws.vpce.${AWS::Region}.${EndpointService}"
+			}
+		},
+		"TargetGroupArn" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-TargetGroupArn"
+				}
+			},
+			"Value" : {
+				"Ref" : "TargetGroup"
+			}
+		}
+	}
+}
