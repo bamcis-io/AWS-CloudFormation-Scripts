@@ -195,6 +195,9 @@
     <Compile Include="Proxy\common\get_ip_from_eni.ps1">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Proxy\common\get_whitelisted_vpcs_per_region.ps1">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Proxy\common\interface_endpoints.template">
       <SubType>Code</SubType>
     </Compile>
@@ -208,6 +211,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Proxy\common\replace-all-tasks.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\replace-fleet.ps1">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Proxy\local\add_endpoint_to_regional_cell_router.template">

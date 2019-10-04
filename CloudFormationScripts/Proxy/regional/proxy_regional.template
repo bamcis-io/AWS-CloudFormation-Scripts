@@ -82,6 +82,16 @@
 					{
 						"Key" : "load_balancing.cross_zone.enabled",
 						"Value" : "true"
+					},
+					{
+						"Key" : "access_logs.s3.enabled",
+						"Value" : "true"
+					},
+					{
+						"Key" : "access_logs.s3.bucket",
+						"Value" : {
+							"Ref" : "NLBAccessLogsBucket"
+						}
 					}
 				 ],
 				 "Scheme" : "internal",
@@ -96,7 +106,10 @@
 					]
 				 },
 				 "Type" : "network"
-			}
+			},
+			"DependsOn" : [
+				"BucketPolicy"
+			]
 		},
 		"Listener" : {
 			"Type" : "AWS::ElasticLoadBalancingV2::Listener",
@@ -124,6 +137,9 @@
 			"Properties" : {
 				"HealthCheckEnabled" :  true,
 				"HealthCheckPort" : "traffic-port",
+				"HealthCheckProtocol" : "TCP",
+				"HealthyThresholdCount" : 2,
+				"UnhealthyThresholdCount" : 2,
 				"Port" : {
 					"Ref" : "ProxyPort"
 				},
@@ -183,6 +199,60 @@
 				],
 				"ServiceId" : {
 					"Ref" : "EndpointService"
+				}
+			}
+		},
+		"NLBAccessLogsBucket" : {
+			"Type" : "AWS::S3::Bucket",
+			"Properties" : {
+				"BucketName" : {
+					"Fn::Sub" : "${AWS::AccountId}-${AWS::Region}-nlb-access-logs"
+				}
+			}
+		},
+		"BucketPolicy" : {
+			"Type" : "AWS::S3::BucketPolicy",
+			"Properties" : {
+				"Bucket" : {
+					"Ref" : "NLBAccessLogsBucket"
+				},
+				"PolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Effect" : "Allow",
+							"Principal" : {
+								"Service" : "delivery.logs.amazonaws.com"
+							},
+							"Action" : [
+								"s3:PutObject"
+							],
+							"Resource" : [
+								{
+									"Fn::Sub" : "arn:${AWS::Partition}:s3:::${NLBAccessLogsBucket}/AWSLogs/${AWS::AccountId}/*"
+								}
+							],
+							"Condition": {
+								"StringEquals": {
+									"s3:x-amz-acl": "bucket-owner-full-control"
+								}
+							}
+						},
+						{
+							"Effect" : "Allow",
+							"Principal" : {
+								"Service" : "delivery.logs.amazonaws.com"
+							},
+							"Action" : [
+								"s3:GetBucketAcl"
+							],
+							"Resource" : [
+								{
+									"Fn::Sub" : "arn:${AWS::Partition}:s3:::${NLBAccessLogsBucket}"
+								}
+							]
+						}
+					]
 				}
 			}
 		},
