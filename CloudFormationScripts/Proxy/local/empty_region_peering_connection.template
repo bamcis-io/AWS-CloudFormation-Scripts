@@ -7,15 +7,15 @@
 		"NetworkingStackName" : {
 			"Type" : "String",
 			"Description" : "The name of the networking stack to reference.",
-			"Default" : "private-networking"
+			"Default" : "public-networking"
 		},
 
-		"MainVpcId" : {
+		"RemoteVpcId" : {
 			"Type" : "String",
 			"Description" : "The VPC id of the VPC this one will be peered to.",
 			"AllowedPattern" : "^vpc-(?:[0-9a-f]{8}|[0-9a-f]{17})$"
 		},
-		"MainVpcRegion" : {
+		"RemoteVpcRegion" : {
 			"Type" : "String",
 			"AllowedValues" : [
 				"ap-east-1",
@@ -76,10 +76,10 @@
 					"Ref" : "AWS::AccountId"
 				},
 				"PeerRegion" : {
-					"Ref" : "MainVpcRegion"
+					"Ref" : "RemoteVpcRegion"
 				},
 				"PeerVpcId" : {
-					"Ref" : "MainVpcId"
+					"Ref" : "RemoteVpcId"
 				},
 				"VpcId" : {
 					"Fn::ImportValue" : {
@@ -90,7 +90,7 @@
                     {
                         "Key" : "Name",
                         "Value" : {
-							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-to-${MainVpcRegion}-VPCPeering-${EnvironmentTag}"
+							"Fn::Sub" : "${ApplicationTag}-${AWS::Region}-to-${RemoteVpcRegion}-VPCPeering-${EnvironmentTag}"
                         }
                     },
                     {
@@ -117,5 +117,15 @@
 	},
 
 	"Outputs" : {
+		"PeeringConnectionId" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-PeeringConnectionId"
+				}
+			},
+			"Value" : {
+				"Ref" : "PeeringConnection"
+			}
+		}
 	}
 }

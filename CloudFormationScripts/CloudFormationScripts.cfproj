@@ -174,6 +174,12 @@
     <Compile Include="Proxy\commands.ps1">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Proxy\common\cell_router.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\common\cell_router_add_endpoint.template">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Proxy\common\create_cf_bucket.ps1">
       <SubType>Code</SubType>
     </Compile>
@@ -201,6 +207,9 @@
     <Compile Include="Proxy\common\public_networking.template">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Proxy\common\replace-all-tasks.ps1">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Proxy\local\add_endpoint_to_regional_cell_router.template">
       <SubType>Code</SubType>
     </Compile>
@@ -216,22 +225,13 @@
     <Compile Include="Proxy\local\squid_config_parameter_local.template">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Proxy\local\squid_config_parameter_local_original.template">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Proxy\local\update_vpc_route_table.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Proxy\README.md">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Proxy\regional\add_cell_router_endpoint.ps1">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Proxy\regional\cell_router.template">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Proxy\regional\cell_router_add_endpoint.template">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Proxy\regional\deploy_cell_router.ps1">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Proxy\regional\proxy_regional.template">
@@ -291,6 +291,12 @@
       <SubType>Content</SubType>
     </Content>
     <Content Include="Networking\README.md">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\common\add_cell_router_endpoint.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Proxy\common\deploy_cell_router.ps1">
       <SubType>Content</SubType>
     </Content>
     <Content Include="Proxy\common\deploy_ecr_repo.ps1">

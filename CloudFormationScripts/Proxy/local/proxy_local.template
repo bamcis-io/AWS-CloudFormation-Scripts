@@ -15,6 +15,10 @@
 			"MaxValue" : 65535,
 			"Default" : 3128
 		},
+		"CellRouterRoleArn" : {
+			"Type" : "String",			
+			"Description" : "The arn of the cell router role that can create endpoints."
+		},
 
 		"LogRetentionInDays" : {
             "Type" : "Number",
@@ -129,12 +133,6 @@
 						"Fn::Sub" : "${NetworkingStackName}-VpcId"
 					}
 				},
-				"TargetGroupAttributes" : [
-					{
-						"Key" : "proxy_protocol_v2.enabled",
-						"Value" : "true"
-					}
-				],
 				"Tags"                        : [
                     {
                         "Key" : "Name",
@@ -166,12 +164,25 @@
 		"EndpointService" : {
 			"Type" : "AWS::EC2::VPCEndpointService",
 			"Properties" : {
-				"AcceptanceRequired" : true,
+				"AcceptanceRequired" : false,
 				"NetworkLoadBalancerArns" : [ 
 					{
 						"Ref" : "NLB"
 					}
 				]
+			}
+		},
+		"CellRouterPermissions" : {
+			"Type" : "AWS::EC2::VPCEndpointServicePermissions",
+			"Properties" : {
+				"AllowedPrincipals" : [
+					{
+						"Ref" : "CellRouterRoleArn"
+					}
+				],
+				"ServiceId" : {
+					"Ref" : "EndpointService"
+				}
 			}
 		},
 
@@ -331,7 +342,9 @@
 							"Condition" : {
 								"StringEquals" : {
 									"aws:sourceVpc" : {
-										"Ref" : "VPC"
+										"Fn::ImportValue" : {
+											"Fn::Sub" : "${NetworkingStackName}-VpcId"
+										}
 									}
 								}
 							}
@@ -528,9 +541,6 @@
 			},
 			"DependsOn" : [
 				"Listener",
-				"AZ1PrivateSubnet1RouteTableAssociation",
-				"AZ2PrivateSubnet1RouteTableAssociation",
-				"AZ3PrivateSubnet1RouteTableAssociation",
 				"ECSExecutionECRPolicy",
 				"ECSExecutionLogsPolicy",
 				"ECSExecutionSSMPolicy"
@@ -580,7 +590,8 @@
 									"Ref" : "AWS::Region"
 								}
 							}
-						]
+						],
+						"Essential" : true
 					}
 				],
 				"Cpu" : "2048",
@@ -627,7 +638,32 @@
 	},
 
 	"Outputs" : {
+		"ECSClusterId" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-ECSClusterName"
+				}
+			},
+			"Value" : {
+				"Ref" : "Cluster"
+			}
+		},
+		"ECSService" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-ECSServiceName"
+				}
+			},
+			"Value" : {
+				"Fn::GetAtt" : [ "LocalProxyService", "Name" ]
+			}
+		},
 		"VpcEndpointServiceName" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-ServiceName"
+				}
+			},
 			"Value" : {
 				"Fn::Sub" : "com.amazonaws.vpce.${AWS::Region}.${EndpointService}"
 			}

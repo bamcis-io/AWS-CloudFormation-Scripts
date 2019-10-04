@@ -18,8 +18,7 @@
 		},
 		"CellRouterRoleArn" : {
 			"Type" : "String",			
-			"Description" : "The arn of the cell router role that can create endpoints.",
-			"Default" : "arn:aws:iam::123456789012:role/cell-router/CellRouterRole"
+			"Description" : "The arn of the cell router role that can create endpoints."
 		},
 
 		"LogRetentionInDays" : {
@@ -135,12 +134,6 @@
 						"Fn::Sub" : "${NetworkingStackName}-VpcId"
 					}
 				},
-				"TargetGroupAttributes" : [
-					{
-						"Key" : "proxy_protocol_v2.enabled",
-						"Value" : "true"
-					}
-				],
 				"Tags"                        : [
                     {
                         "Key" : "Name",
@@ -547,7 +540,16 @@
 									"Fn::Sub" : "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SquidConfigParameter}"
 								}
 							}
-						]
+						],
+						"Environment" : [
+							{
+								"Name" : "REGION",
+								"Value" : {
+									"Ref" : "AWS::Region"
+								}
+							}
+						],
+						"Essential" : true
 					}
 				],
 				"Cpu" : "2048",
@@ -591,7 +593,32 @@
 	},
 
 	"Outputs" : {
+		"ECSClusterId" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-ECSClusterName"
+				}
+			},
+			"Value" : {
+				"Ref" : "Cluster"
+			}
+		},
+		"ECSService" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-ECSServiceName"
+				}
+			},
+			"Value" : {
+				"Fn::GetAtt" : [ "RegionalProxyService", "Name" ]
+			}
+		},
 		"VpcEndpointServiceName" : {
+			"Export" : {
+				"Name" : {
+					"Fn::Sub" : "${AWS::StackName}-ServiceName"
+				}
+			},
 			"Value" : {
 				"Fn::Sub" : "com.amazonaws.vpce.${AWS::Region}.${EndpointService}"
 			}

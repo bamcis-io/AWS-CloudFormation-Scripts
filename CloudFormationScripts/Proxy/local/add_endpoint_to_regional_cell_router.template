@@ -69,11 +69,27 @@
                         "ToPort"     : {
 							"Ref" : "ProxyPort"
 						},
-                        "CidrIp"     : {
-							"Fn::ImportValue" : {
-								"Fn::Sub" : "${NetworkingStackName}-CidrBlock"
-							}
-						}
+                        "CidrIp"     : "10.0.0.0/8"
+                    },
+					{
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : {
+							"Ref" : "ProxyPort"
+						},
+                        "ToPort"     : {
+							"Ref" : "ProxyPort"
+						},
+                        "CidrIp"     : "172.16.0.0/12"
+                    },
+					{
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : {
+							"Ref" : "ProxyPort"
+						},
+                        "ToPort"     : {
+							"Ref" : "ProxyPort"
+						},
+                        "CidrIp"     : "192.168.0.0/16"
                     }
                 ],
                 "Tags"                 : [

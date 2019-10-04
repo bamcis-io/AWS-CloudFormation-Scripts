@@ -58,57 +58,60 @@
 					"Fn::Join" : [
 						"\n",
 						[
-"cache_effective_user squid",
+							"cache_effective_user squid",
+							"## Define acls for local networks that are forwarding here",
 
-"## Define an ACL for the source local proxies that are",
-"## forwarding here",
-"acl source_proxy src all",
+							"acl rfc_1918 src 10.0.0.0/8        # RFC1918 possible internal network",
+							"acl rfc_1918 src 172.16.0.0/12     # RFC1918 possible internal network",
+							"acl rfc_1918 src 192.168.0.0/16    # RFC1918 possible internal network",
+							"acl localnet src fc00::/7          # RFC 4193 local private network range",
+							"acl localnet src fe80::/10         # RFC 4291 link-local (directly plugged) machines",
+							"acl localnet src 127.0.0.1         # localhost loopback",
 
-"## Define acls for amazonaws.com",
-"acl aws_domain dstdomain .amazonaws.com",
+							"## Define acls for amazonaws.com",
+							"acl aws_domain dstdomain .amazonaws.com",
 
-"## Additional ACLs",
-"acl ssl_ports port 443",
-"acl CONNECT method CONNECT",
+							"## Additional ACLs",
+							"acl ssl_ports port 443",
+							"acl CONNECT method CONNECT",
 
-"## Deny access to anything other than SSL",
-"http_access deny !ssl_ports",
-"http_access deny CONNECT !ssl_ports",
+							"## Deny access to anything other than SSL",
+							"http_access deny !ssl_ports",
+							"http_access deny CONNECT !ssl_ports",
 
-"## Allow access from the source proxies and ensuring",
-"## the traffic is going to amazonaws.com",
-"http_access allow source_proxy aws_domain",
+							"## Allow access from the source proxies and ensuring",
+							"## the traffic is going to amazonaws.com",
+							"http_access allow rfc_1918 aws_domain",
 
-"## Finally deny all other access to the proxy",
-"http_access deny all",
+							"## Finally deny all other access to the proxy",
+							"http_access deny all",
 
-"## Listen on 3128",
-"http_port 3128",
+							"## Listen on 3128",
+							"http_port 3128",
 
-"## Logging",
-"access_log /var/log/squid/access.log",
-"strip_query_terms off",
-"logfile_rotate 7",
+							"## Logging",
+							"access_log stdio:/var/log/squid/access.log",
+							"strip_query_terms off",
+							"logfile_rotate 7",
 
-"## Turn off caching",
-"cache deny all",
+							"## Turn off caching",
+							"cache deny all",
 
-"## Enable the X-Forwarded-For header",
-"forwarded_for on",
+							"## Enable the X-Forwarded-For header",
+							"forwarded_for on",
 
-"## Suppress sending squid version information",
-"httpd_suppress_version_string on",
+							"## Suppress sending squid version information",
+							"httpd_suppress_version_string on",
 
-"## How long to wait when shutting down squid",
-"shutdown_lifetime 30 seconds",
+							"## How long to wait when shutting down squid",
+							"shutdown_lifetime 30 seconds",
 
-"## Hostname",
-"visible_hostname aws_proxy",
+							"## Hostname",
+							"visible_hostname aws_proxy",
 
-"## Prefer ipv4 over v6",
-"dns_v4_first on"
+							"## Prefer ipv4 over v6",
+							"dns_v4_first on"
 						]
-
 					]
 				}
 			}
