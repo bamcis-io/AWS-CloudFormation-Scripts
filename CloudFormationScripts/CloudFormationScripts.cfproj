@@ -34,6 +34,7 @@
     <Folder Include="Proxy" />
     <Folder Include="Proxy\local" />
     <Folder Include="Proxy\common" />
+    <Folder Include="Proxy\docker" />
     <Folder Include="Proxy\regional" />
     <Folder Include="Route53" />
     <Folder Include="VPCEndpoints" />
@@ -183,9 +184,6 @@
     <Compile Include="Proxy\common\create_cf_bucket.ps1">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Proxy\common\CreateSubnetsPerAZ.yaml">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Proxy\common\ecr_repository.template">
       <SubType>Code</SubType>
     </Compile>
@@ -214,6 +212,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Proxy\common\replace-fleet.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\docker\build.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\docker\dockerfile">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Proxy\docker\entrypoint.sh">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Proxy\local\add_endpoint_to_regional_cell_router.template">
