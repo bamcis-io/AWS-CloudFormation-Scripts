@@ -475,7 +475,7 @@
 					 "MaximumPercent" : 300,
 					 "MinimumHealthyPercent" : 100
 				},
-				"DesiredCount" : 3,
+				"DesiredCount" : 1,
 				"LaunchType" : "FARGATE",
 				"EnableECSManagedTags" : true,
 				"LoadBalancers" : [
@@ -597,12 +597,12 @@
 						"Essential" : true
 					}
 				],
-				"Cpu" : "2048",
+				"Cpu" : "1024",
 				"ExecutionRoleArn" : {
 					"Fn::GetAtt" : [ "ECSExecutionRole", "Arn" ]
 				},
 				"Family" : "local_proxy",
-				"Memory" : "6144",
+				"Memory" : "2048",
 				"NetworkMode" : "awsvpc",
 				"RequiresCompatibilities" : [
 					"FARGATE"
