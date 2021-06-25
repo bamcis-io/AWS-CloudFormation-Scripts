@@ -1,0 +1,57 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Deploys and S3 bucket with a bucket policy",
+    "Parameters"               : {
+        "NetworkingStackId" : {
+            "Type" : "String"
+        }
+    },
+    "Resources"                : {
+        "DataBucket" : {
+            "Type" : "AWS::S3::Bucket",
+            "Properties" : {
+                "BucketName" : {
+                    "Fn::Sub" : "mhaken-${AWS::AccountId}-${AWS::Region}"
+                }
+            }
+        },
+        "BucketPolicy" : {
+            "Type" : "AWS::S3::BucketPolicy",
+            "Properties" : {
+                "Bucket" : {
+                    "Ref" : "DataBucket"
+                },
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Sid" : "DenyIfNotFromVPCEndpoint",
+                            "Effect" : "Deny",
+                            "Action" : [
+                                "s3:PutObject"
+                            ],
+                            "Principal" : "*",
+                            "Condition" : {
+                                "Null" : {
+                                    "aws:SourceVpc" : "true"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "Outputs"                  : {
+        "BucketName" : {
+            "Value" : {
+                "Ref" : "DataBucket"
+            },
+            "Export" : {
+                "Name" : {
+                    "Fn::Sub" : "${AWS::StackId}-BucketName"
+                }
+            }
+        }
+    }
+}

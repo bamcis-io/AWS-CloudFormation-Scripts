@@ -1,0 +1,68 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "",
+
+	"Parameters" : {
+	  "TemplateBucket" : {
+	    "Type" : "String"
+	  }
+	},
+
+	"Resources" : {
+	  "NetworkingStack" : {
+	    "Type" : "AWS::CloudFormation::Stack",
+		"Properties" : {
+		  "TemplateURL" : {
+		    "Fn::Sub" : "https://s3.amazonaws.com/${TemplateBucket}/networking-private-vpc-3-az.template"
+		  },
+		  "Parameters" : {
+		    "EnablePublicDnsHostNames" : "true",
+			"EnableDnsSupport" : "true"
+		  }
+		}
+	  },
+	  "EC2Stack" : {
+	    "Type" : "AWS::CloudFormation::Stack",
+		"Properties" : {
+		  "TemplateURL" : {
+		    "Fn::Sub" : "https://s3.amazonaws.com/${TemplateBucket}/ec2-instance.template"
+		  },
+		  "Parameters" : {
+		    "NetworkingStackId" : {
+			  "Ref" : "NetworkingStack"
+			}
+		  }
+		}
+	  },
+	  "S3Stack" : {
+	    "Type" : "AWS::CloudFormation::Stack",
+		"Properties" : {
+		  "TemplateURL" : {
+		    "Fn::Sub" : "https://s3.amazonaws.com/${TemplateBucket}/s3-bucket.template"
+		  },
+		  "Parameters" : {
+		    "NetworkingStackId" : {
+			  "Ref" : "NetworkingStack"
+			}
+		  }
+		}
+	  },
+	  "Route53Stack" : {
+	    "Type" : "AWS::CloudFormation::Stack",
+		"Properties" : {
+		  "TemplateURL" : {
+		    "Fn::Sub" : "https://s3.amazonaws.com/${TemplateBucket}/route53-resolver.template"
+		  },
+		  "Parameters" : {
+		    "NetworkingStackId" : {
+			  "Ref" : "NetworkingStack"
+			}
+		  }
+		}
+	  }
+	},
+
+	"Outputs" : {
+	}
+}

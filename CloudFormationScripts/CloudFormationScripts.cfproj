@@ -18,6 +18,9 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="CI-CD\app-deployment-scripts" />
+    <Folder Include="CI-CD\workload-account-setup" />
+    <Folder Include="CI-CD\pipelines-account-setup" />
     <Folder Include="Networking" />
     <Folder Include="DirectoryService" />
     <Folder Include="CloudEndure" />
@@ -30,6 +33,8 @@
     <Folder Include="CI-CD" />
     <Folder Include="AWS Backup Labs" />
     <Folder Include="Athena" />
+    <Folder Include="multi-region vpc endpoint demo" />
+    <Folder Include="PriceListData" />
     <Folder Include="Organizations" />
     <Folder Include="Proxy" />
     <Folder Include="Proxy\local" />
@@ -65,6 +70,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Athena\cloudtrail-logs.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Athena\cloudtrail_find_vpc_endpoint_access.sql">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Athena\cloudtrail_partition_initial_load.py">
@@ -112,16 +120,46 @@
     <Compile Include="AWS Backup Labs\rds.template">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CI-CD\AWSCURManagerDeploy.ps1">
+    <Compile Include="CI-CD\app-deployment-scripts\deploy-multi-region-vpc-endpoint-blog-pipeline.ps1">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CI-CD\BillingDataAnalyticsDeploy.ps1">
+    <Compile Include="CI-CD\bones-bootstrap.template">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CI-CD\dotnet-core-lambda-pipeline.template">
+    <Compile Include="CI-CD\deploy-pipeline.ps1">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CI-CD\PriceListReservedInstanceHelperDeploy.ps1">
+    <Compile Include="CI-CD\pipeline-codedeploy-action-single-region.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\pipeline-cfn-action-multi-region.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\pipeline-cfn-action-single-region.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\pipeline-codedeploy-action-multi-region.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\pipelines-account-setup\deploy-github-codestar-connection.ps1">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\pipelines-account-setup\github-codestar-connection.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\pipelines-account-setup\pipeline-lambda-functions.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\pipelines-account-setup\pipeline-role-setup.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\workload-account-setup\codedeploy-application-and-deployment-groups.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\workload-account-setup\pipeline-target-additional-artifact-bucket.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CI-CD\workload-account-setup\pipeline-target-bootstrapper.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="CloudEndure\cloudendure-infrastructure.template">
@@ -145,6 +183,9 @@
     <Compile Include="FileShare\s2d.template">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="iam-role-with-path.template">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="m5dfailuredemo\appstream-iam.template">
       <SubType>Code</SubType>
     </Compile>
@@ -155,6 +196,21 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="m5dfailuredemo\test.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="multi-region vpc endpoint demo\ec2-instance.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="multi-region vpc endpoint demo\networking-private-vpc-3-az.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="multi-region vpc endpoint demo\route53-resolver.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="multi-region vpc endpoint demo\s3-bucket.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="multi-region vpc endpoint demo\solution.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Networking\networking-private-vpc-3-az.template">
@@ -170,6 +226,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Organizations\org-admins.template">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="PriceListData\PriceListDatabase.template">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Proxy\commands.ps1">
@@ -292,6 +351,45 @@
       <SubType>Content</SubType>
     </Content>
     <Content Include="AWS Backup Labs\rds-deploy.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\AWSCURManagerDeploy.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\BillingDataAnalyticsDeploy.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\deploy-multi-region-application-codedeploy-pipeline.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\deploy-multi-region-infrastructure-cfn-pipeline.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\deploy-pipeline-target-codedeploy-bootstrap.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\deploy-shd-backend-cfn-lambda-pipeline.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\deploy-single-region-database-cfn-pipeline.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\multi-region-demo-prod-us-east-1-infrastructure.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\app-deployment-scripts\PriceListReservedInstanceHelperDeploy.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\pipelines-account-setup\deploy-pipelines-lambda-functions.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\pipelines-account-setup\deploy-pipelines-roles.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\workload-account-setup\deploy-bootstrap-additional-artifact-repositroy-stack.ps1">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="CI-CD\workload-account-setup\deploy-bootstrap-stack.ps1">
       <SubType>Content</SubType>
     </Content>
     <Content Include="FileShare\Deploy-2-Node.ps1">

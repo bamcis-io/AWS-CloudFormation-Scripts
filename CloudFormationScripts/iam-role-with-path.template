@@ -1,0 +1,86 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "",
+
+	"Parameters" : {
+         "BucketName" : {
+		   "Type" : "String",
+		   "Default" : "mhaken-test"
+		 }
+	},
+
+	"Resources" : {
+		"Role" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+			    "RoleName" : "AdminRoleWithPath",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+										"Ref" : "AWS::AccountId"
+									}
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path"                     : "/admin-roles/application1/",
+				"ManagedPolicyArns" : [
+					"arn:aws:iam::aws:policy/AdministratorAccess"
+				]
+			}
+		},
+		
+		"Bucket" : {
+			"Type" : "AWS::S3::Bucket",
+			"Properties" : {
+			    "BucketName" : {
+				    "Ref" : "BucketName"
+				}
+			}
+		},
+
+		"BucketPolicy" : {
+		    "Type" : "AWS::S3::BucketPolicy",
+			"Properties" : {
+			    "Bucket" : {
+				    "Ref" : "Bucket"
+				},
+				"PolicyDocument" : {
+				     "Statement" : [
+					     {
+						     "Effect" : "Deny",
+							 "Action" : "s3:ListBucket",
+							 "Resource" : {
+								"Fn::Sub" : "arn:${AWS::Partition}:s3:::${Bucket}"
+							 },
+							 "Principal" : "*",
+							 "Condition" : {
+							     "ArnNotEquals" : {
+								     "aws:PrincipalArn" : [
+										{
+											"Fn::GetAtt" : [ "Role", "Arn" ]
+										}
+									 ]
+								 }
+							 }
+						 }
+					 ]
+				
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

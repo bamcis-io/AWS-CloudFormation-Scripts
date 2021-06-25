@@ -1,0 +1,333 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates a CodeDeploy application and OneBox and Fleet deployment groups",
+
+	"Parameters" : {
+	    "CodeDeployComputePlatform" : {
+		    "Description" : "The compute platform that CodeDeploy deploys the application to.",
+			"Type" : "String",
+			"AllowedValues" : [
+			    "ECS",
+				"Lambda",
+				"Server"
+			],
+			"Default" : "Server"
+		},
+		"ProjectName" : {
+			"Type" : "String",
+			"Description" : "The name of the project this pipeline will support.",
+			"MinLength": 1
+		},
+		"ComputeStackName" : {
+		    "Description" : "The name of the compute stack that exported variables.",
+			"Type" : "String"
+		},
+		"AlarmsStackName" : {
+		    "Description" : "The name of the CW alarms stack that exported variables.",
+			"Type" : "String"
+		},
+		"NotificationEmail" : {
+            "Type" : "String",
+            "Default" : "mhaken@amazon.com"
+        }
+	},
+
+	"Resources" : {
+	    "CodeDeployServiceRole"                       : {
+            "Type" : "AWS::IAM::Role",
+            "Metadata" : {
+                "Comment" : "Role assumed by CodeDeploy"
+            },
+            "Properties" : {
+                "Path" : "/service-role/",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+								    "codedeploy.amazonaws.com"
+								]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+				"ManagedPolicyArns" : [
+				    "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole",
+					"arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS",
+					"arn:aws:iam::aws:policy/service-role/AWSCodeDeployRoleForLambda"
+				]
+            }
+        },
+		"SNSSuccessTopic" : {
+            "Type" : "AWS::SNS::Topic",
+            "Properties" : {
+                "DisplayName" : {
+					"Fn::Sub" : "Notifications for Successful CodeDeploy Events"
+				},
+                "Subscription" : [
+                    {
+                        "Protocol" : "email",
+                        "Endpoint" : {
+                            "Ref" : "NotificationEmail"
+                        }
+                    }
+                ]		
+            }
+        },
+		"SNSFailureTopic" : {
+            "Type" : "AWS::SNS::Topic",
+            "Properties" : {
+                "DisplayName" : {
+					"Fn::Sub" : "Notifications for Failed CodeDeploy Events"
+				},
+                "Subscription" : [
+                    {
+                        "Protocol" : "email",
+                        "Endpoint" : {
+                            "Ref" : "NotificationEmail"
+                        }
+                    }
+                ]		
+            }
+        },
+		"SNSSuccessTopicPolicy" : {
+			"Type" : "AWS::SNS::TopicPolicy",
+			"Properties" : {
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement" : [
+						{
+						    "Effect": "Allow",
+						    "Principal": {
+							   "AWS": {
+							       "Fn::GetAtt" : [ "CodeDeployServiceRole", "Arn" ]
+							   }
+						    },
+						    "Action": "sns:Publish",
+						    "Resource": {
+							    "Ref" : "SNSSuccessTopic"
+						    }
+					    }
+					]
+				},
+				"Topics" : [
+					{
+						"Ref" : "SNSSuccessTopic"
+					}
+				]
+			}
+		},
+		"SNSFailureTopicPolicy" : {
+			"Type" : "AWS::SNS::TopicPolicy",
+			"Properties" : {
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement" : [
+						{
+						    "Effect": "Allow",
+						    "Principal": {
+							   "AWS": {
+							       "Fn::GetAtt" : [ "CodeDeployServiceRole", "Arn" ]
+							   }
+						    },
+						    "Action": "sns:Publish",
+						    "Resource": {
+							    "Ref" : "SNSFailureTopic"
+						    }
+					    }
+					]
+				},
+				"Topics" : [
+					{
+						"Ref" : "SNSFailureTopic"
+					}
+				]
+			}
+		},
+
+	    "Application" : {
+		    "Type" : "AWS::CodeDeploy::Application",
+			"Properties" : {
+			    "ApplicationName" : {
+				    "Ref" : "ProjectName"
+				},
+				"ComputePlatform" : {
+				    "Ref" : "CodeDeployComputePlatform"
+				}
+			}
+		},
+
+		"OneBoxDeploymentGroup" : {
+		    "Type" : "AWS::CodeDeploy::DeploymentGroup",
+			"Properties" : {
+			    "AlarmConfiguration" : {
+				    "Alarms" : [
+					    {
+						    "Name" : {
+							    "Fn::ImportValue" : {
+								    "Fn::Sub" : "${AlarmsStackName}-OneBoxHealthCompositeAlarm"
+								}
+							}
+						}
+					],
+					"Enabled" : true
+				},
+			    "ApplicationName" : {
+				    "Ref" : "Application"
+				},
+				"AutoRollbackConfiguration" : {
+				    "Enabled" : true,
+					"Events" : ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM", "DEPLOYMENT_STOP_ON_REQUEST"]
+				},
+				"DeploymentStyle" : { 
+				     "DeploymentOption" : "WITH_TRAFFIC_CONTROL",
+				     "DeploymentType" : "IN_PLACE"
+				},
+				"DeploymentConfigName" : "CodeDeployDefault.OneAtATime",
+				"LoadBalancerInfo" : {
+				    "TargetGroupInfoList" : [
+					    {
+						    "Name" : {
+							    "Fn::ImportValue" : {
+								    "Fn::Sub" : "${ComputeStackName}-FrontEndTargetGroupName"
+								}
+							}
+						}
+					]
+				},
+				"AutoScalingGroups" : [
+				    {
+					   "Fn::ImportValue" : {
+						    "Fn::Sub" : "${ComputeStackName}-FrontEndOneBoxAutoScalingGroupName"
+					    }
+					}
+				],
+				"ServiceRoleArn" : {
+				    "Fn::GetAtt" : [ "CodeDeployServiceRole", "Arn" ]
+				},
+				"TriggerConfigurations" : [
+				    {
+					    "TriggerEvents" : ["DeploymentFailure", "DeploymentRollback", "InstanceFailure"],
+					    "TriggerTargetArn" : {
+						    "Ref" :  "SNSFailureTopic"
+						},
+						"TriggerName" : "Failure"
+					},
+					{
+					    "TriggerEvents" : ["DeploymentSuccess"],
+					    "TriggerTargetArn" : {
+						    "Ref" :  "SNSSuccessTopic"
+						},
+						"TriggerName" : "Success"
+					}
+				]
+			}
+		},
+
+		"FrontEndDeploymentGroup" : {
+		    "Type" : "AWS::CodeDeploy::DeploymentGroup",
+			"Properties" : {
+			    "AlarmConfiguration" : {
+				    "Alarms" : [
+					    {
+						    "Name" : {
+							    "Fn::ImportValue" : {
+								    "Fn::Sub" : "${AlarmsStackName}-FleetHealthCompositeAlarm"
+								}
+							}
+						}
+					],
+					"Enabled" : true
+				},
+			    "ApplicationName" : {
+				    "Ref" : "Application"
+				},
+				"AutoRollbackConfiguration" : {
+				    "Enabled" : true,
+					"Events" : ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM", "DEPLOYMENT_STOP_ON_REQUEST"]
+				},
+				"DeploymentStyle" : { 
+				     "DeploymentOption" : "WITH_TRAFFIC_CONTROL",
+				     "DeploymentType" : "IN_PLACE"
+				},
+				"DeploymentConfigName" : "CodeDeployDefault.OneAtATime",
+				"LoadBalancerInfo" : {
+				    "TargetGroupInfoList" : [
+					    {
+						    "Name" : {
+							    "Fn::ImportValue" : {
+								    "Fn::Sub" : "${ComputeStackName}-FrontEndTargetGroupName"
+								}
+							}
+						}
+					]
+				},
+				"AutoScalingGroups" : [
+				    {
+					   "Fn::ImportValue" : {
+						    "Fn::Sub" : "${ComputeStackName}-FrontEndAutoScalingGroupName"
+					    }
+					}
+				],
+				"ServiceRoleArn" : {
+				    "Fn::GetAtt" : [ "CodeDeployServiceRole", "Arn" ]
+				},
+				"TriggerConfigurations" : [
+				    {
+					    "TriggerEvents" : ["DeploymentFailure", "DeploymentRollback", "InstanceFailure"],
+					    "TriggerTargetArn" : {
+						    "Ref" :  "SNSFailureTopic"
+						},
+						"TriggerName" : "Failure"
+					},
+					{
+					    "TriggerEvents" : [ "DeploymentSuccess"],
+					    "TriggerTargetArn" : {
+						    "Ref" :  "SNSSuccessTopic"
+						},
+						"TriggerName" : "Success"
+					}
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+	    "ApplicationName" : {
+		    "Value" : {
+			    "Ref" : "Application"
+			},
+			"Export" : {
+			    "Name" : {
+				    "Fn::Sub" : "${AWS::StackName}-CodeDeployApplicationName"
+				}
+			}
+		},
+		"OneBoxDeploymentGroupName" : {
+		    "Value" : {
+			    "Ref" : "OneBoxDeploymentGroup"
+			},
+			"Export" : {
+			    "Name" : {
+				    "Fn::Sub" : "${AWS::StackName}-OneBoxDeploymentGroupName"
+				}
+			}
+		},
+		"FleetDeploymentGroupName" : {
+		    "Value" : {
+			    "Ref" : "FrontEndDeploymentGroup"
+			},
+			"Export" : {
+			    "Name" : {
+				    "Fn::Sub" : "${AWS::StackName}-FleetDeploymentGroupName"
+				}
+			}
+		}
+	}
+}

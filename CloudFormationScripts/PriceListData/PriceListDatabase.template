@@ -1,0 +1,176 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates a Glue database over the existig price list API data",
+
+	"Parameters" : {
+	},
+
+	"Resources" : {
+		"S3Bucket" : {
+		    "Type" : "AWS::S3::Bucket",
+			"Properties" : {
+			    "BucketName" : "mhaken-pricelist-database"
+			}
+		},
+
+		"GlueDatabase" : {
+			"Type" : "AWS::Glue::Database",
+			"Properties" : {
+			    "CatalogId" : {
+				    "Ref" : "AWS::AccountId"
+				},
+				"DatabaseInput" : {
+				    "Name" : "pricelist-database"
+				}
+			}
+		},
+
+		"GlueDynamoDBTable" : {
+		    "Type" : "AWS::Glue::Table",
+			"Properties" : {
+			    "CatalogId" : {
+			        "Ref" : "AWS::AccountId"
+			    },
+				"DatabaseName" : {
+					"Ref" : "GlueDatabase"
+				},
+				"TableInput" : {
+				    "Name" : "dynamodb",
+					"TableType" : "EXTERNAL_TABLE",
+					"Parameters" : {
+					    "classification" : "csv",
+						"columnsOrdered" : "true",
+						"compressionType" : "none",
+						"delimiter" : ",",
+						"typeOfData" : "file"
+					},
+					"StorageDescriptor" : {
+					    "InputFormat" : "org.apache.hadoop.mapred.TextInputFormat",
+						"OutputFormat" : "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+						"SerdeInfo" : {
+						    "Name" : "OpenCSVSerDe",
+							"SerializationLibrary" : "org.apache.hadoop.hive.serde2.OpenCSVSerde",
+							"Parameters" : {
+							    "skip.header.line.count" : "6",
+								"field.delim" : ","
+							}
+						},
+						"Parameters": {
+							"compressionType": "none", 
+							"classification": "csv", 
+							"typeOfData": "file", 
+							"columnsOrdered": "true", 
+							"delimiter": ","
+						}, 
+						"Location" : {
+                            "Fn::Sub" : "s3://${S3Bucket}/dynamodb"
+                        },
+						"Columns": [
+                            {
+                                "Type": "string", 
+                                "Name": "sku"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "offertermcode"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "ratecode"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "termtype"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "pricedescription"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "effectivedate"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "startingrange"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "endingrange"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "unit"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "priceperunit"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "currency"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "leasecontractlength"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "purchaseoption"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "offeringclass"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "product family"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "servicecode"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "location"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "location type"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "volume type"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "group"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "group description"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "usagetype"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "operation"
+                            }, 
+                            {
+                                "Type": "string", 
+                                "Name": "servicename"
+                            }
+                        ], 
+                        "Compressed": false
+					}
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

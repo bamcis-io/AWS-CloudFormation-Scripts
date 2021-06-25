@@ -1,0 +1,322 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "The core IAM role and policy used by pipelines to deploy to external accounts.",
+
+	"Parameters" : {
+	},
+
+	"Resources" : {
+	    "CodePipelineRole" : {
+		    "Type" : "AWS::IAM::Role",
+			"Metadata" : {
+			    "Comment" : ""
+			},
+			"Properties" : {
+			    "Description" : "Role used by CodePipeline to execute deployments",
+				"ManagedPolicyArns" : [
+				    {
+					    "Ref" : "CodePipelinePolicy"
+					}
+				],
+				"Path" : "/service-role/",
+				"RoleName" : "AWS-CodePipeline-ServiceRole",
+			    "AssumeRolePolicyDocument" : {
+				    "Version" : "2012-10-17",
+					"Statement" : [
+					    {
+						    "Effect" : "Allow",
+							"Principal" : {
+							    "Service" : [
+								    "codepipeline.amazonaws.com"
+								]
+							},
+							"Action" : [
+							    "sts:AssumeRole"
+							]
+						}
+					]    
+				}
+			}
+		},
+		"CodePipelinePolicy" : {
+		    "Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+			    "Path" : "/service-role/",
+			    "PolicyDocument" : {
+				    "Version" : "2012-10-17",
+					"Statement" : [
+					    {
+                          "Action": [  
+                              "codecommit:GetBranch",
+                              "codecommit:GetCommit",
+                              "codecommit:UploadArchive",
+                              "codecommit:GetUploadArchiveStatus",      
+                              "codecommit:CancelUploadArchive"
+                                    ],
+                          "Resource": "*",
+                          "Effect": "Allow"
+                        },
+						{
+                            "Action": [
+                                "codebuild:BatchGetBuilds",
+                                "codebuild:StartBuild"
+                            ],
+                            "Resource": "*",
+                            "Effect": "Allow"
+                        },
+						{
+                            "Action": [
+                                "codestar-connections:UseConnection"
+                            ],
+                            "Resource": "*",
+                            "Effect": "Allow"
+                        },
+						{
+						    "Effect" : "Allow",
+							"Action" : "iam:ListRoles",
+							"Resource" : "*"
+						},
+						{
+                            "Action": [
+                                "iam:PassRole"
+                            ],
+                            "Resource": "*",
+                            "Effect": "Allow",
+							"Condition": {
+								"StringEqualsIfExists": {
+									"iam:PassedToService": [
+										"cloudformation.amazonaws.com",
+										"lambda.amazonaws.com"
+									]
+								}
+							}
+                        },
+		 				{
+						    "Effect" : "Allow",
+							"Action" : [
+							    "sts:AssumeRole"
+							],
+							"Resource" : "*"
+						},
+						
+						{
+						    "Effect" : "Allow",
+							"Action" : [
+							    "sns:Publish"
+							],
+							"Resource" : "*"
+						},
+						{
+						    "Effect" : "Allow",
+							"Action" : [
+							    "s3:PutObject",
+								"s3:PutObjectVersionAcl",
+								"s3:PutObjectAcl",
+								"s3:GetObject",
+								"s3:GetObjectVersion",
+								"s3:GetBucketLocation"
+							],
+							"Resource" : "*"
+						},
+						{
+						    "Effect" : "Allow",
+							"Action" : [
+							    "kms:Encrypt",
+                                "kms:Decrypt",
+                                "kms:ReEncrypt*",
+                                "kms:GenerateDataKey*",
+                                "kms:DescribeKey"
+							],
+							"Resource" : "*"
+						},
+						{
+                            "Effect" : "Allow",
+                            "Action"    : [
+                                "kms:CreateGrant",
+                                "kms:ListGrants",
+                                "kms:RevokeGrant"
+                            ],
+                            "Resource"  : "*",
+                            "Condition" : {
+                                "Bool" : {
+                                    "kms:GrantIsForAWSResource" : "true"
+                                }
+                            }
+                        },
+						{
+						    "Effect" : "Allow",
+							"Action" : [
+							    "lambda:InvokeFunction"
+							],
+							"Resource" : "*"
+						}
+					]
+				}
+			}
+		},
+
+		"CodeBuildRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Metadata" : {
+			    "Comment" : "The role used by CodeBuild to test the CFN template."
+			},
+			"Properties" : {
+				"Path": "/service-role/",
+				"RoleName" : "AWS-CodeBuild-ServiceRole",
+				"ManagedPolicyArns" : [
+				    {
+					    "Ref" : "CodeBuildManagedPolicy"
+					}
+				],
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Principal": {
+                                "Service": [
+                                    "codebuild.amazonaws.com"
+                                ]
+                            },
+                            "Effect": "Allow"
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                }
+			}
+		},
+		"CodeBuildManagedPolicy" : {
+			"Type" : "AWS::IAM::ManagedPolicy",
+			"Metadata" : {
+			    "Comment" : "Allows the CodeBuild container to write to CloudWatch Logs and interact with artifacts."
+			},
+			"Properties" : {
+			    "Path": "/service-role/",
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+					    {
+							"Effect": "Allow",
+							"Action": [
+								"logs:CreateLogGroup"
+							],
+							"Resource": "*"						
+						},
+						{
+							"Effect": "Allow",
+							"Action": [
+								"logs:CreateLogStream"
+							],
+							"Resource": [
+								{
+									"Fn::Sub" : "arn:${AWS::Partition}:logs:*:*:log-group:/aws/codebuild/*:*"
+								}
+							]
+						},
+						{
+							"Effect": "Allow",
+							"Action": [
+								"logs:PutLogEvents"
+							],
+							"Resource": [
+							    {
+									"Fn::Sub" : "arn:${AWS::Partition}:logs:*:*:log-group:/aws/codebuild/*"
+								},
+								{
+									"Fn::Sub" : "arn:${AWS::Partition}:logs:*:*:log-group:/aws/codebuild/*:log-stream:*"
+								}
+							]
+						},
+						{
+						    "Sid" : "AllowValidationPolicy",
+							"Effect": "Allow",
+							"Resource": [
+								"*"
+							],
+							"Action": [
+								"cloudformation:ValidateTemplate"
+							]
+						},
+						{
+						    "Sid": "GetObjectPolicy",
+							"Effect": "Allow",
+							"Action": [								
+								"s3:GetObject",
+								"s3:GetObjectVersion"
+							],
+							"Resource": [
+								"*"
+							]
+						},
+						{
+						    "Sid": "PutObjectPolicy",
+							"Effect": "Allow",
+							"Action": [								
+								"s3:PutObject",
+								"s3:AbortMultipartUpload",
+								"s3:PutObjectTagging",
+								"s3:PutObjectAcl"
+							],
+							"Resource": [
+								"*"
+							]
+						},
+						{
+						    "Sid": "DeleteObjectPolicy",
+							"Effect": "Allow",
+							"Action": [								
+								"s3:DeleteObject"
+							],
+							"Resource": [
+								"*"
+							]
+						},
+						{
+                            "Sid": "S3BucketIdentity",
+                            "Effect": "Allow",
+                            "Action": [
+                              "s3:GetBucketAcl",
+                              "s3:GetBucketLocation"
+                            ],
+                            "Resource": "*"
+                        },
+						{
+						    "Effect" : "Allow",
+							"Action" : [
+							    "kms:Encrypt",
+                                "kms:Decrypt",
+                                "kms:ReEncrypt*",
+                                "kms:GenerateDataKey*",
+                                "kms:DescribeKey"
+							],
+							"Resource" : "*"
+						}
+					]
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	    "CodePipelineRoleArn" : {
+		    "Value" : {
+			    "Fn::GetAtt" : [ "CodePipelineRole", "Arn" ]
+			},
+			"Export" : {
+			    "Name" : "CodePipelineRoleArn"
+			},
+			"Description" : "The ARN of the IAM role all pipelines will use to deploy into external accounts."
+		},
+		"CodeBuildRoleArn" : {
+		    "Value" : {
+			    "Fn::GetAtt" : [ "CodeBuildRole", "Arn" ]
+			},
+			"Export" : {
+			    "Name" : "CodeBuildRoleArn"
+			},
+			"Description" : "The ARN of the IAM role all pipelines will use to build artifacts in external accounts."
+		}
+	}
+}

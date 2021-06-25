@@ -1,0 +1,1359 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Pipeline for deploying CloudFormation resources.",
+
+	"Parameters" : {
+		"ProjectName" : {
+			"Type" : "String",
+			"Description" : "The name of the project this pipeline will support.",
+			"MinLength": 1
+		},
+		"ProjectParameterOverrides" : {
+			"Type" : "String",
+			"Description" : "JSON string for the parameters to set/override for the lambda application.",
+			"Default" : "{}"
+		},
+		"NotificationEmail"  : {
+            "Description" : "The email address notifications will be sent to when processing errors occur.",
+            "Type"        : "String"
+        },
+
+		"SourceStage" : {
+			"Type" : "String",
+			"Description" : "This is where you stored your input artifacts for your pipeline. Choose the provider and then provide the connection details.",
+			"AllowedValues" : [
+				"AWSCodeCommit",
+				"AmazonS3",
+				"GitHub",
+				"GitHubv2"
+			],
+			"Default" : "GitHubv2"
+		},
+
+		"SourceConnection" : {
+			"Type" : "String",
+			"MinLength" : 1,
+			"Description" : "If the source stage is Github, the name of the repo. If the source stage is anything else, this is the name of the resource (i.e. CodeCommit repository or S3 bucket) that will be created."
+		},
+
+		"S3SourceObjectKey" : {
+			"Type" : "String",
+			"Description" : "If using S3 as a source, specify the object key whose updates should trigger the code pipeline. Otherwise, leave blank.",
+			"Default" : ""
+		},
+
+		"RepoBranchName" : {
+			"Type" : "String",
+			"Description" : "If using CodeCommit or Github as a source, you can specify an alternative branch to initiate the code pipeline.",
+			"Default" : "master"
+		},
+
+		"GitHubOAuthTokenSecretName" : {
+		  "Type" : "String",
+		  "Description" : "The name of the Secrets Manager secret that contains the GitHub OAuth token to use in the webhook for GitHub v1 (deprectated).",
+		  "Default" : ""
+		},
+		"GitHubOwner" : {
+			"Type" : "String",
+			"Description" : "If using Github as a source, specify the owner of the repo."
+		},
+		"ModificationPath" : {
+		    "Description" : "An optional value if you want to filter the webhook by a path in the repo",
+			"Type" : "String",
+			"Default" : ""
+		},
+
+		"BuildSpecLocation" : {
+			"Type" : "String",
+			"Description" : "The location of the buildspec.yml file that is used during the build stage.",
+			"Default" : "src/buildspec.yml"
+		},
+		"BuildSpecTestLocation" : {
+			"Type" : "String",
+			"Description" : "The location of the buildspec.yml file that is used during the test stage.",
+			"Default" : "tests/buildspec.yml"
+		},
+
+		"TestContainerSize" : {
+			"Type" : "String",
+			"Description" : "The size of the container to use to run unit tests.",
+			"AllowedValues": [
+				"BUILD_GENERAL1_SMALL",
+				"BUILD_GENERAL1_MEDIUM",
+				"BUILD_GENERAL1_LARGE"
+			],
+			"Default" : "BUILD_GENERAL1_SMALL"
+		},
+
+		"BuildContainerSize" : {
+			"Type" : "String",
+			"Description" : "The size of the container to use to run the build and package.",
+			"AllowedValues": [
+				"BUILD_GENERAL1_SMALL",
+				"BUILD_GENERAL1_MEDIUM",
+				"BUILD_GENERAL1_LARGE"
+			],
+			"Default" : "BUILD_GENERAL1_SMALL"
+		},
+
+		"ArtifactRepositoryEncryptionKeyRegion1" : {
+		    "Description" : "The external account KMS Key ARN used to encrypt artifacts in the S3 bucket in Region 1.",
+			"Type" : "String",
+			"AllowedPattern" : "^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:kms:[a-zA-Z]{2}-[a-zA-Z]+-[0-9]+:[0-9]{12}:key\/.*$",
+			"Default" : "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-4123-1234-123456789012"
+		},
+		"ArtifactRepositoryEncryptionKeyRegion2" : {
+		    "Description" : "The external account KMS Key ARN used to encrypt artifacts in the S3 bucket in Region 2.",
+			"Type" : "String",
+			"AllowedPattern" : "^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:kms:[a-zA-Z]{2}-[a-zA-Z]+-[0-9]+:[0-9]{12}:key\/.*$",
+			"Default" : "arn:aws:kms:us-east-2:123456789012:key/12345678-1234-4123-1234-123456789012"
+		},
+		"ArtifactRepositoryEncryptionKeyRegion3" : {
+		    "Description" : "The external account KMS Key ARN used to encrypt artifacts in the S3 bucket in Region 3.",
+			"Type" : "String",
+			"AllowedPattern" : "^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:kms:[a-zA-Z]{2}-[a-zA-Z]+-[0-9]+:[0-9]{12}:key\/.*$",
+			"Default" : "arn:aws:kms:us-west-2:123456789012:key/12345678-1234-4123-1234-123456789012"
+		},
+		"AssumableRole" : {
+		    "Description" : "The IAM Role ARN to assume in the external account to execute CloudFormation",
+			"Type" : "String",
+			"AllowedPattern" : "^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:iam::[0-9]{12}:role\/.*$",
+			"Default" : "arn:aws:iam::123456789012:role/service-role/pipelines-target-bootstra-CodePipelineCloudFormati-3VFOY9OSU50BY"
+		},
+		"ChangeSetExecutionRole" : {
+		    "Description" : "The role that will be passed to CloudFormation to execute the change set in the external account.",
+			"Type" : "String",
+			"AllowedPattern" : "^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:iam::[0-9]{12}:role\/.*$",
+			"Default" : "arn:aws:iam::123456789012:role/service-role/pipelines-target-bootstra-CodePipelineCloudFormati-TDW369TRV3B2"
+		},
+
+		"AppProvidesCloudFormationConfig" : {
+			"Type" : "String",
+			"Description" : "Specify true to indicate that the build stage produces a CloudFormation config file named 'CloudFormationConfig.json'.",
+			"AllowedValues" : [
+				"true",
+				"false"
+			],
+			"Default" : "false"
+		},
+		"NestedStack" : {
+		    "Description" : "Specify true if your CFN template has nested stacks, this will include an action to deploy them to S3.",
+			"Type" : "String",
+			"AllowedValues" : [
+			    "true",
+				"false"
+			],
+			"Default" : "false"
+		},
+
+		"ProdAccountId" : {
+		    "Type" : "String",
+			"Description" : "Account id for the prod account.",
+			"AllowedPattern" : "^[0-9]{12}$"
+		},
+
+		"Region1" : {
+		   "Description" : "The first region to deploy into.",
+		   "Type" : "String",
+		   "Default" : "us-east-1"
+		},
+		"Region2" : {
+		   "Description" : "The second region to deploy into.",
+		   "Type" : "String",
+		   "Default" : "us-east-2"
+		},
+		"Region3" : {
+		   "Description" : "The third region to deploy into.",
+		   "Type" : "String",
+		   "Default" : "us-west-2"
+		}
+	},
+
+	"Conditions" : {
+		"UseCodeCommitSource" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "SourceStage"
+				},
+				"AWSCodeCommit"
+			]
+		},
+		"UseS3Source" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "SourceStage"
+				},
+				"AmazonS3"
+			]
+		},
+		"UseGitHubSource" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "SourceStage"
+				},
+				"GitHub"
+			]
+		},
+		"UseGitHubv2Source" : {
+		  "Fn::Equals" : [
+				{
+					"Ref" : "SourceStage"
+				},
+				"GitHubv2"
+			]
+		},
+		"AddModificationPathFilter" : {
+		  "Fn::Not" : [
+		    {
+			  "Fn::Equals" : [
+			    {
+				  "Ref" : "ModificationPath"
+				},
+				""
+			  ]
+			}
+		  ]
+		},
+		"CreateSNS"         : {
+            "Fn::Not" : [
+                {
+                    "Fn::Equals" : [
+                        {
+                            "Ref" : "NotificationEmail"
+                        },
+                        ""
+                    ]
+                }
+            ]
+        },
+
+		"HasOverrides" : {
+			"Fn::Not" : [
+				{
+					"Fn::Equals" : [
+						{
+							"Ref" : "ProjectParameterOverrides"
+						},
+						""
+					]
+				}
+			]
+		},
+		"IsNestedStack" : {
+		    "Fn::Equals" : [
+			    {
+				    "Ref" : "NestedStack"
+				},
+				"true"
+			]
+		},
+		"HasCFNConfig" : {
+			"Fn::Equals" : [
+				{
+					"Ref" : "AppProvidesCloudFormationConfig"
+				},
+				"true"
+			]
+		}
+	},
+
+	"Mappings" : {
+		"SourceMap" : {
+			"AmazonS3" : {
+				"ActionProvider" : "Amazon S3",
+				"Owner" : "AWS",
+				"BuildSource" : "S3"
+			},
+			"AWSCodeCommit" : {
+				"ActionProvider" : "CodeCommit",
+				"Owner" : "AWS",
+				"BuildSource" : "CODECOMMIT"
+			},
+			"GitHub" : {
+				"ActionProvider" : "GitHub",
+				"Owner" : "ThirdParty",
+				"BuildSource" : "GITHUB"
+			},
+			"GitHubv2" : {
+			    "ActionProvider" : "CodeStarSourceConnection",
+				"Owner" : "AWS",
+				"BuildSource" : "GITHUB"
+			}
+		}
+	},
+
+	"Resources" : {
+		"SNSTopic" : {
+            "Type" : "AWS::SNS::Topic",
+            "Condition" : "CreateSNS",
+            "Properties" : {
+                "DisplayName" : {
+					"Fn::Sub" : "CodePipline Notification For ${ProjectName}"
+				},
+                "Subscription" : [
+                    {
+                        "Protocol" : "email",
+                        "Endpoint" : {
+                            "Ref" : "NotificationEmail"
+                        }
+                    }
+                ]		
+            }
+        },
+		"SNSTopicPolicy" : {
+			"Type" : "AWS::SNS::TopicPolicy",
+			"Properties" : {
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement" : [
+						{
+						  "Effect": "Allow",
+						  "Principal": {
+							"Service": "events.amazonaws.com"
+						  },
+						  "Action": "sns:Publish",
+						  "Resource": {
+							"Ref" : "SNSTopic"
+						  }
+						}
+					]
+				},
+				"Topics" : [
+					{
+						"Ref" : "SNSTopic"
+					}
+				]
+			}
+		},
+
+		"CodeCommitSourceStage" : {
+			"Type" : "AWS::CodeCommit::Repository",
+			"Condition" : "UseCodeCommitSource",
+			"Properties" : {
+				"RepositoryName" : {
+					"Ref" : "SourceConnection"
+				}
+			}
+		},
+
+		"S3SourceStageBucket" : {
+			"Type" : "AWS::S3::Bucket",
+			"Condition" : "UseS3Source",
+			"Properties" : {
+				"BucketName" : {
+					"Ref" : "SourceConnection"
+				},
+				"BucketEncryption" : {
+					"ServerSideEncryptionConfiguration" : [
+						{
+							 "ServerSideEncryptionByDefault" : {
+								"SSEAlgorithm" : "aws:kms"
+							 }
+						}
+					] 
+				},
+				"VersioningConfiguration" : {
+					"Status" : "Enabled"
+				}			 
+			}
+		},
+		"S3SourceStageBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+			"Condition" : "UseS3Source",
+            "Properties": {    
+                "Bucket": {
+                    "Ref": "S3SourceStageBucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "DenyUnEncryptedObjectUploads",
+                            "Effect": "Deny",
+                            "Principal": "*",
+                            "Action": "s3:PutObject",
+                            "Resource": {
+								"Fn::Sub" : "${S3SourceStageBucket.Arn}/*"                                
+                            },
+                            "Condition": {
+                                "StringNotEquals": {
+                                    "s3:x-amz-server-side-encryption": "aws:kms"
+                                }
+                            }
+                        },
+                        {
+                            "Sid": "DenyInsecureConnections",
+                            "Effect": "Deny",
+                            "Principal": "*",
+                            "Action": "s3:*",
+                            "Resource": {
+								"Fn::Sub" : "${S3SourceStageBucket.Arn}/*"                           
+                            },
+                            "Condition": {
+                                "Bool": {
+                                    "aws:SecureTransport": false
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+
+		"GitHubWebhook" : {
+			"Type" : "AWS::CodePipeline::Webhook",
+			"Condition" : "UseGitHubSource",
+			"Properties" : {
+				"Authentication" : "GITHUB_HMAC",
+				"AuthenticationConfiguration" : {
+					"SecretToken" : {
+					  "Fn::Sub" : "{{resolve:secretsmanager:${GitHubOAuthTokenSecretName}:SecretString:token}}"
+					}
+				},
+				"RegisterWithThirdParty" : true,
+				"TargetPipeline" : {
+					"Ref" : "Pipeline"
+				},
+				"TargetAction" : "SourceAction",
+				"TargetPipelineVersion" : {
+					"Fn::GetAtt" : [ "Pipeline", "Version" ]
+				},
+				"Filters" : [
+					{
+						"JsonPath" : "$.ref",
+						"MatchEquals" : {
+							"Fn::Sub" : "refs/heads/${RepoBranchName}"
+						}
+					},
+					{
+					  "Fn::If" : [
+					    "AddModificationPathFilter",
+						{
+						  "Ref" : "ModificationPath"
+						},
+						{
+						  "Ref": "AWS::NoValue"
+						}
+					  ]
+					}
+				]
+			}			
+		},
+
+		"SourceBuildProject" : {
+			"Type" : "AWS::CodeBuild::Project",
+			"Properties" : {
+				"Artifacts" : {
+					"Type" : "CODEPIPELINE"					 
+				},			 
+				"Source" : {
+					"Type" : "CODEPIPELINE",
+					"BuildSpec" : {
+						"Ref" : "BuildSpecLocation"
+					}
+				},
+				"EncryptionKey" : {
+				  "Ref" : "ArtifactRepositoryEncryptionKeyRegion1"
+				},
+				"Description" : "Builds the CloudFormation templates.",
+				"Environment" : {
+					"ComputeType" : {
+						"Ref" : "BuildContainerSize"
+					},
+					"Type" : "LINUX_CONTAINER",
+					"Image" : "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
+					"ImagePullCredentialsType" :  "CODEBUILD",					
+					"PrivilegedMode" : false,
+					"EnvironmentVariables" : [
+						{
+							"Name" : "BUCKET",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Fn::Sub" : [ 
+							       "codepipeline-${AWS::Partition}-${Region}-${AccountId}", 
+								   {
+								       "Region" : {
+									       "Ref" : "Region1"										   
+									   },
+									   "AccountId" : {
+									      "Ref" : "ProdAccountId"
+									   }
+							       }
+							   ]
+							}
+						},
+						{
+							"Name" : "PROJECT_NAME",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "ProjectName"
+							}
+						}
+					]					 
+				},
+				"LogsConfig" : {
+					"CloudWatchLogs" : {
+						"GroupName" : { "Fn::Sub" : "/aws/codebuild/${ProjectName}" },
+						"StreamName" : { "Fn::Sub" : "build" },
+						"Status" : "ENABLED"
+					}
+				},
+				"ServiceRole" : {
+					"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWS-CodeBuild-ServiceRole"
+				},
+				"TimeoutInMinutes" : 15
+			}
+		},
+		"TestBuildProject" : {
+			"Type" : "AWS::CodeBuild::Project",
+			"Properties" : {
+				"Artifacts" : {
+					"Type" : "CODEPIPELINE"
+				},
+				"Source" : {
+					"Type" : "CODEPIPELINE",
+					"BuildSpec" : {
+						"Ref" : "BuildSpecTestLocation"
+					}
+				},
+				"EncryptionKey" : {
+				  "Ref" : "ArtifactRepositoryEncryptionKeyRegion1"
+				},
+				"Description" : "Validates the CloudFormation templates.",
+				"Environment" : {
+					"ComputeType" : {
+						"Ref" : "TestContainerSize"
+					},
+					"Type" : "LINUX_CONTAINER",
+					"Image" : "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
+					"ImagePullCredentialsType" :  "CODEBUILD",
+					"PrivilegedMode" : false,
+					"EnvironmentVariables" : [
+						{
+							"Name" : "ACCOUNT_ID",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "AWS::AccountId"
+							}
+						},
+						{
+							"Name" : "REGION",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "AWS::Region"
+							}
+						},
+						{
+							"Name" : "PARTITION",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Fn::Sub" : "${AWS::Partition}"
+							}
+						},
+						{
+							"Name" : "BUCKET",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Fn::Sub" : [ 
+							       "codepipeline-${AWS::Partition}-${Region}-${AccountId}",
+								   {
+								       "Region" : {
+									       "Ref" : "Region1"										   
+									   },
+									   "AccountId" : {
+									      "Ref" : "ProdAccountId"
+									   }
+							       }
+							   ]
+							}
+						},
+						{
+							"Name" : "PROJECT_NAME",
+							"Type" : "PLAINTEXT",
+							"Value" : {
+								"Ref" : "ProjectName"
+							}
+						}
+					]
+				},
+				"LogsConfig" : {
+					"CloudWatchLogs" : {
+						"GroupName" : { "Fn::Sub" : "/aws/codebuild/${ProjectName}" },
+						"StreamName" : { "Fn::Sub" : "test" },
+						"Status" : "ENABLED"
+					}
+				},
+				"ServiceRole" : {
+					"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWS-CodeBuild-ServiceRole"
+				},
+				"TimeoutInMinutes" : 15
+			}
+		},
+
+		"Pipeline" : {
+			"Type" : "AWS::CodePipeline::Pipeline",
+			"Properties" : {
+				"ArtifactStores" : [
+				    {
+					    "ArtifactStore" : {
+						    "Location" : {
+						       "Fn::Sub" : [ 
+							       "codepipeline-${AWS::Partition}-${Region}-${AccountId}",
+								   {
+								       "Region" : {
+									       "Ref" : "Region1"										   
+									   },
+									   "AccountId" : {
+									      "Ref" : "ProdAccountId"
+									   }
+							       }
+							   ]
+					        },
+					        "Type" : "S3",
+					        "EncryptionKey" : {
+					            "Id" : {
+						            "Ref" : "ArtifactRepositoryEncryptionKeyRegion1"
+						        },
+						        "Type" : "KMS"
+					        }
+						},
+						"Region" : {
+						    "Ref" : "Region1"
+						}
+					},
+					{
+					    "ArtifactStore" : {
+						    "Location" : {
+						       "Fn::Sub" : [ 
+							       "codepipeline-${AWS::Partition}-${Region}-${AccountId}",
+								   {
+								       "Region" : {
+									       "Ref" : "Region2"										   
+									   },
+									   "AccountId" : {
+									      "Ref" : "ProdAccountId"
+									   }
+							       }
+							   ]
+					        },
+					        "Type" : "S3",
+					        "EncryptionKey" : {
+					            "Id" : {
+						            "Ref" : "ArtifactRepositoryEncryptionKeyRegion2"
+						        },
+						        "Type" : "KMS"
+					        }
+						},
+						"Region" : {
+						    "Ref" : "Region2"
+						}
+					},
+					{
+					    "ArtifactStore" : {
+						    "Location" : {
+						       "Fn::Sub" : [ 
+							       "codepipeline-${AWS::Partition}-${Region}-${AccountId}",
+								   {
+								       "Region" : {
+									       "Ref" : "Region3"										   
+									   },
+									   "AccountId" : {
+									      "Ref" : "ProdAccountId"
+									   }
+							       }
+							   ]
+					        },
+					        "Type" : "S3",
+					        "EncryptionKey" : {
+					            "Id" : {
+						            "Ref" : "ArtifactRepositoryEncryptionKeyRegion3"
+						        },
+						        "Type" : "KMS"
+					        }
+						},
+						"Region" : {
+						    "Ref" : "Region3"
+						}
+					}
+				],
+				"RoleArn" : {
+					"Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWS-CodePipeline-ServiceRole"
+				},
+				"Stages" : [
+					{
+						"Name" : "Source",
+						"Actions" : [
+							{
+								 "Name" : "SourceAction",
+								 "ActionTypeId" : {
+									"Category" : "Source",
+									"Owner" : {
+										"Fn::FindInMap" : [ "SourceMap", { "Ref" : "SourceStage" }, "Owner" ]
+									},
+									"Version" : "1",
+									"Provider" : {
+										"Fn::FindInMap" : [ "SourceMap", { "Ref" : "SourceStage" }, "ActionProvider" ]
+									}
+								},
+								"OutputArtifacts" : [
+									{
+										"Name" : "SourceOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									 "Fn::If" : [
+										"UseCodeCommitSource",
+										{
+											"RepositoryName" : {
+												"Ref" : "CodeCommitSourceStage"
+											},
+											"BranchName" : {
+												"Ref" : "RepoBranchName"
+											}
+										},
+										{
+											"Fn::If" : [
+												"UseS3Source",
+												{
+													"S3Bucket" : {
+														"Ref" : "S3SourceStageBucket"
+													},
+													"S3ObjectKey" : {
+														"Ref" : "S3SourceObjectKey"
+													},
+													"PollForSourceChanges" : false
+												},
+												{
+												  "Fn::If" : [
+												    "UseGitHubSource",
+													{
+													    "Owner" : {
+													    	"Ref" : "GitHubOwner"
+													    },
+													    "Repo" : {
+													    	"Ref" : "SourceConnection"
+													    },
+													    "Branch" : {
+													    	"Ref" : "RepoBranchName"
+													    },
+													    "OAuthToken" : {
+															"Fn::Sub" : "{{resolve:secretsmanager:${GitHubOAuthTokenSecretName}:SecretString:token}}"
+														},
+													    "PollForSourceChanges" : false
+													},
+													{
+													    "ConnectionArn" : {
+														  "Fn::ImportValue" : {
+														    "Fn::Sub" : "${GitHubOwner}-github-codestar-connection"
+														  }
+														},
+													    "FullRepositoryId" : {
+													    	"Fn::Sub" : "${GitHubOwner}/${SourceConnection}"
+													    },
+													    "BranchName" : {
+													    	"Ref" : "RepoBranchName"
+													    },
+														"OutputArtifactFormat" : "CODE_ZIP",
+														"DetectChanges" : true
+													}
+												  ]
+												}
+											]
+										}
+									]									  							
+								}
+							}
+						]						 
+					},
+					{
+						"Name" : "Test",
+						"Actions" : [
+							{
+								"Name" : "TestAction",
+								"ActionTypeId" : {
+									"Category" : "Test",
+									"Owner" : "AWS",
+									"Provider" : "CodeBuild",
+									"Version" : "1"
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "SourceOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									"ProjectName" : {
+										"Ref" : "TestBuildProject"
+									}
+								}
+							}
+						]
+					},
+					{	
+						"Name" : "Build",
+						"Actions" : [	
+						    {
+								"Name" : "BuildAction",
+								"ActionTypeId" : {
+									"Category" : "Build",
+									"Owner" : "AWS",
+									"Provider" : "CodeBuild",
+									"Version" : "1"
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "SourceOutput"
+									}
+								],
+								"OutputArtifacts" : [
+									{
+										"Name" : "BuildOutput"
+									},
+									{
+									    "Fn::If" : [
+										    "IsNestedStack",
+											{
+											    "Name" : "NestedStackOutput"
+											},
+											{
+											    "Ref" : "AWS::NoValue"
+											}
+										]
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									"ProjectName" : {
+										"Ref" : "SourceBuildProject"
+									}
+								}							
+							},
+							{
+							    "Fn::If" : [
+								    "IsNestedStack",
+									{
+									    "Name" : "ExtractZip",
+										"ActionTypeId" : {
+										    "Category" : "Invoke",
+											"Owner" : "AWS",
+											"Provider" : "Lambda",
+											"Version" : "1"
+										},
+										"InputArtifacts" : [
+										    {
+											    "Name" : "NestedStackOutput"
+											}
+										],
+										"OutputArtifacts" : [
+										],
+										"RunOrder" : 2,
+										"Configuration" : {
+										    "FunctionName" : "ArtifactExtractor"
+										}
+									},
+									{
+									    "Ref" : "AWS::NoValue"
+									}
+								]
+							},
+							{
+								"Name" : "Wait-For-Replication",
+								"ActionTypeId" : {
+									"Category" : "Invoke",
+									"Owner" : "AWS",
+									"Provider" : "Lambda",
+									"Version" : "1"
+								},								
+								"RunOrder" : 3,
+								"Configuration" : {
+									"FunctionName" : "PipelineBlocker",
+									"UserParameters" : 120
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "BuildOutput"
+									}
+								],
+								"OutputArtifacts" : []
+							},
+							{
+								"Name" : {
+								    "Fn::Sub" : "UpdateArtifactAclAction-${Region1}"
+								},
+								"ActionTypeId" : {
+									"Category" : "Invoke",
+									"Owner" : "AWS",
+									"Provider" : "Lambda",
+									"Version" : "1"
+								},								
+								"RunOrder" : 4,
+								"Configuration" : {
+									"FunctionName" : "UpdateArtifactAcl"
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "BuildOutput"
+									},
+									{
+									    "Name" : "SourceOutput"
+									},
+									{
+									    "Fn::If" : [
+										    "IsNestedStack",
+											{
+											    "Name" : "NestedStackOutput"
+											},
+											{
+											    "Ref" : "AWS::NoValue"
+											}
+										]
+									}
+								],
+								"OutputArtifacts" : []
+							},
+							{
+								"Name" : {
+								    "Fn::Sub" : "UpdateArtifactAclAction-${Region2}"
+								},
+								"ActionTypeId" : {
+									"Category" : "Invoke",
+									"Owner" : "AWS",
+									"Provider" : "Lambda",
+									"Version" : "1"
+								},								
+								"RunOrder" : 4,
+								"Configuration" : {
+									"FunctionName" : "UpdateArtifactAcl",
+									"UserParameters" : {
+									    "Fn::Sub" : "{\"additionalBuckets\" : [ \"codepipeline-${AWS::Partition}-${Region2}-${ProdAccountId}\" ], \"ignoreOriginalArtifact\" : true }"
+									}
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "BuildOutput"
+									}
+								],
+								"OutputArtifacts" : []
+							},
+							{
+								"Name" : {
+								    "Fn::Sub" : "UpdateArtifactAclAction-${Region3}"
+								},
+								"ActionTypeId" : {
+									"Category" : "Invoke",
+									"Owner" : "AWS",
+									"Provider" : "Lambda",
+									"Version" : "1"
+								},								
+								"RunOrder" : 4,
+								"Configuration" : {
+									"FunctionName" : "UpdateArtifactAcl",
+									"UserParameters" : {
+									    "Fn::Sub" : "{\"additionalBuckets\" : [ \"codepipeline-${AWS::Partition}-${Region3}-${ProdAccountId}\" ], \"ignoreOriginalArtifact\" : true }"
+									}
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "BuildOutput"
+									}
+								],
+								"OutputArtifacts" : []
+							}
+						]						  
+					},					
+					{
+						"Name" : {
+						    "Fn::Sub" : "Release-${Region1}"
+						},
+						"Actions" : [							
+							{
+								"Name" : "CreateChangeSet",
+								"ActionTypeId" : {
+									"Category" : "Deploy",
+									"Owner" : "AWS",
+									"Provider" : "CloudFormation",
+									"Version" : "1"
+								},
+								"InputArtifacts" : [
+									{
+										"Name" : "BuildOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									"ActionMode" : "CHANGE_SET_REPLACE",
+									"ChangeSetName" : {
+										"Ref" : "ProjectName"
+									},
+									"Capabilities" : "CAPABILITY_IAM",
+									"StackName" : {
+										"Ref" : "ProjectName"
+									},
+									"ParameterOverrides" : {
+										"Fn::If" : [
+											"HasOverrides",
+											{
+												"Ref" : "ProjectParameterOverrides"									
+											},
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},									
+									"TemplatePath" : {
+										"Fn::Sub" : "BuildOutput::${ProjectName}.template"
+									},
+									"TemplateConfiguration" : {
+										"Fn::If" : [
+											"HasCFNConfig",
+											"BuildOutput::CloudFormationConfig.json",
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},
+									"RoleArn" : {
+										"Ref" : "ChangeSetExecutionRole"
+									}									 
+								},
+								"RoleArn" : {
+								    "Ref" : "AssumableRole"
+								},
+								"Region" : {
+								    "Ref" : "Region1"
+								}
+							},
+							{
+								"Name" : "ApprovalForRelease",
+								"ActionTypeId" : {
+									"Category" : "Approval",
+									"Owner" : "AWS",
+									"Provider" : "Manual",
+									"Version" : "1"
+								},
+								"Configuration" : {
+									"NotificationArn" : {
+										"Fn::If" : [
+											"CreateSNS",
+											{
+												"Ref" : "SNSTopic"
+											},
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},
+									"CustomData" : {
+										"Fn::Sub" : "Please review a new release for ${ProjectName} in ${Region1}."
+									}
+								},
+								"RunOrder" : 2
+							},
+							{
+								"Name" : "ExecuteChangeSet",
+								"ActionTypeId" : {
+									"Category" : "Deploy",
+									"Owner" : "AWS",
+									"Provider" : "CloudFormation",
+									"Version" : "1"
+								},
+								"Configuration" : {
+									"StackName" : {
+										"Ref" : "ProjectName"
+									},
+									"ActionMode" : "CHANGE_SET_EXECUTE",
+									"ChangeSetName" : {
+										"Ref" : "ProjectName"								
+									}
+								},
+								"RunOrder" : 3,
+								"RoleArn" : {
+								    "Ref" : "AssumableRole"
+								},
+								"Region" : {
+								    "Ref" : "Region1"
+								}
+							}
+						]
+					},					
+					{
+						"Name" : {
+						    "Fn::Sub" : "Release-${Region2}"
+						},
+						"Actions" : [							
+							{
+								"Name" : "CreateChangeSet",
+								"ActionTypeId" : {
+									"Category" : "Deploy",
+									"Owner" : "AWS",
+									"Provider" : "CloudFormation",
+									"Version" : "1"
+								},
+								"InputArtifacts" : [
+									{
+									     "Name" : "BuildOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									"ActionMode" : "CHANGE_SET_REPLACE",
+									"ChangeSetName" : {
+										"Ref" : "ProjectName"
+									},
+									"Capabilities" : "CAPABILITY_IAM",
+									"StackName" : {
+										"Ref" : "ProjectName"
+									},
+									"ParameterOverrides" : {
+										"Fn::If" : [
+											"HasOverrides",
+											{
+												"Ref" : "ProjectParameterOverrides"									
+											},
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},									
+									"TemplatePath" : {
+										"Fn::Sub" : "BuildOutput::${ProjectName}.template"
+									},
+									"TemplateConfiguration" : {
+										"Fn::If" : [
+											"HasCFNConfig",
+											"BuildOutput::CloudFormationConfig.json",
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},
+									"RoleArn" : {
+										"Ref" : "ChangeSetExecutionRole"
+									}									 
+								},
+								"RoleArn" : {
+								    "Ref" : "AssumableRole"
+								},
+								"Region" : {
+								    "Ref" : "Region2"
+								}
+							},
+							{
+								"Name" : "ApprovalForRelease",
+								"ActionTypeId" : {
+									"Category" : "Approval",
+									"Owner" : "AWS",
+									"Provider" : "Manual",
+									"Version" : "1"
+								},
+								"Configuration" : {
+									"NotificationArn" : {
+										"Fn::If" : [
+											"CreateSNS",
+											{
+												"Ref" : "SNSTopic"
+											},
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},
+									"CustomData" : {
+										"Fn::Sub" : "Please review a new release for ${ProjectName} in ${Region2}."
+									}
+								},
+								"RunOrder" : 2
+							},
+							{
+								"Name" : "ExecuteChangeSet",
+								"ActionTypeId" : {
+									"Category" : "Deploy",
+									"Owner" : "AWS",
+									"Provider" : "CloudFormation",
+									"Version" : "1"
+								},
+								"Configuration" : {
+									"StackName" : {
+										"Ref" : "ProjectName"
+									},
+									"ActionMode" : "CHANGE_SET_EXECUTE",
+									"ChangeSetName" : {
+										"Ref" : "ProjectName"								
+									}
+								},
+								"RunOrder" : 3,
+								"RoleArn" : {
+								    "Ref" : "AssumableRole"
+								},
+								"Region" : {
+								    "Ref" : "Region2"
+								}
+							}
+						]
+					},
+					{
+						"Name" : {
+						    "Fn::Sub" : "Release-${Region3}"
+						},
+						"Actions" : [							
+							{
+								"Name" : "CreateChangeSet",
+								"ActionTypeId" : {
+									"Category" : "Deploy",
+									"Owner" : "AWS",
+									"Provider" : "CloudFormation",
+									"Version" : "1"
+								},
+								"InputArtifacts" : [
+									{
+									     "Name" : "BuildOutput"
+									}
+								],
+								"RunOrder" : 1,
+								"Configuration" : {
+									"ActionMode" : "CHANGE_SET_REPLACE",
+									"ChangeSetName" : {
+										"Ref" : "ProjectName"
+									},
+									"Capabilities" : "CAPABILITY_IAM",
+									"StackName" : {
+										"Ref" : "ProjectName"
+									},
+									"ParameterOverrides" : {
+										"Fn::If" : [
+											"HasOverrides",
+											{
+												"Ref" : "ProjectParameterOverrides"									
+											},
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},									
+									"TemplatePath" : {
+										"Fn::Sub" : "BuildOutput::${ProjectName}.template"
+									},
+									"TemplateConfiguration" : {
+										"Fn::If" : [
+											"HasCFNConfig",
+											"BuildOutput::CloudFormationConfig.json",
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},
+									"RoleArn" : {
+										"Ref" : "ChangeSetExecutionRole"
+									}									 
+								},
+								"RoleArn" : {
+								    "Ref" : "AssumableRole"
+								},
+								"Region" : {
+								    "Ref" : "Region3"
+								}
+							},
+							{
+								"Name" : "ApprovalForRelease",
+								"ActionTypeId" : {
+									"Category" : "Approval",
+									"Owner" : "AWS",
+									"Provider" : "Manual",
+									"Version" : "1"
+								},
+								"Configuration" : {
+									"NotificationArn" : {
+										"Fn::If" : [
+											"CreateSNS",
+											{
+												"Ref" : "SNSTopic"
+											},
+											{
+												"Ref" : "AWS::NoValue"
+											}
+										]
+									},
+									"CustomData" : {
+										"Fn::Sub" : "Please review a new release for ${ProjectName} in ${Region3}."
+									}
+								},
+								"RunOrder" : 2
+							},
+							{
+								"Name" : "ExecuteChangeSet",
+								"ActionTypeId" : {
+									"Category" : "Deploy",
+									"Owner" : "AWS",
+									"Provider" : "CloudFormation",
+									"Version" : "1"
+								},
+								"Configuration" : {
+									"StackName" : {
+										"Ref" : "ProjectName"
+									},
+									"ActionMode" : "CHANGE_SET_EXECUTE",
+									"ChangeSetName" : {
+										"Ref" : "ProjectName"								
+									}
+								},
+								"RunOrder" : 3,
+								"RoleArn" : {
+								    "Ref" : "AssumableRole"
+								},
+								"Region" : {
+								    "Ref" : "Region3"
+								}
+							}
+						]
+					}
+				]
+			}
+		},
+
+		"FailureEvent" : {
+			"Type" : "AWS::Events::Rule",
+			"Properties" : {
+				"Description" : "Alerts when a CodePipeline stage fails.",
+				"EventPattern" : {				 
+					"source": [
+						"aws.codepipeline"
+					],
+					"detail-type" : [
+						"CodePipeline Pipeline Execution State Change"
+					],
+					"detail" : {
+						"state" : [
+							"FAILED"
+						],
+						"pipeline" : [
+							{
+								"Ref" : "Pipeline"
+							}
+						]
+					}
+				},
+				"State" : "ENABLED",
+				"Targets" : [
+					{
+						"Arn" : {
+							"Ref" : "SNSTopic"
+						},
+						"InputTransformer" : {
+							"InputPathsMap" : { 
+								"pipeline" : "$.detail.pipeline" 
+							},
+							"InputTemplate" : "\"The Pipeline <pipeline> has failed.\""
+						},
+						"Id" : "SNS123"	
+					}
+				]
+			}
+		}
+	},
+
+	"Outputs" : {
+	}
+}

@@ -1,0 +1,580 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "Creates Lambda functions and Step Functions that are used as part of standard pipelines.",
+
+	"Parameters" : {
+	},
+
+	"Resources" : {
+	    "LambdaExecutionRole" : {
+		    "Type" : "AWS::IAM::Role",
+			"Metadata" : {
+			    "Comment" : "Role used by the Lambda functions in the pipelines"
+			},
+			"Properties" : {
+			    "Description" : "Role used by CodePipeline Lambda functions",
+				"ManagedPolicyArns" : [
+				    {
+					    "Ref" : "LambdaPolicy"
+					},
+					"arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+				],
+				"Path" : "/service-role/",
+				"RoleName" : "AWS-CodePipeline-BuildArtifactReplicationServiceRole",
+			    "AssumeRolePolicyDocument" : {
+				    "Version" : "2012-10-17",
+					"Statement" : [
+					    {
+						    "Effect" : "Allow",
+							"Principal" : {
+							    "Service" : [
+								    "lambda.amazonaws.com"
+								]
+							},
+							"Action" : [
+							    "sts:AssumeRole"
+							]
+						}
+					]    
+				}
+			}
+		},
+		"LambdaPolicy" : {
+		    "Type" : "AWS::IAM::ManagedPolicy",
+			"Properties" : {
+			    "Path" : "/service-role/",
+			    "PolicyDocument" : {
+				    "Version" : "2012-10-17",
+					"Statement" : [
+					    {
+                            "Action": [ 
+                                "logs:*"
+                            ],
+                            "Effect": "Allow", 
+                            "Resource": "arn:aws:logs:*:*:*"
+                        },
+                        {
+                            "Action": [
+                                "codepipeline:PutJobSuccessResult",
+                                "codepipeline:PutJobFailureResult"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*"
+                        },
+						{
+						    "Effect" : "Allow",
+						    "Action" : [
+							    "sts:GetAccessKeyInfo"
+							],
+							"Resource" : "*"
+						},
+						{
+						    "Effect" : "Allow",
+						    "Action" : [
+							    "s3:GetObject",
+								"s3:GetObjectVersion",
+								"s3:GetObjectAcl",
+								"s3:PutObject",
+								"s3:PutObjectAcl",
+								"s3:ListBucket",
+								"s3:GetBucketAcl"
+							],
+							"Resource" : "*"
+						},
+						{
+						    "Effect" : "Allow",
+							"Action"    : [
+                                "kms:Encrypt",
+                                "kms:Decrypt",
+                                "kms:ReEncrypt*",
+                                "kms:GenerateDataKey*",
+                                "kms:DescribeKey"
+                            ],
+                            "Resource"  : "*"
+						}
+					]
+				}
+			}
+		},
+
+		"StepFunctionBakeTimeExecutionRole" : {
+		   "Type" : "AWS::IAM::Role",
+			"Metadata" : {
+			    "Comment" : "Role used by the bake time Step Function in the pipelines"
+			},
+			"Properties" : {
+			    "Description" : "Role used by CodePipeline Step Functions",
+				"Path" : "/service-role/",
+				"RoleName" : "AWS-CodePipeline-BakeTimeServiceRole",
+			    "AssumeRolePolicyDocument" : {
+				    "Version" : "2012-10-17",
+					"Statement" : [
+					    {
+						    "Effect" : "Allow",
+							"Principal" : {
+							    "Service" : [
+								    "states.amazonaws.com"
+								]
+							},
+							"Action" : [
+							    "sts:AssumeRole"
+							]
+						}
+					]    
+				}
+			}
+		},
+
+	    "UpdateArtifactAclFunction" : {
+		    "Type" : "AWS::Lambda::Function",
+			"Properties" : {
+			    "Description" : "Updates the ACL of an S3 artifact to give the bucket owner full control.",
+			    "Code" : {
+				    "ZipFile" : {
+					    "Fn::Join" : [
+						    "\n",
+							[
+							    "# Updates the ACL of an S3 artifact to give the bucket owner full control. CodePipeline does not do this on its own if it writes artifacts",
+								"# to a cross-account bucket. It takes the CodePipeline job data input artifacts, which could be multiple outputs defined in the source's",
+								"# buildspec.yml, like the source zip, the build output zip, or nested stacks for CFN artifacts that have been extracted from the build zip.",
+								"# As part of the CodePipeline UserParameters for the action, you can specify ignoreOriginalArtifact as true and an array of buckets in",
+								"# additionalBuckets to update the ACL on objects that have been replicated to other buckets. You do not need to specify UserParameters for",
+								"# the artifacts in the same region as the pipeline.",
+								"",
+							    "import boto3",
+								"import botocore",
+								"import sys",
+								"import traceback",
+								"import json",
+								"from boto3.session import Session",
+								"from botocore.exceptions import ClientError",
+								"cp = boto3.client('codepipeline')",
+								"sts = boto3.client('sts')",
+								"",
+							    "def handler(event, context):",
+								"    job_data = event['CodePipeline.job']['data']",
+								"    print(job_data)",
+								"    s3 = setup_s3_client(job_data)",
+								"    artifacts = job_data['inputArtifacts']",
+								"    failures = []",
+								"    job_id = event['CodePipeline.job']['id']",
+								"    if 'UserParameters' in job_data['actionConfiguration']['configuration']:",
+								"        config = json.loads(job_data['actionConfiguration']['configuration']['UserParameters'])",
+								"    else:",
+								"        config = {}",
+								"    for item in artifacts:",
+								"        bucket = item['location']['s3Location']['bucketName']",
+								"        key = item['location']['s3Location']['objectKey']",
+								"        try:",
+								"            if 'ignoreOriginalArtifact' not in config or config['ignoreOriginalArtifact'] is None or config['ignoreOriginalArtifact'] == False:",
+								"                s3.put_object_acl(ACL='bucket-owner-full-control', Bucket=bucket, Key=key)",
+								"                #  s3.copy_object(ACL='bucket-owner-full-control', Bucket=bucket, Key=key, CopySource={'Bucket':bucket, 'Key' : key}, ServerSideEncryption='aws:kms', SSEKMSKeyId=get_encryption_key_arn(job_data))",
+								"            if 'additionalBuckets' in config and config['additionalBuckets'] is not None:",
+								"                for item in config['additionalBuckets']:",
+								"                    try:",
+								"                        s3.put_object_acl(ACL='bucket-owner-full-control', Bucket=item, Key=key)",
+								"                    except ClientError as e:",
+								"                        print(e.response)",
+								"                        failures.append(item + '/' + key)",	
+								"            else:",
+								"                print('No additional buckets specified.')",
+								"        except ClientError as e:",
+								"            print(e.response)",
+								"            failures.append(bucket + '/' + key)",								
+								"        except Exception as e:",
+                                "            print(e)",
+                                "            traceback.print_exc()",
+								"            failures.append(bucket + '/' + key)",								   
+								"    if not failures:",
+								"        put_job_success(job_id, 'Success')",
+								"    else:",
+								"        put_job_failure(job_id, 'Failed to update ACLs for ' + ', '.join(failures))",
+								"    print('Function complete')",
+								"    return 'Complete'",
+
+								"",
+								"def put_job_success(job, message):",
+								"    print('Putting job success')",
+								"    print(message)",
+								"    cp.put_job_success_result(jobId=job)",
+								"",
+								"def put_job_failure(job, message):",
+								"    print('Putting job failure')",
+								"    print(message)",
+								"    cp.put_job_failure_result(jobId=job, failureDetails={'message': message, 'type': 'JobFailed'})",
+								"",
+								"def setup_s3_client(job_data):",
+								"    #key_id = job_data['artifactCredentials']['accessKeyId']",
+                                "    #key_secret = job_data['artifactCredentials']['secretAccessKey']",
+                                "    #session_token = job_data['artifactCredentials']['sessionToken']",
+								"    #return boto3.client('s3', aws_access_key_id=key_id, aws_secret_access_key=key_secret, aws_session_token=session_token)",
+								"    return boto3.client('s3')",
+								"",
+								"def get_encryption_key_arn(job_data):",
+								"    return job_data['encryptionKey']['id']"
+							]
+						]
+					}
+				},
+				"FunctionName" : {
+				    "Fn::Sub" : "UpdateArtifactAcl"
+	            },
+				"Handler" : "index.handler",
+				"Runtime" : "python3.7",
+				"MemorySize" : 1024,
+				"Role" : {
+				    "Fn::GetAtt" : [ "LambdaExecutionRole", "Arn" ]
+				},
+				"TracingConfig" : {
+				    "Mode" : "Active"
+				}
+			}
+		},
+		"UpdateArtifactAclFunctionPermission" : {
+		    "Type" : "AWS::Lambda::Permission",
+			"Properties" : {
+			    "Action" : "lambda:InvokeFunction",
+				"FunctionName" : {
+				    "Ref" : "UpdateArtifactAclFunction"
+				},
+				"Principal" : {
+				    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWS-CodePipeline-ServiceRole"
+				}
+			}
+		},
+
+	    "ArtifactExtractorFunction" : {
+		    "Type" : "AWS::Lambda::Function",
+			"Properties" : {
+			    "Description" : "",
+			    "Code" : {
+				    "ZipFile" : {
+					    "Fn::Join" : [
+						    "\n",
+							[
+							    "# This function receives CodePipeline job data sent from a build step. The input artifact is the build output. The build step zips the resulting package",
+								"# and this function extracts the contents of the zip and places them back into S3 (also setting bucket owner to full control, so you don't have to update",
+								"# the file ACL later). You usually only need to run this in the region of the pipeline, since this is most commonly used to get nested CFN stack templates",
+								"# out of the build as the ExecuteChangeSet step only knows about the main template name inside of the build output zip.",
+								"",
+							    "import boto3",
+								"import botocore",
+								"import sys",
+								"import zipfile",
+								"import traceback",
+								"from boto3.session import Session",
+								"from io import BytesIO",
+								"from botocore.exceptions import ClientError",
+								"cp = boto3.client('codepipeline')",
+								"",
+							    "def handler(event, context):",
+								"    job_data = event['CodePipeline.job']['data']",
+								"    s3 = setup_s3_client(job_data)",
+								"    artifacts = job_data['inputArtifacts']",
+								"    failures = []",
+								"    job_id = event['CodePipeline.job']['id']",
+								"    for item in artifacts:",
+								"        bucket = item['location']['s3Location']['bucketName']",
+								"        key = item['location']['s3Location']['objectKey']",
+								"        try:",
+								"            buffer = BytesIO()",
+								"            s3.download_fileobj(bucket, key, buffer)",
+								"            zip = zipfile.ZipFile(buffer)",
+								"            for filename in zip.namelist():",
+								"                try:",
+								"                    s3.upload_fileobj(zip.open(filename), Bucket=bucket, Key=filename, ExtraArgs={'ACL': 'bucket-owner-full-control', 'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': get_encryption_key_arn(job_data)})",
+								"                except ClientError as e:",
+								"                    print('Failed to upload file ' + filename + '.')",
+								"                    print(e.response)",
+								"                    failures.append(filename + ' : ' + str(e))",						
+								"                except Exception as e:",
+                                "                    print(e)",
+                                "                    traceback.print_exc()",
+								"                    failures.append(filename + ' : ' + str(e))",
+								"        except ClientError as e:",
+								"            print('Failed to get artifact ' + key + '.')",
+								"            print(e.response)",
+								"            failures.append(key + ' : ' + str(e))",
+								"        except Exception as e:",
+                                "            print(e)",
+                                "            traceback.print_exc()",
+								"            failures.append(key + ' : ' + str(e))",
+								"    if not failures:",
+								"        put_job_success(job_id, 'Success')",
+								"    else:",
+								"        put_job_failure(job_id, 'Failed to extract or uploade:' + ', '.join(failures))",
+								"    print('Function complete')",
+								"    return 'Complete'",
+
+								"",
+								"def put_job_success(job, message):",
+								"    print('Putting job success')",
+								"    print(message)",
+								"    cp.put_job_success_result(jobId=job)",
+								"",
+								"def put_job_failure(job, message):",
+								"    print('Putting job failure')",
+								"    print(message)",
+								"    cp.put_job_failure_result(jobId=job, failureDetails={'message': message, 'type': 'JobFailed'})",
+								"",
+								"def setup_s3_client(job_data):",
+								"    #key_id = job_data['artifactCredentials']['accessKeyId']",
+                                "    #key_secret = job_data['artifactCredentials']['secretAccessKey']",
+                                "    #session_token = job_data['artifactCredentials']['sessionToken']",
+                                "    #session = Session(aws_access_key_id=key_id, aws_secret_access_key=key_secret, aws_session_token=session_token)",
+                                "    #return session.client('s3', config=botocore.client.Config(signature_version='s3v4'))",
+								"    return boto3.client('s3')",
+								"",
+								"def get_encryption_key_arn(job_data):",
+								"    return job_data['encryptionKey']['id']"
+							]
+						]
+					}
+				},
+				"FunctionName" : {
+				    "Fn::Sub" : "ArtifactExtractor"
+	            },
+				"Handler" : "index.handler",
+				"Runtime" : "python3.7",
+				"MemorySize" : 1024,
+				"Role" : {
+				    "Fn::GetAtt" : [ "LambdaExecutionRole", "Arn" ]
+				},
+				"TracingConfig" : {
+				    "Mode" : "Active"
+				}
+			}
+		},
+		"ArtifactExtractorFunctionPermission" : {
+		    "Type" : "AWS::Lambda::Permission",
+			"Properties" : {
+			    "Action" : "lambda:InvokeFunction",
+				"FunctionName" : {
+				    "Ref" : "ArtifactExtractorFunction"
+				},
+				"Principal" : {
+				    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWS-CodePipeline-ServiceRole"
+				}
+			}
+		},
+
+		"ArtifactReplicatorFunction" : {
+		    "Type" : "AWS::Lambda::Function",
+			"Properties" : {
+			    "Description" : "This function replicates each input artifact it receives to a bucket and key specified in the CodePipeline's step's UserParameters. Must specify \"bucket\" and \"key\" parameters.",
+			    "Code" : {
+				    "ZipFile" : {
+					    "Fn::Join" : [
+						    "\n",
+							[
+								"# This function replicates each input artifact it receives to a bucket and key specified in the CodePipeline's step's UserParameters. Must specify \"bucket\" and \"key\" parameters.",
+								"",
+							    "import boto3",
+								"import botocore",
+								"import sys",
+								"import zipfile",
+								"import traceback",
+								"import json",
+								"from boto3.session import Session",
+								"from io import BytesIO",
+								"from botocore.exceptions import ClientError",
+								"cp = boto3.client('codepipeline')",
+								"",
+							    "def handler(event, context):",
+								"    job_data = event['CodePipeline.job']['data']",
+								"    s3 = setup_s3_client(job_data)",
+								"    artifacts = job_data['inputArtifacts']",
+								"    failures = []",
+								"    job_id = event['CodePipeline.job']['id']",
+								"    config = json.loads(job_data['actionConfiguration']['configuration']['UserParameters'])",
+								"    if not config['bucket']:",
+								"        put_job_failure(job_id, 'UserParameters did not contain a bucket name')",
+								"    if not config['key']:",
+								"        put_job_failure(job_id, 'UserParameters did not contain an object key')",
+								"    item = artifacts[0]",
+								"    bucket = item['location']['s3Location']['bucketName']",
+								"    key = item['location']['s3Location']['objectKey']",
+								"    try:",
+								"        s3.copy_object(ACL='bucket-owner-full-control', Bucket=config['bucket'], Key=config['key'], CopySource={'Bucket':bucket, 'Key' : key}, ServerSideEncryption='aws:kms', SSEKMSKeyId=config['kms'])",
+								"    except ClientError as e:",
+								"        print('Failed to get artifact ' + key + '.')",
+								"        print(e.response)",
+								"        failures.append(key + ' : ' + str(e))",
+								"    except Exception as e:",
+                                "        print(e)",
+                                "        traceback.print_exc()",
+								"        failures.append(key + ' : ' + str(e))",
+								"    if not failures:",
+								"        put_job_success(job_id, 'Success')",
+								"    else:",
+								"        put_job_failure(job_id, 'Failed to extract or upload:' + ', '.join(failures))",
+
+								"",
+								"def put_job_success(job, message):",
+								"    print('Putting job success')",
+								"    print(message)",
+								"    cp.put_job_success_result(jobId=job)",
+								"    print('Function complete')",
+								"    return 'Complete'",
+								"",
+								"def put_job_failure(job, message):",
+								"    print('Putting job failure')",
+								"    print(message)",
+								"    cp.put_job_failure_result(jobId=job, failureDetails={'message': message, 'type': 'JobFailed'})",
+								"    print('Function complete')",
+								"    return 'Complete'",
+								"",
+								"def setup_s3_client(job_data):",
+								"    #key_id = job_data['artifactCredentials']['accessKeyId']",
+                                "    #key_secret = job_data['artifactCredentials']['secretAccessKey']",
+                                "    #session_token = job_data['artifactCredentials']['sessionToken']",
+                                "    #session = Session(aws_access_key_id=key_id, aws_secret_access_key=key_secret, aws_session_token=session_token)",
+                                "    #return session.client('s3', config=botocore.client.Config(signature_version='s3v4'))",
+								"    return boto3.client('s3')",
+								"",
+								"def get_encryption_key_arn(job_data):",
+								"    return job_data['encryptionKey']['id']"
+							]
+						]
+					}
+				},
+				"FunctionName" : "ArtifactReplicator",
+				"Handler" : "index.handler",
+				"Runtime" : "python3.7",
+				"MemorySize" : 1024,
+				"Role" : {
+				    "Fn::GetAtt" : [ "LambdaExecutionRole", "Arn" ]
+				},
+				"TracingConfig" : {
+				    "Mode" : "Active"
+				}
+			}
+		},
+		"ArtifactReplicatorFunctionPermission" : {
+		    "Type" : "AWS::Lambda::Permission",
+			"Properties" : {
+			    "Action" : "lambda:InvokeFunction",
+				"FunctionName" : {
+				    "Ref" : "ArtifactExtractorFunction"
+				},
+				"Principal" : {
+				    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWS-CodePipeline-ServiceRole"
+				}
+			}
+		},
+
+		"PipelineBlockerFunction" : {
+		    "Type" : "AWS::Lambda::Function",
+			"Properties" : {
+			    "Code" : {
+				    "ZipFile" : {
+					    "Fn::Join" : [
+						    "\n",
+							[
+								"# Causes the pipeline to wait for the time specified (in seconds) in the user parameters. Value must be between 0 and 899.",
+								"",
+							    "import time",
+								"import boto3",
+								"import botocore",
+							    "cp = boto3.client('codepipeline')",
+								"",
+							    "def handler(event, context):",
+								"    job_data = event['CodePipeline.job']['data']",
+								"    job_id = event['CodePipeline.job']['id']",
+								"    if 'UserParameters' not in job_data['actionConfiguration']['configuration'] or job_data['actionConfiguration']['configuration']['UserParameters'] is None:",
+								"        put_job_failure(job_id, 'A duration was not defined as the UserParameters field of this action.')",
+								"    duration = job_data['actionConfiguration']['configuration']['UserParameters']",
+								"    try:",
+								"        print('Sleeping for ' + duration + ' seconds.')",
+								"        time.sleep(int(duration))",
+								"        put_job_success(job_id, 'Success')",
+								"    except Exception as e:",
+								"        put_job_failure(job_id, 'Failed: ' + str(e))",
+
+								"",
+								"def put_job_success(job, message):",
+								"    print('Putting job success')",
+								"    print(message)",
+								"    cp.put_job_success_result(jobId=job)",
+								"    print('Function complete')",
+								"    return 'Complete'",
+								"",
+								"def put_job_failure(job, message):",
+								"    print('Putting job failure')",
+								"    print(message)",
+								"    cp.put_job_failure_result(jobId=job, failureDetails={'message': message, 'type': 'JobFailed'})",
+								"    print('Function complete')",
+								"    return 'Complete'"
+							]
+						]
+					}
+				},
+				"FunctionName" : "PipelineBlocker",
+				"Description" : "Causes the pipeline to wait for the time specified (in seconds) in the user parameters. Value must be between 0 and 899.",
+				"Handler" : "index.handler",
+				"Runtime" : "python3.7",
+				"MemorySize" : 512,
+				"Timeout" : 900,
+				"Role" : {
+				    "Fn::GetAtt" : [ "LambdaExecutionRole", "Arn" ]
+				},
+				"TracingConfig" : {
+				    "Mode" : "Active"
+				}
+			}
+		},
+		"PipelineBlockerFunctionPermission" : {
+		    "Type" : "AWS::Lambda::Permission",
+			"Properties" : {
+			    "Action" : "lambda:InvokeFunction",
+				"FunctionName" : {
+				    "Ref" : "PipelineBlockerFunction"
+				},
+				"Principal" : {
+				    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWS-CodePipeline-ServiceRole"
+				}
+			}
+		},
+
+		"BakeTimeStepFunction" : {
+		    "Type" : "AWS::StepFunctions::StateMachine",
+			"Properties" : {
+			    "Definition" : {
+				    "Comment" : "Provides a configurable bake time in between stages",
+					"StartAt" : "bake",
+					"States" : {
+				      "bake" : {
+					    "Type" : "Wait",
+					    "SecondsPath" : "$.duration",
+					    "Next" : "succeed"
+					  },
+					  "succeed" : {
+					    "Type" : "Succeed"
+					  }
+					}
+				},
+				"StateMachineName" : "BakeTime",
+				"StateMachineType" : "EXPRESS",
+				"RoleArn" : {
+				  "Fn::GetAtt" : [ "StepFunctionBakeTimeExecutionRole", "Arn" ]
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+	    "ArtifactReplicationServiceTrustedRoleArn" : {
+		    "Value" : {
+                "Fn::GetAtt" : [
+                    "LambdaExecutionRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the artifiact_replication_service in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "ArtifactReplicationServiceTrustedRoleArn"
+            }
+		}
+	}
+}

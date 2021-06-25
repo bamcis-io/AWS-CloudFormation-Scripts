@@ -1,0 +1,38 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "",
+
+	"Parameters" : {
+	  "Name" : {
+	     "Description" : "The name of the GitHub CodeStart connection",
+		 "Type" : "String"
+	  }
+	},
+
+	"Resources" : {
+	  "GithubConnection" : {
+		  "Type" : "AWS::CodeStarConnections::Connection",
+		  "Properties" : {
+		    "ConnectionName" : {
+			  "Ref" : "Name"
+			},
+			"ProviderType" : "GitHub"
+		  }
+		}
+	},
+
+	"Outputs" : {
+	  "ConnectionArn" : {
+	   "Description" : "The CodeStar connection ARN",
+	    "Value" : {
+		  "Ref" : "GithubConnection"
+		},
+		"Export" : {
+		 "Name" : {
+		   "Fn::Sub" : "${Name}-github-codestar-connection"
+		 }
+		}
+	  }
+	}
+}

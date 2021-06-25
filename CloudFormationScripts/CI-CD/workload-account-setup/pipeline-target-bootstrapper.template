@@ -1,0 +1,723 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "",
+
+	"Parameters" : {
+		"PipelineAccountTrustedRoleArn" : {
+		    "Description" : "The role in the pipeline account that is allowed to assume a role here to run CFN and CodeDeploy",
+			"Type" : "String",
+            "AllowedPattern" : "^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:iam::[0-9]{12}:role\/.*$",
+			"Default" : "arn:aws:iam::123456789012:role/service-role/AWS-CodePipeline-ServiceRole"
+		},
+        "CodeBuildAccountTrustedRoleArn" : {
+		    "Description" : "The role in the pipeline account that will move S3 objects to and from the artificat repository",
+			"Type" : "String",
+            "AllowedPattern" : "^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:iam::[0-9]{12}:role\/.*$",
+			"Default" : "arn:aws:iam::123456789012:role/service-role/AWS-CodeBuild-ServiceRole"
+		},
+        "ArtifactReplicationServiceTrustedRoleArn" : {
+		    "Description" : "The role in the pipeline account that is used to replicate and extract build artifacts.",
+			"Type" : "String",
+            "AllowedPattern" : "^arn:aws(?:-us-gov|-cn|-iso(?:-b)?)?:iam::[0-9]{12}:role\/.*$",
+			"Default" : "arn:aws:iam::123456789012:role/service-role/AWS-CodePipeline-BuildArtifactReplicationServiceRole"
+		}
+	},
+
+	"Resources" : {
+	    "DeploymentBucket" : {
+            "Type" : "AWS::S3::Bucket",
+            "Properties" : {
+                "BucketName" : {
+                    "Fn::Sub" : "codepipeline-${AWS::Partition}-${AWS::Region}-${AWS::AccountId}"
+                },
+                "LifecycleConfiguration" : {
+				    "Rules" : [
+						{
+						    "AbortIncompleteMultipartUpload" : {
+							    "DaysAfterInitiation" : 7
+							},
+							"Status" : "Enabled"
+						},
+						{
+						    "ExpirationInDays" : 7,
+							"Status" : "Enabled",
+							"Prefix" : "tmp/"
+						}
+					]
+				}
+            }
+        },
+        "CodePipelineArtifactStoreBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {    
+                "Bucket": {
+                    "Ref": "DeploymentBucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid" : "AllowPipelinesToDeployArtifacts",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                        "Ref" : "PipelineAccountTrustedRoleArn"
+                                    },
+                                    {
+                                        "Ref" : "ArtifactReplicationServiceTrustedRoleArn"
+                                    },
+                                    {
+                                        "Ref" : "CodeBuildAccountTrustedRoleArn"
+                                    }
+                                ]
+                            },
+                            "Action" : [
+                                "s3:PutObject",
+                                "s3:GetObject",
+                                "s3:GetObjectVersion"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "${DeploymentBucket.Arn}/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Sid" : "AllowArtifactReplicationServiceToUpdateArtifacts",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                        "Ref" : "ArtifactReplicationServiceTrustedRoleArn"
+                                    }
+                                ]
+                            },
+                            "Action" : [
+                                "s3:PutObjectAcl",
+                                "s3:GetObjectAcl"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "${DeploymentBucket.Arn}/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Sid" : "AllowBucketActions",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                     {
+                                        "Ref" : "ArtifactReplicationServiceTrustedRoleArn"
+                                     },
+                                     {
+                                        "Ref" : "PipelineAccountTrustedRoleArn"
+                                     },
+                                     {
+                                        "Ref" : "CodeBuildAccountTrustedRoleArn"
+                                    }
+                                ]
+                            },
+                            "Action" : [
+                                "s3:GetBucketAcl",
+                                "s3:GetBucketLocation",
+                                "s3:ListBucket"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "${DeploymentBucket.Arn}"
+                                }
+                            ]
+                        },
+                        {
+                            "Sid" : "AllowCodeBuildToPutAndDeleteTemporaryArtifacts",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                        "Ref" : "CodeBuildAccountTrustedRoleArn"
+                                    }
+                                ]
+                            },
+                            "Action" : [
+                                "s3:DeleteObject",
+                                "s3:PutObject",
+                                "s3:GetObject",
+                                "s3:GetObjectVersion"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "${DeploymentBucket.Arn}/tmp/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Sid": "DenyInsecureConnections",
+                            "Effect": "Deny",
+                            "Principal": "*",
+                            "Action": "s3:*",
+                            "Resource": {
+								"Fn::Sub" : "${DeploymentBucket.Arn}/*"                           
+                            },
+                            "Condition": {
+                                "Bool": {
+                                    "aws:SecureTransport": false
+                                }
+                            }
+                        },
+                        {
+                            "Sid": "DenyUnEncryptedObjectUploads",
+                            "Effect": "Deny",
+                            "Principal": "*",
+                            "Action": "s3:PutObject",
+                            "Resource": {
+								"Fn::Sub" : "${DeploymentBucket.Arn}/*"                           
+                            },
+                            "Condition": {
+                                "StringNotEquals": {
+		                            "s3:x-amz-server-side-encryption": "aws:kms"
+		                        }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+
+		"ArtifactEncryptionKey" : {
+            "Type" : "AWS::KMS::Key",
+            "Metadata" : {
+                "Comment" : "The KMS encryption key used for artifact encryption"
+            },
+            "Properties" : {
+                "Description" : "For server side artifact encryption",
+                "Enabled"     : "true",
+                "EnableKeyRotation" : "true",
+                "KeyPolicy"         : {
+                    "Version" : "2012-10-17",
+                    "Id"      : "key-default-1",
+                    "Statement" : [
+                        {
+                            "Sid" : "Enable IAM User Permissions",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                                }
+                            },
+                            "Action"    : "kms:*",
+                            "Resource"  : "*"
+                        },
+                        {
+                            "Sid" : "Allow access for Key Administrators",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                                }
+                            },
+                            "Action"    : [
+                                "kms:Create*",
+                                "kms:Describe*",
+                                "kms:Enable*",
+                                "kms:List*",
+                                "kms:Put*",
+                                "kms:Update*",
+                                "kms:Revoke*",
+                                "kms:Disable*",
+                                "kms:Get*",
+                                "kms:Delete*",
+                                "kms:ScheduleKeyDeletion",
+                                "kms:CancelKeyDeletion"
+                            ],
+                            "Resource"  : "*"
+                        },
+                        {
+                            "Sid" : "Allow use of the key",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                       "Ref" : "PipelineAccountTrustedRoleArn"
+                                    },
+                                    {
+                                       "Ref" : "CodeBuildAccountTrustedRoleArn"
+                                    },
+                                    {
+                                        "Ref" : "ArtifactReplicationServiceTrustedRoleArn"
+                                    }
+                                ]
+                            },
+                            "Action"    : [
+                                "kms:Encrypt",
+                                "kms:Decrypt",
+                                "kms:ReEncrypt*",
+                                "kms:GenerateDataKey*",
+                                "kms:DescribeKey"
+                            ],
+                            "Resource"  : "*"
+                        },
+                        {
+                            "Sid" : "Allow read-only use of the key",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "CodePipelineCloudFormationRole",
+                                            "Arn"
+                                        ]
+                                    },
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "CodePipelineS3DeployRole",
+                                            "Arn"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "Action"    : [
+                                "kms:Decrypt"
+                            ],
+                            "Resource"  : "*"
+                        },
+                        {
+                            "Sid" : "Allow attachment of persistent resources",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                        "Ref" : "PipelineAccountTrustedRoleArn"
+                                    }
+                                ]
+                            },
+                            "Action"    : [
+                                "kms:CreateGrant",
+                                "kms:ListGrants",
+                                "kms:RevokeGrant"
+                            ],
+                            "Resource"  : "*",
+                            "Condition" : {
+                                "Bool" : {
+                                    "kms:GrantIsForAWSResource" : "true"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+
+	    "CodePipelineCloudFormationRole" : {
+		    "Type" : "AWS::IAM::Role",
+			"Metadata" : {
+                "Comment" : "Role assumed by CodePipeline for interacting with CloudFormation"
+            },
+			"Properties" : {
+                "ManagedPolicyArns" : [
+                    {
+                        "Ref" : "CodePipelineCloudFormationManagedPolicy"
+                    }
+                ],
+                "Path" : "/service-role/",
+			    "AssumeRolePolicyDocument" : {
+				    "Version" : "2012-10-17",
+					"Statement" : [
+					    {
+						    "Effect": "Allow",
+							"Action" : "sts:AssumeRole",
+							"Principal" : {
+							    "AWS" : [
+								    {
+									    "Ref" : "PipelineAccountTrustedRoleArn"
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		},
+        "CodePipelineCloudFormationManagedPolicy" : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for CodePipeline to manage CloudFormation, CWE rules + read S3 artifacts",
+                "Path" : "/service-role/",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Action" : [
+                                "cloudformation:CreateChangeSet",
+                                "cloudformation:DeleteChangeSet",
+                                "cloudformation:DescribeChangeSet",
+                                "cloudformation:DescribeStacks",
+                                "cloudformation:DescribeStackEvents",
+                                "cloudformation:ExecuteChangeSet"
+                            ],
+                            "Effect" : "Allow",
+                            "Resource" : "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:GetBucketLocation"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:GetObject",
+                                "s3:GetObjectVersion",
+                                "s3:PutObject"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "iam:PassRole",
+                            "Resource" : {
+                                "Fn::GetAtt" : [
+                                    "CodePipelineCloudFormationChangeSetRole",
+                                    "Arn"
+                                ]
+                            },
+                            "Condition" : {
+                               "StringEqualsIfExists": {
+                                    "iam:PassedToService": [
+                                        "cloudformation.amazonaws.com"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+
+        "CodePipelineCloudFormationChangeSetRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Metadata" : {
+                "Comment" : "Role assumed by CloudFormation for mutating resources"
+            },
+            "Properties" : {
+                "Path" : "/service-role/",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "cloudformation.amazonaws.com"
+                            },
+                            "Action"    : "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "ManagedPolicyArns"        : [
+                    {
+                        "Ref" : "CodePipelineCloudFormationChangeSetManagedPolicy"
+                    }
+                ]
+            }
+        },
+        "CodePipelineCloudFormationChangeSetManagedPolicy" : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for CloudFormation to mutate resources.",
+                "Path" : "/service-role/",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "*",
+                            "Resource" : "*"
+                        }
+                    ]
+                }
+            }
+        },
+
+        "CodePipelineCodeDeployRole"                       : {
+            "Type" : "AWS::IAM::Role",
+            "Metadata" : {
+                "Comment" : "Role assumed by CodePipeline for interacting with CodeDeploy"
+            },
+            "Properties" : {
+                "Path" : "/service-role/",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+								    {
+									    "Ref" : "PipelineAccountTrustedRoleArn"
+									}
+								]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "CodePipelineCodeDeployManagedPolicy"              : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for CodePipeline to manage CodeDeploy, CWE rules + read S3 artifacts",
+                "Path" : "/service-role/",
+                "Roles" : [
+                    {
+                        "Ref" : "CodePipelineCodeDeployRole"
+                    }
+                ],
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Action" : [
+                                "events:*"
+                            ],
+                            "Effect" : "Allow",
+                            "Resource" : "*"
+                        },
+                        {
+                            "Action" : [
+                                "codedeploy:*"
+                            ],
+                            "Effect" : "Allow",
+                            "Resource" : "*"
+                        },
+                        {
+                            "Action" : [
+                                "sns:Publish"
+                            ],
+                            "Effect" : "Allow",
+                            "Resource" : "*"
+                        },
+                        {
+                            "Action" : [
+                                "cloudwatch:DescribeAlarms"
+                            ],
+                            "Effect" : "Allow",
+                            "Resource": "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:GetObject",
+                                "s3:GetObjectVersion"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:ListBucket"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "iam:PassRole",
+                            "Resource" : {
+                                "Fn::GetAtt" : [
+                                    "CodePipelineCodeDeployRole",
+                                    "Arn"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+
+        "CodePipelineS3DeployRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Metadata" : {
+                "Comment" : "Role assumed by CodePipeline for deploying to S3"
+            },
+            "Properties" : {
+                "Path" : "/service-role/",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+								    {
+									    "Ref" : "PipelineAccountTrustedRoleArn"
+									}
+								]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "CodePipelineS3DeployRoleManagedPolicy"              : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for CodePipeline to deploy to S3.",
+                "Path" : "/service-role/",
+                "Roles" : [
+                    {
+                        "Ref" : "CodePipelineS3DeployRole"
+                    }
+                ],
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                        
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:GetObject",
+                                "s3:GetObjectVersion"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:PutObject",
+                                "s3:PutObjectAcl"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::*/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:ListBucket"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::*"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+	},
+
+	"Outputs" : {
+        "SourceS3BucketName" : {
+            "Value" : {
+                "Ref" : "DeploymentBucket"
+            },
+            "Description" : "Use this as the source_s3_bucket and the PipelinesControlledRegionBucket in your cloud_formation_deployment_stack override."
+        },
+        "DeploymentBucket"        : {
+            "Value" : {
+                "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}"
+            },
+            "Export" : {
+                "Name" : "DeploymentBucket"
+            }
+        },
+        "KMSEncryptionKeyArn"     : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "ArtifactEncryptionKey",
+                    "Arn"
+                ]
+            },
+            "Export" : {
+                "Name" : "ArtifactEncryptionKey"
+            },
+            "Description" : "Use this as the kms_encryption_key_arn in your cloud_formation_deployment_stack."
+        },
+        "AssumableRoleArn"        : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "CodePipelineCloudFormationRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the assumable_role_arn in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "AssumableRoleArn"
+            }
+        },
+        "ChangeSetExecutionRoleArn"  : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "CodePipelineCloudFormationChangeSetRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the change_set_execution_role_arn in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "ChangeSetExecutionRoleArn"
+            }
+        },
+        "CodePipelineCodeDeployRoleArn" : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "CodePipelineCodeDeployRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the assumable_role_arn in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "CodePipelineCodeDeployRoleArn"
+            }
+        },
+        "CodePipelineS3DeployArn" : {
+          "Value" : {
+                "Fn::GetAtt" : [
+                    "CodePipelineS3DeployRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the s3_deployment_role_arn in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "CodePipelineS3DeployRoleArn"
+            }
+        },
+        "StackArn"                   : {
+            "Value" : {
+                "Ref" : "AWS::StackId"
+            },
+            "Description" : "Use this as the stack_arn in your cloud_formation_deployment_stack override."
+        }
+	}
+}
