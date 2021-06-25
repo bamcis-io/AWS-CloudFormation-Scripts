@@ -1,0 +1,1001 @@
+{
+    "Description" : "Created with LPT",
+    "Resources"   : {
+        "DeploymentBucket" : {
+            "Type" : "AWS::S3::Bucket",
+            "Properties" : {
+            }
+        },
+        "BATSLogGroup"     : {
+            "Type" : "AWS::Logs::LogGroup",
+            "Properties" : {
+                "RetentionInDays" : 365
+            }
+        },
+        "ArtifactEncryptionKey" : {
+            "Type" : "AWS::KMS::Key",
+            "Metadata" : {
+                "Comment" : "The KMS encryption key used for artifact encryption"
+            },
+            "Properties" : {
+                "Description" : "For server side artifact encryption",
+                "Enabled"     : "true",
+                "EnableKeyRotation" : "true",
+                "KeyPolicy"         : {
+                    "Version" : "2012-10-17",
+                    "Id"      : "key-default-1",
+                    "Statement" : [
+                        {
+                            "Sid" : "Enable IAM User Permissions",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                                }
+                            },
+                            "Action"    : "kms:*",
+                            "Resource"  : "*"
+                        },
+                        {
+                            "Sid" : "Allow access for Key Administrators",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                                }
+                            },
+                            "Action"    : [
+                                "kms:Create*",
+                                "kms:Describe*",
+                                "kms:Enable*",
+                                "kms:List*",
+                                "kms:Put*",
+                                "kms:Update*",
+                                "kms:Revoke*",
+                                "kms:Disable*",
+                                "kms:Get*",
+                                "kms:Delete*",
+                                "kms:ScheduleKeyDeletion",
+                                "kms:CancelKeyDeletion"
+                            ],
+                            "Resource"  : "*"
+                        },
+                        {
+                            "Sid" : "Allow use of the key",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "PipelinesBATSRole",
+                                            "Arn"
+                                        ]
+                                    },
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "PipelinesBARSRole",
+                                            "Arn"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "Action"    : [
+                                "kms:Encrypt",
+                                "kms:Decrypt",
+                                "kms:ReEncrypt*",
+                                "kms:GenerateDataKey*",
+                                "kms:DescribeKey"
+                            ],
+                            "Resource"  : "*"
+                        },
+                        {
+                            "Sid" : "Allow read-only use of the key",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "PipelinesCloudFormationRole",
+                                            "Arn"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "Action"    : [
+                                "kms:Decrypt"
+                            ],
+                            "Resource"  : "*"
+                        },
+                        {
+                            "Sid" : "Allow attachment of persistent resources",
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "AWS" : [
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "PipelinesBATSRole",
+                                            "Arn"
+                                        ]
+                                    },
+                                    {
+                                        "Fn::GetAtt" : [
+                                            "PipelinesBARSRole",
+                                            "Arn"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "Action"    : [
+                                "kms:CreateGrant",
+                                "kms:ListGrants",
+                                "kms:RevokeGrant"
+                            ],
+                            "Resource"  : "*",
+                            "Condition" : {
+                                "Bool" : {
+                                    "kms:GrantIsForAWSResource" : "true"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "PipelinesBARSRole"     : {
+            "Type" : "AWS::IAM::Role",
+            "Metadata" : {
+                "Comment" : "Role assumed by BARS for reading and writing from/to S3 bucket"
+            },
+            "Properties" : {
+                "ManagedPolicyArns" : [
+                    {
+                        "Ref" : "PipelinesBARSManagedPolicy"
+                    }
+                ],
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "bars.amazon.com"
+                                ]
+                            },
+                            "Action"    : "sts:AssumeRole",
+                            "Condition" : {
+                                "StringEquals" : {
+                                    "bars.amazon.com:service" : "CDService",
+                                    "bars.amazon.com:type"    : "Pipeline",
+                                    "bars.amazon.com:entity"  : [
+                                        "462301",
+                                        "462302",
+                                        "462303",
+                                        "462434",
+                                        "622022",
+                                        "623736",
+                                        "623761"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "PipelinesBARSManagedPolicy" : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for BARS to replicate S3 artifacts into and out of this region",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:Get*",
+                                "s3:List*",
+                                "s3:PutObject"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}/*"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "PipelinesCloudFormationRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Metadata" : {
+                "Comment" : "Role assumed by Pipelines for interacting with CloudFormation"
+            },
+            "Properties" : {
+                "ManagedPolicyArns" : [
+                    {
+                        "Ref" : "PipelinesCloudFormationManagedPolicy"
+                    }
+                ],
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "pipelines.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ],
+                            "Condition" : {
+                                "StringEquals" : {
+                                    "sts:ExternalId" : [
+                                        "462301",
+                                        "462302",
+                                        "462303",
+                                        "462434",
+                                        "622022",
+                                        "623736",
+                                        "623761"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "PipelinesCloudFormationManagedPolicy" : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for Pipelines to manage CloudFormation, CWE rules + read S3 artifacts",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Action" : [
+                                "cloudformation:CreateChangeSet",
+                                "cloudformation:DeleteChangeSet",
+                                "cloudformation:DescribeChangeSet",
+                                "cloudformation:DescribeStacks",
+                                "cloudformation:DescribeStackEvents",
+                                "cloudformation:ExecuteChangeSet"
+                            ],
+                            "Effect" : "Allow",
+                            "Resource" : "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:Get*",
+                                "s3:List*"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "iam:PassRole",
+                            "Resource" : {
+                                "Fn::GetAtt" : [
+                                    "PipelinesCloudFormationChangeSetRole",
+                                    "Arn"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "PipelinesBATSRole"                    : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "pipelines.amazonaws.com"
+                            },
+                            "Action"    : "sts:AssumeRole",
+                            "Condition" : {
+                                "StringEquals" : {
+                                    "sts:ExternalId" : [
+                                        "462301",
+                                        "462302",
+                                        "462303",
+                                        "462434",
+                                        "622022",
+                                        "623736",
+                                        "623761"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "bats.amazon.com"
+                            },
+                            "Action"    : "sts:AssumeRole",
+                            "Condition" : {
+                                "StringEquals" : {
+                                    "bats.amazon.com:service" : "CDService",
+                                    "bats.amazon.com:type"    : "Pipeline",
+                                    "bats.amazon.com:entity"  : [
+                                        "462301",
+                                        "462302",
+                                        "462303",
+                                        "462434",
+                                        "622022",
+                                        "623736",
+                                        "623761"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "bars.amazon.com"
+                            },
+                            "Action"    : "sts:AssumeRole",
+                            "Condition" : {
+                                "StringEquals" : {
+                                    "bars.amazon.com:service" : "CDService",
+                                    "bars.amazon.com:type"    : "Pipeline",
+                                    "bars.amazon.com:entity"  : [
+                                        "462301",
+                                        "462302",
+                                        "462303",
+                                        "462434",
+                                        "622022",
+                                        "623736",
+                                        "623761"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "ManagedPolicyArns"        : [
+                    {
+                        "Ref" : "PipelinesBATSManagedPolicy"
+                    }
+                ]
+            }
+        },
+        "PipelinesBATSManagedPolicy"           : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for BATS to create and get artifacts in your S3 bucket as well as publish logs to CloudWatchLogs.",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:PutObject",
+                                "s3:Get*",
+                                "s3:List*",
+                                "s3:Describe*"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}/*"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:CreateLogStream",
+                                "logs:List*",
+                                "logs:Describe*"
+                            ],
+                            "Resource" : "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:PutLogEvents"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:logs:*:*:log-group:*:log-stream:*"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "PipelinesCloudFormationChangeSetRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Metadata" : {
+                "Comment" : "Role assumed by CloudFormation for mutating resources"
+            },
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "cloudformation.amazonaws.com"
+                            },
+                            "Action"    : "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "ManagedPolicyArns"        : [
+                    {
+                        "Ref" : "PipelinesCloudFormationChangeSetManagedPolicy"
+                    }
+                ]
+            }
+        },
+        "PipelinesCloudFormationChangeSetManagedPolicy" : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for CloudFormation to mutate resources.",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "*",
+                            "Resource" : "*"
+                        }
+                    ]
+                }
+            }
+        },
+        "PipelinesCodeDeployRole"                       : {
+            "Type" : "AWS::IAM::Role",
+            "Metadata" : {
+                "Comment" : "Role assumed by Pipelines for interacting with CodeDeploy"
+            },
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "pipelines.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ],
+                            "Condition" : {
+                                "StringEquals" : {
+                                    "sts:ExternalId" : [
+                                        "462301",
+                                        "462302",
+                                        "462303",
+                                        "462434",
+                                        "622022",
+                                        "623736",
+                                        "623761"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "ChangeSetApproverRole"                         : {
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Statement" : [
+                        {
+                            "Action" : [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "bonescsa.aws.internal"
+                            }
+                        }
+                    ],
+                    "Version"   : "2012-10-17"
+                },
+                "Policies"                 : [
+                    {
+                        "PolicyDocument" : {
+                            "Statement" : [
+                                {
+                                    "Action" : [
+                                        "s3:CreateBucket",
+                                        "s3:DeleteBucket",
+                                        "s3:ListBucket"
+                                    ],
+                                    "Effect" : "Allow",
+                                    "Resource" : {
+                                        "Fn::Sub" : "arn:${AWS::Partition}:s3:::changesetapproval-*"
+                                    }
+                                },
+                                {
+                                    "Action" : [
+                                        "s3:GetObject",
+                                        "s3:PutObject",
+                                        "s3:DeleteObject"
+                                    ],
+                                    "Effect" : "Allow",
+                                    "Resource" : {
+                                        "Fn::Sub" : "arn:${AWS::Partition}:s3:::changesetapproval-*/*"
+                                    }
+                                },
+                                {
+                                    "Action" : [
+                                        "cloudformation:Describe*",
+                                        "cloudformation:GetTemplate"
+                                    ],
+                                    "Effect" : "Allow",
+                                    "Resource" : "*"
+                                },
+                                {
+                                    "Action" : [
+                                        "cloudformation:CreateChangeSet",
+                                        "cloudformation:DeleteChangeSet"
+                                    ],
+                                    "Effect" : "Allow",
+                                    "Resource" : "*"
+                                }
+                            ],
+                            "Version"   : "2012-10-17"
+                        },
+                        "PolicyName"     : "approverPolicies"
+                    }
+                ]
+            },
+            "Type"       : "AWS::IAM::Role"
+        },
+        "PipelinesCodeDeployManagedPolicy"              : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for Pipelines to manage CodeDeploy, CWE rules + read S3 artifacts",
+                "Roles"       : [
+                    {
+                        "Ref" : "PipelinesCodeDeployRole"
+                    }
+                ],
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Action" : [
+                                "events:*"
+                            ],
+                            "Effect" : "Allow",
+                            "Resource" : "*"
+                        },
+                        {
+                            "Action" : [
+                                "codedeploy:*"
+                            ],
+                            "Effect" : "Allow",
+                            "Resource" : "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:Get*",
+                                "s3:List*"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}/*"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "iam:PassRole",
+                            "Resource" : {
+                                "Fn::GetAtt" : [
+                                    "PipelinesCodeDeployRole",
+                                    "Arn"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "HydraTestBATSRole"                             : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "bats.amazon.com"
+                            },
+                            "Action"    : "sts:AssumeRole",
+                            "Condition" : {
+                                "StringEquals" : {
+                                    "bats.amazon.com:type" : "Hydra",
+                                    "bats.amazon.com:entity" : [
+                                        "462301",
+                                        "462302",
+                                        "462303",
+                                        "462434",
+                                        "622022",
+                                        "623736",
+                                        "623761"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "ManagedPolicyArns"        : [
+                    {
+                        "Ref" : "HydraTestBATSManagedPolicy"
+                    }
+                ]
+            }
+        },
+        "HydraTestBATSManagedPolicy"                    : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for Hydra/BATS to create and get artifacts in your S3 bucket as well as publish logs to CloudWatchLogs.",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:PutObject"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::codetest-${AWS::Region}-${AWS::AccountId}-do-not-delete/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:CreateLogStream",
+                                "logs:DescribeLogGroups",
+                                "logs:DescribeLogStreams",
+                                "logs:PutLogEvents"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*-BATSLogGroup*:*"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "HydraTestRole"                                 : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "codetest.aws.internal"
+                            },
+                            "Action"    : "sts:AssumeRole"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : "lambda.amazonaws.com"
+                            },
+                            "Action"    : "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "ManagedPolicyArns"        : [
+                    {
+                        "Ref" : "HydraTestManagedPolicy"
+                    }
+                ]
+            }
+        },
+        "HydraTestManagedPolicy"                        : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "Description" : "Policy for Hydra to create/manage Hydra related resources in your account.",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "s3:CreateBucket",
+                                "s3:GetObject",
+                                "s3:ListBucket"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::codetest-${AWS::Region}-${AWS::AccountId}-do-not-delete"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::codetest-${AWS::Region}-${AWS::AccountId}-do-not-delete/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "lambda:AddPermission",
+                                "lambda:GetFunctionConfiguration",
+                                "lambda:UpdateFunctionConfiguration",
+                                "lambda:UpdateFunctionCode",
+                                "lambda:CreateFunction",
+                                "lambda:DeleteFunction",
+                                "lambda:ListVersionsByFunction",
+                                "lambda:ListVersionsByFunction",
+                                "lambda:GetFunction",
+                                "lambda:Invoke*"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:CODETEST_*_*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "sns:Publish"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:sns:*:*:Setup_CustomerStackStatusTopic-*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "cloudformation:createStack",
+                                "cloudformation:updateStack",
+                                "cloudformation:describeStacks",
+                                "cloudformation:deleteStack"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/CodeTestEntities-*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "iam:PassRole"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:*"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:CodeTestEntities-*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:CreateLogGroup",
+                                "logs:DeleteLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents"
+                            ],
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "ec2:CreateNetworkInterface",
+                                "ec2:DescribeNetworkInterfaces",
+                                "ec2:DeleteNetworkInterface",
+                                "ec2:DescribeSecurityGroups",
+                                "ec2:DescribeSubnets",
+                                "ec2:DescribeVpcs"
+                            ],
+                            "Resource" : "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "gigahydrafrontend:*"
+                            ],
+                            "Resource" : "*"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "Outputs"     : {
+        "SourceS3BucketName" : {
+            "Value" : {
+                "Ref" : "DeploymentBucket"
+            },
+            "Description" : "Use this as the source_s3_bucket and the PipelinesControlledRegionBucket in your cloud_formation_deployment_stack override."
+        },
+        "DestinationS3BucketName" : {
+            "Value" : {
+                "Ref" : "DeploymentBucket"
+            },
+            "Description" : "Use this as the destination_s3_bucket in your bats_transformation override."
+        },
+        "DeploymentBucket"        : {
+            "Value" : {
+                "Fn::Sub" : "arn:${AWS::Partition}:s3:::${DeploymentBucket}"
+            },
+            "Export" : {
+                "Name" : "DeploymentBucket"
+            }
+        },
+        "CloudwatchLogGroupName"  : {
+            "Value" : {
+                "Ref" : "BATSLogGroup"
+            },
+            "Description" : "Use this as the cloudwatch_log_group_name in your bats_transformation override.",
+            "Export"      : {
+                "Name" : "CloudwatchLogGroupName"
+            }
+        },
+        "KMSEncryptionKeyArn"     : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "ArtifactEncryptionKey",
+                    "Arn"
+                ]
+            },
+            "Export" : {
+                "Name" : "ArtifactEncryptionKey"
+            },
+            "Description" : "Use this as the kms_encryption_key_arn in your cloud_formation_deployment_stack and bats_transformation overrides."
+        },
+        "SourceArtifactRoleArn"   : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "PipelinesBARSRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the source_artifact_role_arn in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "SourceArtifactRoleArn"
+            }
+        },
+        "AssumableRoleArn"        : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "PipelinesCloudFormationRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the assumable_role_arn in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "AssumableRoleArn"
+            }
+        },
+        "DestinationArtifactRoleArn" : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "PipelinesBATSRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the destination_artifact_role_arn in your bats_transformation override.",
+            "Export"      : {
+                "Name" : "DestinationArtifactRoleArn"
+            }
+        },
+        "ChangeSetExecutionRoleArn"  : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "PipelinesCloudFormationChangeSetRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the change_set_execution_role_arn in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "ChangeSetExecutionRoleArn"
+            }
+        },
+        "PipelinesCodeDeployRoleArn" : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "PipelinesCodeDeployRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the assumable_role_arn in your cloud_formation_deployment_stack override.",
+            "Export"      : {
+                "Name" : "PipelinesCodeDeployRoleArn"
+            }
+        },
+        "ChangeSetApproverRoleArn"   : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "ChangeSetApproverRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the assumable_role_arn for ChangeSetApprover."
+        },
+        "HydraTestBATSRoleArn"       : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "HydraTestBATSRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this as the BATS Role in your pipeline's hydra approval step.",
+            "Export"      : {
+                "Name" : "HydraTestBATSRoleArn"
+            }
+        },
+        "HydraTestRoleArn"           : {
+            "Value" : {
+                "Fn::GetAtt" : [
+                    "HydraTestRole",
+                    "Arn"
+                ]
+            },
+            "Description" : "Use this role to interact with Hydra",
+            "Export"      : {
+                "Name" : "HydraTestRoleArn"
+            }
+        },
+        "StackArn"                   : {
+            "Value" : {
+                "Ref" : "AWS::StackId"
+            },
+            "Description" : "Use this as the stack_arn in your cloud_formation_deployment_stack override."
+        }
+    }
+}

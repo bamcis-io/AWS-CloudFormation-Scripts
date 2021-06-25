@@ -1,0 +1,182 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Deploys an EC2 instance",
+    "Parameters"               : {
+        "NetworkingStackId" : {
+            "Type" : "String"
+        },
+        "BucketStackId"     : {
+            "Type" : "String"
+        },
+        "InstanceType"      : {
+            "Type" : "String",
+            "AllowedValues" : [
+                "t4g.small"
+            ],
+            "Default"       : "t4g.small"
+        },
+        "LatestAmiId"       : {
+            "Type" : "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+            "Default" : "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2"
+        }
+    },
+    "Resources"                : {
+        "InstanceRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Action" : "sts:AssumeRole",
+                            "Principal" : {
+                                "Service" : [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Effect"    : "Allow"
+                        }
+                    ]
+                }
+            }
+        },
+        "InstancePolicy" : {
+            "Type" : "AWS::IAM::ManagedPolicy",
+            "Properties" : {
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "s3:*",
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : [
+                                        "arn:${AWS::Partition}:s3:::${BucketName}",
+                                        {
+                                            "BucketName" : {
+                                                "Fn::ImportValue" : {
+                                                    "Fn::Sub" : "${BucketStackId}-BucketName"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Fn::Sub" : [
+                                        "arn:${AWS::Partition}:s3:::${BucketName}/*",
+                                        {
+                                            "BucketName" : {
+                                                "Fn::ImportValue" : {
+                                                    "Fn::Sub" : "${BucketStackId}-BucketName"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "ssm:*",
+                            "Resource" : "*"
+                        },
+                        {
+                            "Effect" : "Allow",
+                            "Action" : "s3:GetObject",
+                            "Resource" : [
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::aws-ssm-${AWS::Region}/*"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::aws-windows-downloads-${AWS::Region}/*"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::amazon-ssm-${AWS::Region}/*"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::amazon-ssm-packages-${AWS::Region}/*"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3::${AWS::Region}-birdwatcher-prod/*"
+                                },
+                                {
+                                    "Fn::Sub" : "arn:${AWS::Partition}:s3:::patch-baseline-snapshot-${AWS::Region}/*"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "InstanceRole"
+                    }
+                ]
+            }
+        },
+        "InstanceProfile" : {
+            "Type" : "AWS::IAM::InstanceProfile",
+            "Properties" : {
+                "Roles" : [
+                    {
+                        "Ref" : "InstanceRole"
+                    }
+                ]
+            }
+        },
+        "SecurityGroup"   : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "VpcId" : {
+                    "Fn::ImportValue" : {
+                        "Fn::Sub" : "${NetworkingStackId}-VpcId"
+                    }
+                }
+            }
+        },
+        "Instance"        : {
+            "Type" : "AWS::EC2::Instance",
+            "Properties" : {
+                "ImageId" : {
+                    "Ref" : "LatestAmiId"
+                },
+                "InstanceType" : {
+                    "Ref" : "InstanceType"
+                },
+                "IamInstanceProfile" : {
+                    "Ref" : "InstanceProfile"
+                },
+                "SecurityGroupIds"   : [
+                    {
+                        "Fn::GetAtt" : [
+                            "SecurityGroup",
+                            "GroupId"
+                        ]
+                    }
+                ]
+            },
+            "DependsOn"  : [
+                "InstancePolicy"
+            ]
+        },
+        "SSMAgentUpdate"  : {
+            "Type" : "AWS::SSM::Association",
+            "Properties" : {
+                "Name" : "AWS-UpdateSSMAgent",
+                "Targets" : [
+                    {
+                        "Key" : "InstanceIds",
+                        "Values" : [
+                            {
+                                "Ref" : "Instance"
+                            }
+                        ]
+                    }
+                ],
+                "WaitForSuccessTimeoutSeconds" : 300
+            }
+        }
+    },
+    "Outputs"                  : {
+    }
+}

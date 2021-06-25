@@ -1345,6 +1345,54 @@
                 ]
             }
         },		
+        "ElasticIp6"                             : {
+            "Type" : "AWS::EC2::EIP",
+			"Condition" : "Create6AZs",
+            "Properties" : {
+                "Domain" : "vpc"
+            }
+        },
+        "NATGateway6"                            : {
+            "Type" : "AWS::EC2::NatGateway",
+			"Condition" : "Create6AZs",
+            "Properties" : {
+                "AllocationId" : {
+                    "Fn::GetAtt" : [
+                        "ElasticIp6",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId"     : {
+                    "Ref" : "AZ6PublicSubnet1"
+                },
+				"Tags"                        : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+							"Fn::Sub" : "${ApplicationTag}-${AZ6PublicSubnet1.AvailabilityZone}-NGW-${EnvironmentTag}"							
+                        }
+                    },
+                    {
+                        "Key" : "Environment",
+                        "Value" : {
+                            "Ref" : "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "ApplicationTag"
+                        }
+                    },
+                    {
+                        "Key" : "Organization",
+                        "Value" : {
+                            "Ref" : "OrganizationTag"
+                        }
+                    }
+                ]
+            }
+        },	
 
 		"PrivateRouteTable1" : {
             "Type" : "AWS::EC2::RouteTable",
